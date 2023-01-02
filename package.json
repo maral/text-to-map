@@ -1,0 +1,32 @@
+{
+  "type": "module",
+  "dependencies": {
+    "@arodax/jtsk2wgs84": "^1.0.2",
+    "adm-zip": "^0.5.9",
+    "better-sqlite3": "^8.0.1",
+    "csv-parse": "^5.3.3",
+    "feedparser": "^2.2.10",
+    "iconv-lite": "^0.6.3",
+    "jtsk2wgs84": "^1.0.0",
+    "node-fetch": "^3.3.0",
+    "sax": "^1.2.4",
+    "superagent": "^8.0.6",
+    "typescript": "^4.9.4"
+  },
+  "devDependencies": {
+    "@jest/globals": "^29.3.1",
+    "@types/adm-zip": "^0.5.0",
+    "@types/better-sqlite3": "^7.6.3",
+    "@types/feedparser": "^2.2.5",
+    "@types/node": "^18.11.17",
+    "@types/superagent": "^4.1.16",
+    "jest": "^29.3.1",
+    "ts-jest": "^29.0.3",
+    "ts-node": "^10.9.1"
+  },
+  "scripts": {
+    "address-points": "ts-node --experimental-specifier-resolution=node --esm src/open-data-sync/address-points.ts",
+    "schools": "ts-node --experimental-specifier-resolution=node --esm src/open-data-sync/schools.ts",
+    "test": "jest"
+  }
+}

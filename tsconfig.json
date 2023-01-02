@@ -1,0 +1,20 @@
+{
+  "ts-node": {
+    "experimentalSpecifierResolution": "node",
+    "esm": true,
+  },
+  "compilerOptions": {
+    "outDir": "./built",
+    "allowJs": true,
+    "module": "es6",
+    "moduleResolution": "Node",
+    "target": "ES6",
+    "allowSyntheticDefaultImports": true,
+    "esModuleInterop": true,
+    "typeRoots": [
+      "src/@types",
+      "node_modules/@types"
+    ],
+  },
+  "include": ["./src/**/*"],
+}
