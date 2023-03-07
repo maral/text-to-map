@@ -1,13 +1,12 @@
 import FeedParser from "feedparser";
 import fetch from "node-fetch";
-import request from "superagent";
-import { createWriteStream, readdir, createReadStream, rmSync } from "fs";
+import { createWriteStream, createReadStream, rmSync, readdirSync } from "fs";
+import { pipeline } from "stream/promises";
 import { join } from "path";
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse";
 import iconv from "iconv-lite";
 
-import { tmpdir } from "os";
 import {
   commitAddressPoints,
   importParsedLine,
@@ -19,34 +18,23 @@ import {
   prepareOptions,
 } from "../utils/helpers";
 
-const getLatestUrlFromAtomFeed = (
-  atomFeedUrl: string,
-  onSuccess?: (url: string) => void
-) => {
-  const req = fetch(atomFeedUrl);
+const getLatestUrlFromAtomFeed = async (
+  atomFeedUrl: string
+): Promise<string> => {
+  const response = await fetch(atomFeedUrl);
   const feedparser = new FeedParser({});
+  let link = null;
 
-  req.then(
-    (res) => {
-      if (res.status !== 200) {
-        throw new Error(
-          `The Atom feed from atom.cuzk.cz not working. HTTP status ${res.status}`
-        );
-      } else {
-        res.body.pipe(feedparser);
-      }
-    },
-    (err) => {
-      reportError(err);
-      return;
-    }
-  );
+  if (response.status !== 200) {
+    throw new Error(
+      `The Atom feed from atom.cuzk.cz not working. HTTP status ${response.status}`
+    );
+  }
 
   feedparser.on("error", (error) => {
     throw new Error(`The Atom feed from atom.cuzk.cz could not be loaded.`);
   });
 
-  let link = null;
   feedparser.on("readable", function () {
     let item: FeedParser.Item;
 
@@ -60,120 +48,99 @@ const getLatestUrlFromAtomFeed = (
     }
   });
 
-  feedparser.on("end", () => {
-    if (link != null) {
-      onSuccess(link);
-    } else {
-      reportError("Could not find any dataset feed link.");
-    }
-  });
-};
+  await pipeline(response.body, feedparser);
 
-const downloadAndUnzip = (
-  url: string,
-  options: OpenDataSyncOptionsNotEmpty,
-  onSuccess?: () => void
-) => {
-  const zipFilePath = join(options.tmpDir, options.addressPointsZipFileName);
-
-  console.log("downloading a large ZIP file with RUIAN data...");
-  request
-    .get(url)
-    .on("error", function (error) {
-      reportError(error);
-    })
-    .pipe(createWriteStream(zipFilePath))
-    .on("finish", function () {
-      console.log("finished downloading");
-      const zip = new AdmZip(zipFilePath);
-      console.log("starting unzip");
-      zip.extractAllTo(options.tmpDir, true);
-      console.log("finished unzip");
-      rmSync(zipFilePath);
-      console.log("removed the ZIP file");
-
-      if (typeof onSuccess !== "undefined") {
-        onSuccess();
-      }
-    });
-};
-
-const reportError = (error: any) => {
-  if (error.hasOwnProperty("stack")) {
-    console.log(error, error.stack);
+  if (link != null) {
+    return link;
   } else {
-    console.log(error);
+    throw new Error("Could not find any dataset feed link.");
   }
 };
 
-const importDataToDb = (
-  options: OpenDataSyncOptionsNotEmpty,
-  onSuccess?: () => void
-) => {
+const downloadAndUnzip = async (
+  url: string,
+  options: OpenDataSyncOptionsNotEmpty
+): Promise<void> => {
+  const zipFilePath = join(options.tmpDir, options.addressPointsZipFileName);
+
+  console.log("Downloading a large ZIP file with RUIAN data (~65 MB)...");
+  const response = await fetch(url);
+  if (response.status !== 200) {
+    throw new Error(
+      `The ZIP file could not be downloaded. HTTP Code: ${response.status}`
+    );
+  }
+  await pipeline(response.body, createWriteStream(zipFilePath));
+
+  console.log("Finished downloading.");
+  const zip = new AdmZip(zipFilePath);
+
+  console.log(`Starting to unzip CSV files to '${options.tmpDir}'`);
+  zip.extractAllTo(options.tmpDir, true);
+  console.log("Unzip completed.");
+
+  rmSync(zipFilePath);
+  console.log("Removed the ZIP file.");
+};
+
+const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
   const extractionFolder = getExtractionFolder(options);
 
-  readdir(extractionFolder, (error, files) => {
-    if (error) {
-      reportError(error);
-      return;
-    }
+  const files = readdirSync(extractionFolder);
 
-    let total = 0;
-    let next = 0;
+  let total = 0;
+  let next = 0;
 
-    console.log("Initiating import of RUIAN data to search DB.");
-    setDbConfig({
-      filePath: options.dbFilePath,
-      initFilePath: options.dbInitFilePath,
-    });
-    const promises = files.map(
-      (file) =>
-        new Promise<void>((resolve, reject) => {
-          createReadStream(join(extractionFolder, file))
-            .pipe(iconv.decodeStream("win1250"))
-            .pipe(parse({ delimiter: ";", fromLine: 2 }))
-            .on("data", (data) => {
-              total += importParsedLine(data);
-              if (total - next >= 100000) {
-                next += 100000;
-                console.log(`Total imported rows: ${next}`);
-              }
-            })
-            .on("error", reportError)
-            .on("end", function () {
-              total += commitAddressPoints();
-              resolve();
-            });
-        })
+  console.log(
+    "Initiating import of RUIAN data to search DB (~3 million rows to be imported)."
+  );
+
+  setDbConfig({
+    filePath: options.dbFilePath,
+    initFilePath: options.dbInitFilePath,
+  });
+
+  for (const file of files) {
+    const parseStream = parse({ delimiter: ";", fromLine: 2 }).on(
+      "data",
+      (data) => {
+        total += importParsedLine(data);
+        if (total - next >= 100000) {
+          next += 100000;
+          console.log(`Total imported rows: ${next}`);
+        }
+      }
     );
 
-    Promise.all(promises).then(() => {
-      console.log(`Import completed. Total imported rows: ${total}`);
-      if (typeof onSuccess !== "undefined") {
-        onSuccess();
-      }
-    });
-  });
+    await pipeline(
+      createReadStream(join(extractionFolder, file)),
+      iconv.decodeStream("win1250"),
+      parseStream
+    );
+    total += commitAddressPoints();
+  }
+
+  console.log(`Import completed. Total imported rows: ${total}`);
 };
 
 const getExtractionFolder = (options: OpenDataSyncOptionsNotEmpty) =>
   join(options.tmpDir, options.addressPointsCsvFolderName);
 
-export const downloadAndImportAllLatestAddressPoints = (
-  options: OpenDataSyncOptions,
-  onSuccess?: () => void
-) => {
+export const downloadAndImportAllLatestAddressPoints = async (
+  options: OpenDataSyncOptions
+): Promise<void> => {
   const completeOptions = prepareOptions(options);
-  getLatestUrlFromAtomFeed(
-    completeOptions.addressPointsAtomUrl,
-    (datasetFeedLink) => {
-      getLatestUrlFromAtomFeed(datasetFeedLink, (url) => {
-        downloadAndUnzip(url, completeOptions, () => {
-          importDataToDb(completeOptions, onSuccess);
-        });
-      });
-    }
+  const datasetFeedLink = await getLatestUrlFromAtomFeed(
+    completeOptions.addressPointsAtomUrl
   );
+  const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
+  await downloadAndUnzip(zipUrl, completeOptions);
+  await importDataToDb(completeOptions);
 };
 
-downloadAndImportAllLatestAddressPoints({});
+export const importOnly = async (
+  options: OpenDataSyncOptions
+): Promise<void> => {
+  const completeOptions = prepareOptions(options);
+  await importDataToDb(completeOptions);
+};

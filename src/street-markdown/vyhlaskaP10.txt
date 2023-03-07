@@ -1,0 +1,540 @@
+﻿# Městská část Praha 10 
+Základní škola Eden, Praha 10, Vladivostocká 1035/6, příspěvková organizace
+Amurská
+Bohdalecká
+Brtnická
+Elektrárenská
+Gruzínská - č. 1 - 8
+Chodovská
+Jerevanská - č. 1 - 10
+K topírně
+Karpatská - č. 1 - 10
+Kišiněvská - č. 1 - 10
+Kubánské náměstí - č. 12 a výše
+Lvovská
+Modletínská
+Moskevská - č. 92
+Na Bohdalci
+Na hroudě - lichá č. 1 - 23
+Na křivce
+Na pahorku
+Na slatinách
+Na stezce
+Na Sychrově
+Na vrších
+Nad elektrárnou
+Nad Slávií
+Nad Vinným potokem
+Nad Vršovskou horou
+Novobohdalecká
+Osnická
+Pod Bohdalcem I
+Pod Bohdalcem II
+Pod Sychrovem I
+Pod Sychrovem II
+Popovická
+Sedmidomky
+Svahová
+Štiřínská
+Tachlovická
+U plynárny
+U Slavie
+U vršovického hřbitova
+V dolině
+V olšinách - sudá č. 2 - 26
+Vladivostocká
+Vršovická - sudá č. 70 a výše
+Výstupní
+Za Sedmidomky
+
+Základní škola Karla Čapka, Praha 10, Kodaňská 658/16, příspěvková organizace
+Bulharská - č. 1 - 25
+Dykova
+Estonská
+Finská
+Heroldovy sady
+Holandská
+Hradešínská - č. 2 - 56 a č. 1 - 61
+Chorvatská
+Kodaňská - lichá č. 1 - 63, sudá č. 2 - 32
+Korunní - č. 1 - 107, č. 109 a výše
+Madridská
+Mexická
+Moskevská - sudá č. 2 - 64, lichá č. 1 - 57
+Na Šafránce
+náměstí Svatopluka Čecha - č. 1 - 6
+Nitranská
+Norská
+Ruská - sudá č. 2 - 58, lichá č. 1 - 43
+Říčanská
+Řipská - č. 1 - 7
+Slovenská
+Slovinská
+Sobotecká
+Žitomírská - č. 15 a výše 
+
+Základní škola Solidarita, Praha 10, Brigádníků 510/14, příspěvková organizace
+Bečvářova
+Brigádníků
+Černokostelecká - sudá č.
+Dětská
+Dvouletky
+K Rybníčkům - č. 28 a výše
+Kralická
+Nad Primaskou - lichá č. 31 a výše, sudá č. 22 a výše
+Nosická - č. 18 a výše
+Novostrašnická
+Pod hotelem
+Podle trati
+Průmyslová
+Saratovská
+Sazečská
+Služeb
+Solidarity
+Starostrašnická
+Škvorecká
+Teplárenská
+Tiskařská
+Třebohostická
+Turnovského
+U hřiště
+U kombinátu
+U Stavoservisu
+V olšinách - sudá č. 110 - 122
+Věšínova
+Za poštou 
+
+Základní škola, Praha 10, Břečťanová 2919/6, příspěvková organizace
+Aubrechtové
+Bramboříková
+Broskvoňová
+Břečťanová
+Dolní Chaloupky
+Ellnerové
+Ginzova
+Hlohová
+Holubkova
+Horní Chaloupky
+Hrušňová
+Hyacintová
+Chmelová
+Jabloňová - lichá č. 1 - 53, sudá č. 2 - 82
+Jesenická
+Jetelová
+Jižní spojka
+K Chaloupkám
+K prádelně
+K vodě
+Ke skalkám
+Ke Spořilovu
+Mečíková
+Meruňková
+Milínská
+Na Botiči
+Na lávce
+Na Slatince
+Na vinobraní
+Nad Chaloupkami
+Nad Trnkovem
+Ostružinová - lichá č.
+Oty Pavla
+Podle náhonu
+Pöslova
+Před Skalkami I
+Před Skalkami II
+Přespolní
+Ryšánkova
+Slívová
+Sněženková - sudá č.
+Střemchová
+U splavu
+U vinné révy
+U záběhlického zámku
+U Zahradního města
+U zákrutu
+V Korytech
+V ochozu
+Ve slatinách
+Vinšova
+Za návsí
+Za potokem
+Za slatinami
+Záběhlická
+Žirovnická
+
+Základní škola, Praha 10, Gutova 1987/39, příspěvková organizace
+Benická
+Bylanská
+Čestlická
+Dubečská - č. 1 - 9 
+Gutova
+Hvozdnická
+K Rybníčkům - č. 1 - 26
+Ke Strašnické
+Kolovratská
+Korytná
+Krátká - sudá č. 15 a výše a sudá č. 12 a výše
+Kruhová
+Krupská
+Litochlebská
+Malá Bylanská
+Molitorovská
+Mrštíkova
+Na hroudě - sudá č., lichá č. 25 a výše
+Na spádu
+Nad Primaskou - lichá č. 1 - 29, sudá č. 2 - 20
+Nosická - č. 10 - 16
+Nučická
+Nupacká
+Petrovická
+Pitkovická
+Pod altánem
+Průběžná
+Průhonická
+Radošovická
+Srbínská
+Strančická
+Svojetická
+Šeberovská
+U hranic
+U hráze
+U nových vil
+U Trati
+U Vesny
+Újezdská
+V olšinách - sudá č. 28 - 108, lichá č. 43 - 69
+V Předpolí - č. 1 - 20
+V zátočce
+Vilová
+Voděradská
+Železniční
+
+Základní škola, Praha 10, Hostýnská 2100/2, příspěvková organizace
+Běchovická
+Blatovská
+Břežanská
+Černická
+Černokostelecká - lichá č.
+Hostýnská - lichá č., sudá č. 2 - 10, 16 a výše
+Hřibská
+Izraelská
+Janýrova
+Kounická
+Limuzská
+Malínská
+Na palouku
+Na vinici
+Na výsluní
+Nad úžlabinou
+Názovská
+Ovčárská
+Plaňanská
+Počernická - sudá č.
+Pod strašnickou vinicí
+Přistoupimská
+Révová
+Rostoklatská
+Tejnická
+Tismická
+Tuchorazská
+Tuklatská
+U vozovny
+V úžlabině
+Ve stínu
+Vinohradská
+Vrátkovská
+Vrbčanská
+Vykáňská 
+
+Základní škola, Praha 10, Jakutská 1210/2, příspěvková organizace
+Bajkalská
+Bělocerkevská - sudá č.
+Benešovská
+Bratří Čapků
+Čeljabinská
+Dukelská
+Gruzínská - č. 9 - 20
+Hradešínská - sudá č. 58 a výše, lichá č. 63 a výše
+Irkutská
+Jakutská
+Jerevanská - č. 12 - 16
+Karpatská - č. 11 a výše
+Korunní - č. 108
+Krasnojarská
+Krátká - lichá č. 1 - 13 a sudá č. 2 - 10
+Kubánské náměstí - č. 1 - 11
+Kišiněvská - č. 11 a výše
+Litevská
+Murmanská
+Nad olšinami
+Nad Primaskou - č. 1a, 1b, 1c
+Omská
+Pod Rapidem
+Ruská - sudá č. 114 a výše
+Šrobárova
+Tulská
+U zdravotního ústavu
+Užocká
+V olšinách - lichá č. 1 - 41
+V předpolí - č. 21 a výše
+Vlašimská
+Volyňská
+Vršovická - lichá č. 69 a výše
+Za strašnickou vozovnou
+
+Základní škola, Praha 10, Nad Vodovodem 460/81, příspěvková organizace
+Akademická
+Bacháčkova
+Bakalářská
+Božecká
+Bydžovského
+Cerhenická
+Dřevčická
+Dubského
+Gollova
+Heldova
+Hostýnská - č. 12 a 14
+Chládkova
+Chotouňská
+Chotutická
+Janderova
+K Červenému dvoru
+Kampanova
+Kaňkova
+Káranská
+Kodicilova
+Kolonie u obecní cihelny
+Lipecká
+Malešická
+Malešické náměstí
+Marciho
+Mistrovská
+Mölzerova
+Na Třebešíně
+Na universitním statku
+Na úseku
+Nad kapličkou
+Nad Třebešínem I
+Nad Třebešínem II
+Nad Třebešínem III
+Nad Vodovodem
+Niederleho
+Okrajní
+Počernická - lichá č.
+Pod kapličkou
+Pod Třebešínem
+Pod Viktorkou
+Polygrafická
+Prorektorská
+Rektorská
+Skřivanská
+Slunečná
+Strnadova
+Tomsova
+Troilova
+U krbu
+U tvrze
+Ungarova
+Univerzitní
+Útulná
+Vydrova
+Za stadionem
+Za Třebešínem
+Zálužanského
+
+Základní škola, Praha 10, Olešská 2222/18, příspěvková organizace
+Aldašínská
+Běžná
+Bolinská
+Čelná
+Do vršku
+Dolínecká
+Doubravčická
+Dubečská - sudá č. 12 a výše, lichá č. 23 a výše
+Dürerova
+Goyova
+Hájecká
+Jevanská
+K háječku
+Konojedská
+Karafiátová - lichá č. 1 - 21 a sudá č. 2 - 48
+Královická
+Křenická
+Mokřanská
+Mukařovská
+Na padesátém
+Na výhledech
+náměstí Mezi zahrádkami - č. 1 - 12
+Narcisová
+Nedvězská
+Olešská
+Ostružinová - sudá č. 40 a výše
+Pampelišková
+Pivoňková - sudá č. 18 - 74 a lichá č. 53 - 59
+Plošná
+Podléšková - lichá č. 13 - 59 a sudá č. 2 - 22
+Pomněnková - lichá č. 11 - 59 a sudá č. 10 - 44
+Prusická
+Přetlucká
+Rembrandtova
+Rozmarýnová
+Rubensova
+Slunečnicová
+Sluštická
+Strašínská
+Středová
+Světická
+Šalvějová
+Štíhlická
+Tehovská
+Tulipánová
+Uhříněveská
+Vyžlovská
+Želivecká
+Žernovská 
+
+Základní škola, Praha 10, Švehlova 2900/12, příspěvková organizace
+Fialková
+Harlacherova
+Hledíková
+Hvozdíková
+Chrpová
+Jabloňová - lichá č. 55 a výše, sudá č. 84 a výše 
+Jahodová
+Jasmínová
+Jiříčkové
+Jiřinková
+Kalinová
+Kamelova
+Kapraďová
+Karafiátová - sudá č. 50 a výše 
+Konvalinková
+Kopretinová
+Kosatcová
+Leknínová
+Macešková
+Malinová
+Mateřídoušková
+Mattioliho
+Mikanova
+Mládežnická
+Nad meandry
+náměstí Mezi zahrádkami - č. 13 - 23
+Ostružinová - sudá č. 2 - 38
+Petrklíčová
+Pivoňková - sudá č. 76 a výše a lichá č. 61 a výše
+Platanová
+Podléšková - lichá č. 61 a výše a č. 24 
+Pomněnková - č. 61 a č. 63 a sudá č. 46 a výše 
+Práčská
+Přesličková
+Rybízová
+Sasanková
+Sněženková - lichá č.
+Strašnická
+Šafránová
+Škábova
+Švehlova
+Topolová
+Velenovského
+Zvonková 
+
+Základní škola, Praha 10, U Roháčových kasáren 1381/19, příspěvková organizace
+28. pluku
+Altajská
+Archangelská
+Arménská
+Baškirská
+Bělocerkevská - lichá č.
+Bulharská - č. 26 a výše
+K louži
+Kavkazská
+Kazašská
+Kodaňská - lichá č. 65 a výše, sudá č. 34 a výše
+Konopišťská
+Magnitogorská
+Moldavská
+Moskevská - sudá č. 66 - 86, lichá č. 59 - 67
+Na Míčánkách
+Na zájezdu
+náměstí Svatopluka Čecha - č. 7 a výše
+Novorossijská
+Pod soutratím
+Přípotoční - lichá č. 19 a výše, sudá č. 10 a výše
+Ruská - sudá č. 60 - 112, lichá č. 45 - 83
+Tádžická
+Taškentská
+Tolstého
+Turkmenská
+U Roháčových kasáren
+Uzbecká
+Vršovická - sudá č. 56 - 68, lichá č. 39 - 65
+
+Základní škola, Praha 10, U Vršovického nádraží 950/1, příspěvková organizace
+Bartoškova
+Borodinská
+Černomořská
+Donská
+Francouzská
+Charkovská
+K Botiči
+Košická
+Kozácká
+Krymská
+Křeslická
+Lopuchová
+Máchova
+Minská	
+Na kovárně
+Na Královce
+Na louži
+Na spojce
+Na stráni
+Novgorodská
+Oblouková
+Orelská
+Petrohradská
+Pod stupni
+Přípotoční - lichá č. 1 - 17, sudá č. 2 - 8
+Rostovská
+Rybalkova
+Sámova
+Sevastopolská
+Smolenská
+Sportovní
+U seřadiště
+U vršovického nádraží
+Ukrajinská
+Voroněžská
+Vršovická - sudá č. 2 - 54, lichá č. 1 - 37
+Vršovické náměstí
+Žitomírská - č. 1 - 14 
+
+Základní škola, Praha 10, V Rybníčkách 1980/31, příspěvková organizace
+Dobročovická
+Donatellova
+Dubečská - lichá č. 11 - 21
+Flájská
+Foerstrova
+Kolodějská
+Kružberská
+Květnická
+Michelangelova
+Mirošovická
+Na polníku
+Ondřejovská
+Oravská
+Pelyňková
+Pod strání
+Raffaelova
+Sečská
+Slapská
+Stupická
+Šibřinská
+Štěchovická
+Tomická
+Úvalská
+V olšinách - sudá č. 124 a výše
+V Rybníčkách
+Žermanická
+Žinkovská

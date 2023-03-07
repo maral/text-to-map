@@ -2,6 +2,8 @@ import Database from "better-sqlite3";
 import { existsSync, copyFileSync } from "fs";
 import jtsk2wgs84 from "@arodax/jtsk2wgs84";
 import { join } from "path";
+import { Founder, MunicipalityType, School } from "./models";
+import { extractCityOrDistrictName as extractMunicipalityName } from "../utils/helpers";
 
 const buffer: string[][] = [];
 const MaxBufferSize = 1000;
@@ -37,24 +39,13 @@ export const Column = {
 interface DbConfig {
   initFilePath?: string;
   filePath?: string;
-}
-
-export interface SchoolLocation {
-  id?: number;
-  schoolId?: number;
-  addressPointId: number;
-}
-
-export interface School {
-  id?: number;
-  name: string;
-  izo: string;
-  locations: SchoolLocation[];
+  verbose?: boolean;
 }
 
 const defaults = {
   filePath: "address_points.db",
   initFilePath: join("src", "address_points_init.db"),
+  verbose: false,
 };
 
 export const setDbConfig = (config: DbConfig): void => {
@@ -69,7 +60,8 @@ export const getDb = (config: DbConfig = {}): Database.Database => {
       copyFileSync(options.initFilePath, options.filePath);
     }
 
-    _db = new Database(options.filePath); //, { verbose: console.log });
+    const dbSettings = options.verbose ? { verbose: console.log } : {};
+    _db = new Database(options.filePath, dbSettings);
     _db.pragma("journal_mode = WAL");
   }
 
@@ -121,12 +113,18 @@ export const commitAddressPoints = (): number => {
       VALUES ${placeHolders}`
   );
 
-  const params = [];
+  const params: (string | null)[] = [];
   buffer.forEach((data) => {
-    const { lat, lon } = jtsk2wgs84(
-      parseFloat(data[Column.xCoordinate]),
-      parseFloat(data[Column.yCoordinate])
-    );
+    let latOrNull: string, lonOrNull: string;
+    latOrNull = null;
+    lonOrNull = null;
+    if (data[Column.xCoordinate] && data[Column.yCoordinate]) {
+      const { lat, lon } = jtsk2wgs84(
+        parseFloat(data[Column.xCoordinate]),
+        parseFloat(data[Column.yCoordinate])
+      );
+      [latOrNull, lonOrNull] = [lat.toString(), lon.toString()];
+    }
 
     params.push(
       data[Column.admCode],
@@ -137,10 +135,10 @@ export const commitAddressPoints = (): number => {
       nonEmptyOrNull(data[Column.orientingNumberLetter]),
       data[Column.cityCode],
       nonEmptyOrNull(data[Column.districtCode]),
-      data[Column.xCoordinate],
-      data[Column.yCoordinate],
-      lat,
-      lon
+      nonEmptyOrNull(data[Column.xCoordinate]),
+      nonEmptyOrNull(data[Column.yCoordinate]),
+      latOrNull,
+      lonOrNull
     );
   });
 
@@ -184,41 +182,32 @@ const nonEmptyOrNull = (value: string): string | null => {
 };
 
 /**
- * Effectively insert multiple rows.
- * @param rows object with primary keys as keys, array with the rest of the columns as values
- * @param table table name
- * @param columnNames column names
- * @returns number of inserted rows
+ * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
+ * column should be unique (PK or UNIQUE).
  */
 const _insertMultipleRows = (
-  rows: object,
+  rows: string[][],
   table: string,
-  columnNames: string[]
+  columnNames: string[],
+  preventDuplicatesByFirstColumn: boolean = true
 ): number => {
   const db = getDb();
 
-  if (Object.keys(rows).length === 0) {
+  if (rows.length === 0) {
     return 0;
   }
 
-  const selectPlaceholders = generatePlaceholders(Object.keys(rows).length);
-
-  const selectStatement = db.prepare(
-    `SELECT ${columnNames[0]} FROM ${table} WHERE ${columnNames[0]} IN (${selectPlaceholders})`
-  );
-
-  const existing = selectStatement.pluck().all(Object.keys(rows));
-  existing.forEach((key) => {
-    delete rows[key];
-  });
-
-  if (Object.keys(rows).length === 0) {
-    return 0;
+  if (preventDuplicatesByFirstColumn) {
+    rows = clearDuplicates(rows, table, columnNames);
+    if (rows.length === 0) {
+      return 0;
+    }
   }
+
   const insertPlaceholders = generateRepetitiveString(
     `(${generatePlaceholders(columnNames.length)})`,
     ",",
-    Object.keys(rows).length
+    rows.length
   );
 
   const insertStatement = db.prepare(
@@ -227,34 +216,125 @@ const _insertMultipleRows = (
     )}) VALUES ${insertPlaceholders}`
   );
 
-  const values = [];
-  Object.keys(rows).forEach((key: string) => {
-    values.push(key, ...rows[key]);
-  });
-  return insertStatement.run(values).changes;
+  return insertStatement.run(rows.flat()).changes;
 };
 
-export const insertSchool = (school: School) => {
+const clearDuplicates = (
+  rows: string[][],
+  table: string,
+  columnNames: string[]
+): string[][] => {
   const db = getDb();
 
-  const insertSchoolStatement = db.prepare(
-    `INSERT INTO school (izo, name) VALUES  (?, ?)`
+  const selectPlaceholders = generatePlaceholders(rows.length);
+
+  const selectStatement = db.prepare(
+    `SELECT ${columnNames[0]} FROM ${table} WHERE ${columnNames[0]} IN (${selectPlaceholders})`
   );
 
-  const insertSchoolLocationStatement = db.prepare(
-    `INSERT INTO school_location (school_id, address_point_id) VALUES  (?, ?)`
+  const existing = selectStatement
+    .pluck()
+    .all(rows.map((row) => row[0]))
+    .map((key) => key.toString());
+  return rows.filter((row) => !existing.includes(row[0]));
+};
+
+export const insertSchools = (schools: School[]): number => {
+  const insertedSchools = _insertMultipleRows(
+    schools.map((school) => [
+      school.izo,
+      school.name,
+      school.capacity.toString(),
+    ]),
+    "school",
+    ["izo", "name", "capacity"]
   );
 
-  const result = insertSchoolStatement.run(school.izo, school.name);
-
-  school.locations.forEach((location) => {
-    insertSchoolLocationStatement.run(
-      result.lastInsertRowid,
-      location.addressPointId
-    );
+  const locations = schools.flatMap((school) => {
+    const uniqueAddressPoints = [
+      ...new Set(school.locations.map((location) => location.addressPointId)),
+    ];
+    return uniqueAddressPoints.map((addressPoint) => [
+      school.izo,
+      addressPoint.toString(),
+    ]);
   });
 
-  return result.changes;
+  let insertedLocations = 0;
+  // @todo prevent FK errors (address point might not exist, maybe even school?) - or maybe the DB wasn't fresh
+
+  // plus filter out duplicit locations (same address id + izo)
+  locations.forEach((location) => {
+    try {
+      insertedLocations += _insertMultipleRows(
+        [location],
+        "school_location",
+        ["school_izo", "address_point_id"],
+        false
+      );
+    } catch (error) {
+      console.log(
+        `Cannot add location with RUIAN code ${location[1]}: code does not exist.`
+      );
+    }
+  });
+
+  return insertedSchools + insertedLocations;
+};
+
+export const insertFounders = (founders: Founder[]): number => {
+  const db = getDb();
+  const selectCityNameStatement = db.prepare(
+    `SELECT c.name FROM school s
+    JOIN school_location l ON s.izo = l.school_izo
+    JOIN address_point a ON l.address_point_id = a.id
+    JOIN city c ON a.city_code = c.code
+    WHERE s.izo = ?
+    LIMIT 1`
+  );
+
+  const selectDistrictNameStatement = db.prepare(
+    `SELECT d.name FROM school s
+    JOIN school_location l ON s.izo = l.school_izo
+    JOIN address_point a ON l.address_point_id = a.id
+    JOIN city_district d ON a.city_district_code = d.code
+    WHERE s.izo = ?
+    LIMIT 1`
+  );
+
+  let correct = 0;
+  let incorrect = 0;
+  founders.forEach((founder) => {
+    if (
+      founder.municipalityType !== MunicipalityType.City &&
+      founder.municipalityType !== MunicipalityType.District
+    ) {
+      return;
+    }
+    const municipalityName = extractMunicipalityName(founder);
+
+    founder.schools.forEach((school) => {
+      const name = (
+        founder.municipalityType === MunicipalityType.City
+          ? selectCityNameStatement
+          : selectDistrictNameStatement
+      )
+        .pluck()
+        .get(school.izo);
+      const isEqual = name === municipalityName;
+      correct += isEqual ? 1 : 0;
+      incorrect += isEqual ? 0 : 1;
+      if (!isEqual) {
+        console.log(
+          `izo: ${school.izo}, extracted: ${municipalityName}, RUIAN: ${name}`
+        );
+      }
+    });
+  });
+  console.log(`Correct municipality names: ${correct}`);
+  console.log(`Incorrect municipality names: ${incorrect}`);
+
+  return 0;
 };
 
 export const disconnect = (): void => {
@@ -277,8 +357,8 @@ export const extractKeyValuesPairs = (
   array: string[][],
   keyIndex: number,
   valuesIndices: number[]
-): object => {
-  return array.reduce((acc: object, data: string[]) => {
+): string[][] => {
+  const object = array.reduce((acc: object, data: string[]) => {
     if (data[keyIndex]) {
       acc[data[keyIndex]] = valuesIndices.map((index: number) =>
         nonEmptyOrNull(data[index])
@@ -286,4 +366,6 @@ export const extractKeyValuesPairs = (
     }
     return acc;
   }, {});
+
+  return Object.keys(object).map((key) => [key, ...object[key]]);
 };

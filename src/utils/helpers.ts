@@ -1,6 +1,7 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { Founder, MunicipalityType } from "../open-data-sync/models";
 
 const appName = "text-to-map";
 
@@ -75,4 +76,39 @@ export const reportError = (error: any): void => {
   } else {
     console.log(error);
   }
+};
+
+const cityPatterns = [
+  /^[sS]tatutární město +(.*)$/,
+  /^[oO]bec +(.*)$/,
+  /^[mM]ěsto +(.*)$/,
+  /^[mM]ěstys +(.*)$/,
+];
+
+const districtPatterns = [
+  /^[mM]ěstská část +(.*)$/,
+  /^[mM]ěstský obvod +(.*)$/,
+  /^[sS]tatutární město +.*, [mM]ěstská část +(.*)$/,
+  /^[sS]tatutární město +.*, [mM]ěstský obvod +(.*)$/,
+];
+
+export const extractCityOrDistrictName = (founder: Founder): string => {
+  const patterns =
+    founder.municipalityType === MunicipalityType.City
+      ? cityPatterns
+      : districtPatterns;
+  const correctPattern = patterns.filter((pattern) =>
+    pattern.test(founder.name)
+  );
+  if (correctPattern.length > 0) {
+    const result = correctPattern[0].exec(founder.name);
+    if (typeof result[1] !== "undefined") {
+      return result[1]
+        .replace(" - ", "-")
+        .replace(/\s{2,}/g, " ")
+        .trim();
+    }
+  }
+
+  return founder.name;
 };

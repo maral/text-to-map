@@ -25,8 +25,9 @@
     "ts-node": "^10.9.1"
   },
   "scripts": {
-    "address-points": "ts-node --experimental-specifier-resolution=node --esm src/open-data-sync/address-points.ts",
-    "schools": "ts-node --experimental-specifier-resolution=node --esm src/open-data-sync/schools.ts",
+    "address-points": "ts-node --experimental-specifier-resolution=node --esm src/bin/address-points.ts",
+    "address-points-import-only": "ts-node --experimental-specifier-resolution=node --esm src/bin/address-points-import-only.ts",
+    "schools": "ts-node --experimental-specifier-resolution=node --esm src/bin/schools.ts",
     "test": "jest"
   }
 }

@@ -1,0 +1,745 @@
+﻿# Praha 6
+Základní škola a Mateřská škola Antonína Čermáka, Praha 6
+Albánská
+Antonína Čermáka
+Březovského
+Českomalínská - sudá č. od 18 výše, lichá č. od 33 výše
+Čínská - č. 1-18
+Goetheho
+Heineho
+Heinemannova
+Charlese de Gaulla - sudá č. od 14 výše, lichá č. od 17 výše
+Chitussiho
+Jednořadá
+Juárezova
+Jugoslávských partyzánů - sudá č.
+K Dubovému mlýnu
+Kamýcká - lichá č. 1-7
+Ke Kulišce
+Korejská
+Lindleyova
+Lotyšská
+M. J. Lermontova
+Maďarská
+Máslova
+Mlýnská
+Mongolská
+N. A. Někrasova
+Na Marně
+Na Pučálce
+Na svahu
+Nad Dubovým mlýnem
+Nad Kaplankou
+Nad Paťankou
+Náměstí Interbrigády
+Papírenská
+Paťanka
+Pod Meliškou
+Pod Mlýnkem
+Pod Paťankou
+Podbabská
+Pokojná
+Přerušená
+Roztocká
+Šestidomí
+Terronská - sudá č. od 20 výše, lichá č. od 25 výše
+U rychty
+U sedlecké školy
+U státní dráhy
+V Podbabě
+V rokli
+V Sedlci
+V Šáreckém údolí - sudá č. a lichá č. 1-33
+Ve struhách
+Vietnamská
+Vítězné náměstí - č. 9-11
+Zelená - č. 1-7
+
+Základní škola a Mateřská škola, Praha 6, Bílá 1
+Bechyňova
+Bílá
+Božkova
+Čínská - č. od 19 výše
+Evropská - č. 4-28
+Flemingovo náměstí
+Fragnerova
+Janákova
+Jarní
+Jugoslávských partyzánů - lichá č.
+K Matěji
+Kadeřávkovská
+Kolejní
+Kotěrova
+Koulova
+Krohova
+Matějská
+Mydlářka
+Mylnerovka
+Na Babě
+Na Dionysce
+Na Fišerce
+Na Julisce
+Na Kocínce
+Na Kotlářce
+Na Kvintusce
+Na Markvartce
+Na Míčánce - sudá č. od 6 výše, lichá č. od 13 výše
+Na Ostrohu
+Na Šťáhlavce
+Na Vlčovce
+Nad lesíkem
+náměstí Na Santince
+Nikoly Tesly
+Pod Juliskou
+Průhledová
+Rychtářská
+Salabova
+Seminární
+Starého
+Stavitelská
+Studentská
+Šárecká - lichá č. 1-5
+Šlejnická
+Šolínova
+Technická
+Thákurova
+U Matěje
+Velflíkova
+Vidlicová
+Zelená - č. od 8 výše
+Zemědělská
+Zengrova
+Zikova
+
+Základní škola a Mateřská škola Červený vrch, Praha 6, Alžírská 26
+Africká - č. od 36 výše
+Alžírská
+Arabská
+Coriových
+Divoká Šárka
+Egyptská
+Etiopská
+Evropská - sudá č. od 136 výše, lichá č. 99-117
+Horoměřická
+Irská
+Jemenská
+K Červenému vrchu
+K vršíčku
+Ke dvoru
+Kladenská - sudá č. od 54 výše, lichá č. od 99 výše
+Konžská
+Lužná
+Na Dlouhém lánu - č. od 64 výše
+Na Krutci
+Na křídle
+Na loukoti
+Na luzích
+Na lužci
+Na pastvinách
+Na Volánové
+Nad Habrovkou
+Nad Jenerálkou
+Nad lávkou
+Nad tratí - lichá č.
+Nepálská
+Nobelova
+Oválová
+Pod Aritmou
+Pod Habrovkou
+Půlkruhová
+Senegalská
+Skotská
+Suttnerové
+Syrská
+Tibetská
+Tobrucká
+Tuniská
+U Vizerky
+U Vokovické školy
+V kruhu
+V Nových Vokovicích
+V Předním Veleslavíně
+V Středu
+V Šáreckém údolí - lichá č. od 35 výše
+V Trníčku
+Ve skalách
+Vokovická
+Želivka
+
+Základní škola Dědina, Praha 6, Žukovského 6
+Aviatická
+Braškovská
+Ciolkovského
+Častavina
+Dědinská
+Do Horoměřic
+Do vozovny
+Dolanská
+Drnovská - sudá č. od 40 výše, lichá č. od 71 výše
+Družicová
+Evropská - lichá č. od 119 výše
+Fajtlova
+Hodčina
+Hostouňská
+Jana Kašpara
+Jenečská
+José Martího
+K letišti
+Ke Džbánu
+Klimčina
+Krajní
+Laglerové
+Letecká
+Libocká - č. od 58 výše
+Lipská
+Litovická - č. 1-15, 16 a výše
+Mladčina
+Na Džbánu
+Na Padesátníku I
+Na Padesátníku II
+Na Padesátníku III
+Na Padesátníku IV
+Na Padesátníku V
+Naardenská
+Navigátorů
+Nová Šárka
+Osamocená
+Parašutistů
+Pilotů
+Pod cihelnou
+Pod Rybničnou
+Přední
+Radčina
+Radistů
+Rubličova
+Rybničná
+Schengenská
+Svatavina
+Šmolíkova
+Špotzova
+U kolejí
+U letiště
+U Prioru
+U silnice
+U stanice
+U valu
+Vlastina
+Za teplárnou
+Za Vokovickou Vozovnou
+Žukovského
+
+Základní škola a Mateřská škola Emy Destinnové, Praha 6, náměstí Svobody 3/930
+Badeniho
+Bubenečská
+Českomalínská - sudá č. 2-16, lichá č. 1-31
+Československé armády - sudá č. 2-14, lichá č. 1-15
+dr. Zikmunda Wintra
+Eliášova - sudá č. od 14 výše, lichá č. od 9 výše
+Gotthardská
+Charlese de Gaulla - sudá č. 2-12, lichá č. 1-15
+Jaselská - sudá č. 2-24, lichá č. 1-21
+K Brusce
+K Starému Bubenči
+Korunovační - sudá č. od 34 výše, lichá č. od 31 výše
+Krupkovo náměstí
+Mariánské hradby - č. 2
+Mickiewiczova
+Milady Horákové - sudá č. od 100 výše, lichá č. od 97 výše
+Muchova
+Na baště sv. Jiří
+Na baště sv. Ludmily
+Na seníku
+Na valech
+Na Zátorce
+náměstí Borise Němcova
+Národní obrany - sudá č. od 28 výše, lichá č. od 43 výše
+Pelléova
+Pětidomí
+Pod baštami
+Pod kaštany
+Pod valy
+Puškinovo náměstí
+Raisova
+Romaina Rollanda
+Ronalda Regana
+Rooseveltova
+Schwaigerova
+Sibiřské náměstí
+Slavíčkova
+Srbská
+Suchardova
+Štursova
+Terronská - sudá č. 2-18, lichá č. 1-23
+Tychonova
+U letohrádku královny Anny
+U Písecké brány
+U Prašného mostu - č. od 8 výše
+U Vorlíků
+U zeměpisného ústavu
+Uralská
+V sadech
+V tišině
+Verdunská
+Wolkerova
+
+Základní škola Hanspaulka a Mateřská škola Kohoutek, Praha 6, Sušická 29
+Berkovská
+Duchoslávka
+Evropská - sudá č. 30-134
+Fetrovská
+Finkovská
+Gensovská
+Hanzelkova
+Havlovská
+Hermelínská
+Karasovská
+Komornická
+Kozlovská
+Krocínovská
+Kulhánkovská
+Menšíkovská
+Na Bartoňce
+Na Bečvářce
+Na Beránce
+Na Černé hoře
+Na Čihadle
+Na Dyrince
+Na Hanspaulce
+Na Karlovce
+Na Klimentce
+Na Kodymce
+Na Kuthence
+Na Ladách
+Na Míčánce - sudá č. 2 - 4b, lichá č. 1-11
+Na Pahoubce
+Na Pernikářce
+Na Pískách
+Na Sekyrce
+Na stupních
+Na Špitálce
+Na viničních horách
+Na Zavadilce
+Nad Komornickou
+Nad Strakovkou
+Nad Šárkou
+Nad Zlatnicí
+Natanaelka
+Neherovská
+Pod Beránkou
+Pražákovská
+Soborská
+Sojkovská
+Sušická
+Synkovská
+Šárecká - sudá č. a lichá č. od 7 výše
+Štiplova
+Toulovská
+Turkovská
+Tylišovská
+U Beránky
+U Hadovky
+Vilímovská
+Vostrovská
+Za Hanspaulkou
+Zlatnice
+Zvonická
+
+Základní škola a Mateřská škola J. A. Komenského, Praha 6, U Dělnického cvičiště 1
+Anastázova
+Bělohorská - sudá č. 72-154, lichá č. 63-201
+Břevnovská
+Cvičebná
+Junácká - sudá č. od 8 výše, lichá č. od 3 výše
+K Bateriím
+Kolátorova
+Kusá
+Markétská
+Meziškolská
+Mládeže - č. od 11 výše
+Na Kocourkách
+Na Malovance - č. od 20 výše
+Na Petynce - sudá č. od 90 výše, lichá č. od 25 výše
+Na Viničce
+Na Zástřelu - sudá č. 2-34, lichá č. 1-37
+Nad Kajetánkou - sudá č. od 26 výše, lichá č. od 21 výše
+Patočkova - sudá č. a lichá č. od 55 výše
+Pod Marjánkou - sudá č. od 10 výše, lichá č. od 41 výše
+Radimova
+Sartoriova
+Slavníkova
+Talichova
+U Dělnického cvičiště
+U Vojtěšky
+Ve Střešovičkách - sudá č. od 22 výše, lichá č. od 43e výše
+Za Kajetánkou
+
+Základní škola Marjánka, Praha 6, Bělohorská 52
+8. listopadu
+Atletická
+Bělohorská - sudá č. 2-70, lichá č. 1-61
+Běžecká 
+Diskařská
+Dvořeckého
+Fastrova
+Gymnastická
+Heleny Malířové
+Hošťálkova
+Chaloupeckého
+Chodecká
+Jezdecká
+Kocourova
+Kochanova
+Konecchlumského
+Kopeckého
+Kozlova
+Kukulova - č. 24
+Kutnauerovo náměstí
+Liborova
+Loutkářská
+Maratonská
+Maštěřovského
+Michalovicova
+Motoristická
+Nad Motolskou nemocnicí
+Nad Šafránkou
+Nad Tejnkou
+Nad Závěrkou
+Oddělená
+Olympijská
+Pětipeského
+Pod věží
+Radičova
+Rozýnova
+Řečického
+Říčanova
+Skokanská
+Skupova - č. 1
+Smiřického
+Šafránecká
+Šermířská
+Šlikova
+Štefkova
+Šultysova
+Tejnka
+Tomanova
+U Dvora
+U Kaštanu
+U Ladronky
+Vaníčkova
+Vodňanského
+Za Strahovem
+Zátopkova
+Závěrka
+Zúžená
+
+Základní škola a Mateřská škola, Praha 6, Na Dlouhém lánu 43
+Africká - č. 1-35
+Angolská
+České družiny
+Evropská - lichá č. 29-97
+Glinkova
+Jírova
+K lánu
+Kamerunská
+Kanadská
+Kladenská - sudá č. 2-52, lichá č. 1-97
+Komorní
+Kpt. Nálepky
+Krátký lán
+Liberijská
+Mozambická
+Na Dlouhém lánu - č. 1-63
+Na Rozdílu
+Nad Bořislavkou
+Nad tratí - sudá č.
+náměstí Bořislavka
+Nechanského
+Nigerijská
+Pod Kladenskou silnicí
+Proboštská
+Starodejvická
+Súdánská
+U Dejvického rybníčku
+U Dráhy - č. od 10 výše
+Velvarská
+Za lány
+Zavadilova
+
+Základní škola a Mateřská škola, Praha 6, náměstí Svobody 2
+Bachmačské náměstí
+Banskobystrická
+Buzulucká
+Československé armády - sudá č. od 16 výše, lichá č. od 17 výše
+Dejvická
+Eliášova - sudá č. 2-12, lichá č. 1-7
+Evropská - č. 1-3
+Generála Píky
+Gymnasijní
+Jaselská - sudá č. od 26 výše, lichá č. od 23 výše
+Jilemnického
+Kafkova
+Kyjevská
+Mařákova
+Na Hutích
+náměstí Svobody
+Národní obrany - sudá č. 2-26, lichá č. 1-41
+Sukova
+Svatovítská
+V. P. Čkalova
+Václavkova
+Vítězné náměstí - č. 1-5 a 12-14
+Wuchterlova
+
+Základní škola Norbertov, Praha 6, Norbertov 1
+Buštěhradská
+Cukrovarnická
+Dělostřelecká
+Farní
+Klidná
+Lomená
+Macharovo náměstí
+Malá
+Na Bateriích
+Na Dělostřílnách
+Na Dračkách
+Na Hubálce - lichá č. od 11 výše, sudá č. od 14 výše
+Na Klínku
+Na Ořechovce
+Na Pěkné vyhlídce
+Na Petynce - sudá č. 2-88, lichá č. 1 - 23b
+Na Průseku
+Na Zástřelu - sudá č. od 36 výše, lichá č. od 39 výše
+Nad Hradním vodojemem
+Nad Octárnou
+Nad Petynkou
+Nad Zahradnictvím
+náměstí Před Bateriemi
+Norbertov
+Nový lesík
+Otevřená
+Pevnostní
+Pod Andělkou
+Pod Bateriemi
+Pod hradbami
+Pod kostelem
+Pod Novým lesem - č. 1-48
+Pod Ořechovkou
+Pod Vyhlídkou
+Sibeliova
+Slunná
+Spojená
+Starostřešovická
+Strmá
+Střešovická
+Špálova
+U Andělky
+U čtvrté baterie
+U Dráhy - č. 1-9
+U Druhé baterie
+U Laboratoře
+U Páté baterie
+U Podchodu
+U První baterie
+U Přechodu
+U Střešovických hřišť
+U Šesté baterie
+U Třetí baterie
+V Průhledu
+Ve Střešovičkách - sudá č. 2-20, lichá č. 1-43
+Východní
+Za Průsekem
+Západní
+Zbrojnická
+
+Základní škola Petřiny-sever, Praha 6, Na okraji 43
+Adamova
+Čílova - č. od 9 výše
+Fabiánská
+Heyrovského náměstí
+Janouškova
+Ke Kostelu
+Krásného
+Křenova
+Libocká - č. 1-57
+Maříkova
+Na Hradním vodovodu
+Na Okraji
+Na Petřinách - sudá č.
+Na Rovni
+Na Souvrati
+Na Větrníku - lichá č. 1-19
+Na Větru
+Nad Hradním potokem
+Nad Stanicí
+Obora Hvězda
+Pelikánova
+Peštukova
+Pláničkova
+Pod Domky
+Pod dvorem
+Pod Hvězdou
+Pod Novým lesem - č. od 49 výše
+Pod okrajem
+Pod Petřinami
+Polní
+Potoční
+Předvoje
+Sbíhavá I
+Sbíhavá II
+Sestupná
+Střední
+Šebestiánská
+Štolbova
+Šumberova
+U Hvězdy
+U Sadu
+U Zámečku
+U Zvoničky
+Úzká
+V Domcích
+Veleslavínská
+
+Základní škola, Praha 6, Pod Marjánkou 2
+Dlabačov
+Hládkov
+Jílkova
+Junácká - č. 1, 2, 4, 6
+Keplerova
+Mládeže - č. 1-10
+Morstadtova
+Myslbekova
+Na Hubálce - sudá č. 2-12, lichá č. 1-9
+Na Malovance - č. 1-18
+Nad Kajetánkou - sudá č. 2-24, lichá č. 1-19
+Nad Panenskou
+Nad Vojenským hřbitovem
+Parléřova
+Patočkova - lichá č. 1-53
+Pod Drinopolem
+Pod Královkou
+Pod Marjánkou - sudá č. 2-8, lichá č. 1-39
+Pohořelec - č. 21
+Skupova - č. 3-11
+Svojsíkova
+U Brusnice - č. od 9 výše
+Za Hládkovem
+Za Pohořelcem
+
+Základní škola a Mateřská škola T. G. Masaryka, Praha 6, náměstí Českého povstání 6
+Alej Českých exulantů
+Anhaltova
+Bělocká
+Bělohorská - sudá č. od 156 výše, lichá č. od 203 výše
+Bolívarova
+Brodecká
+Bubnova
+Dobrovízská
+Drnovská - sudá č. 2-38, lichá č. 1-69
+Duchcovská
+Falcká
+Filipíny Welserové
+Haberfeldova
+Holubická
+Hořelická
+Huberova
+Chomutovská
+Chrášťanská
+Chýňská
+Jinočanská
+K mohyle
+Karlovarská - č. 18, č. p. 245, 299, 1062, 77, 270, 1104, 172, 1094, 1061, 1106, 378 a 568
+Kněževeská
+Konopáskova
+Kralupská
+Krušovická
+Ledecká
+Libovická
+Lišanská
+Litovická - č. 16
+Lounská
+Malobřevnovská
+Manská zahrada
+Mladotická
+Moravanů
+Možného
+Na Břevnovské Pláni
+Na Humnech
+Na Hůrce
+Na Jivinách
+Na Višňovce
+Nad Manovkou
+Nad Višňovkou
+náměstí Českého povstání
+Netřebská
+Ovocná
+Pavlovská
+Pod hřbitovem
+Pod Karlovarskou silnicí
+Pod mohylou
+Podlešínská
+Pozdeňská
+Přílepská
+Račická
+Rakovnická
+Rozdělovská
+Ruzyňská
+Ruzyňské schody
+Řepská
+Sadová
+Slezanů
+Sobínská
+Spojka
+Staré náměstí
+Statenická
+Stochovská
+Thurnova
+Třebonická
+U Světličky
+Únětická
+Unhošťská
+Ve Skalkách
+Ve Višňovce
+Výtvarná
+Za humny
+Za oborou
+Zahradní
+Zbečenská
+Zbuzanská
+Zličínská
+Ztracená
+
+Základní škola a Mateřská škola Věry Čáslavské, Praha 6, Šantrochova 2
+Ankarská
+Boučkova
+Brixiho
+Brunclíkova
+Bubeníčkova
+Černohorského
+Čílova - č. 1-8
+Dusíkova
+Fajmanové
+Hiršlova
+Kratochvílova
+Mahulenina
+Míčova
+Myslivečkova
+Na Klášterním
+Na Petřinách - lichá č.
+Na Větrníku - sudá č. a lichá č. od 21 výše
+Na Vypichu
+Nad Alejí
+Plojharova
+Radúzova
+Rejchova
+Rybova
+Stamicova
+Šantrochova
+U Petřin
+U Větrníku
+U Vojenské nemocnice
+Ulrychova
+Volavkova
+Voříškova
+Za Zahradou
+Zeyerova alej
+Zvoníčkova

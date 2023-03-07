@@ -1,19 +1,17 @@
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
 import {
-  Column,
   commitAddressPoints,
   disconnect,
-  extractKeyValuesPairs,
   getDb,
   getMetaValue,
   importParsedLine,
   insertCities,
   insertDistricts,
-  insertSchool,
+  insertSchools,
   insertStreets,
-  School,
   setMetaValue,
-} from "../src/open-data-sync/search-db";
+} from "../../src/open-data-sync/search-db";
+import { School } from "../../src/open-data-sync/models";
 import jtsk2wgs84 from "@arodax/jtsk2wgs84";
 import { rmSync } from "fs";
 
@@ -109,7 +107,7 @@ const testRows = [
 let testRowsLarge: string[][] = [];
 
 beforeAll(() => {
-  getDb({ filePath: testDbPath });
+  getDb({ filePath: testDbPath, verbose: false });
 
   let id = 1;
   for (let i = 0; i < 10000; i++) {
@@ -190,6 +188,7 @@ describe("search db - schools", () => {
     {
       izo: "044940998",
       name: "Církevní základní škola a mateřská škola Přemysla Pittra",
+      capacity: 300,
       locations: [
         {
           addressPointId: 82338752,
@@ -202,6 +201,7 @@ describe("search db - schools", () => {
     {
       izo: "042962358",
       name: "Základní škola a Mateřská škola Sluníčko s.r.o.",
+      capacity: 58,
       locations: [
         {
           addressPointId: 82660085,
@@ -214,11 +214,12 @@ describe("search db - schools", () => {
   ];
 
   test("insert schools", () => {
-    let total = 0;
-    testSchools.forEach((school) => {
-      total += insertSchool(school);
-    });
-
-    expect(total).toBe(testSchools.length);
+    const totalLocations = testSchools.reduce(
+      (total, school) => total + school.locations.length,
+      0
+    );
+    expect(insertSchools(testSchools)).toBe(
+      testSchools.length + totalLocations
+    );
   });
 });

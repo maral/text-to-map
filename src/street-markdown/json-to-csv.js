@@ -1,8 +1,9 @@
-var fs = require("fs");
+import { readFileSync } from "fs";
 
 const streetNamePattern = /^([^ -]+([ -]?[^ -]+)*)/;
 const streetSeriesPartPattern = /(lichá č.|sudá č.|č. p.|č.)/;
-const rangePattern = /(\d+ ?[-] ?\d+|(od )?\d+( a)? výše|\d+)(, ?| a )/;
+const rangePattern =
+  /(\d+[a-z]? ?[-] ?\d+[a-z]?|(od )?\d+[a-z]?( a)? výše|\d+[a-z]?)(, ?| a )/;
 const numberPattern = /\d+/;
 
 const OddTypeString = "lichá č.";
@@ -127,47 +128,48 @@ const removeSeparatorFromEnd = (text) => {
   return text.trim();
 };
 
-let raw = fs.readFileSync("out.json", "utf-8");
-let districts;
-try {
-  districts = JSON.parse(raw);
-} catch (error) {
-  console.log(error);
-  return;
-}
-
 // desired output format:
 // Příčná(str);from(int);to(int);[odd|even|all|cp];school(str)
-
-districts.forEach((district) => {
-  district.schools.forEach((school) => {
-    school.lines.forEach((street) => {
-      if (street[0] == "!" || street == "") {
-        return;
-      }
-      let result = streetNamePattern.exec(street);
-      let streetName = result[0];
-      let numberSpecification = street.substr(streetName.length + 3).trim();
-      let rules = getStreetRules(numberSpecification);
-      if (rules == null) {
-        console.log("Error: " + street);
-        return;
-      }
-      rules.forEach((rule) => {
-        console.log(
-          streetName +
-            ";" +
-            rule.from +
-            ";" +
-            rule.to +
-            ";" +
-            rule.type +
-            ";" +
-            school.name +
-            ";" +
-            district.name
-        );
+export function districtsToCsvRules(districts) {
+  districts.forEach((district) => {
+    district.schools.forEach((school) => {
+      school.lines.forEach((street) => {
+        if (street[0] == "!" || street == "") {
+          return;
+        }
+        let result = streetNamePattern.exec(street);
+        let streetName = result[0];
+        let numberSpecification = street.substr(streetName.length + 3).trim();
+        let rules = getStreetRules(numberSpecification);
+        if (rules == null || rules.length == 0) {
+          console.error("Error: " + street);
+          return;
+        }
+        rules.forEach((rule) => {
+          console.log(
+            streetName +
+              ";" +
+              rule.from +
+              ";" +
+              rule.to +
+              ";" +
+              rule.type +
+              ";" +
+              school.name +
+              ";" +
+              district.name
+          );
+        });
       });
     });
   });
-});
+}
+
+// let raw = readFileSync("out.json", "utf-8");
+// let districts;
+// try {
+//   districts = JSON.parse(raw);
+// } catch (error) {
+//   console.log(error);
+//   return;
+// }

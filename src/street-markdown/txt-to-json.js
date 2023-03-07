@@ -1,18 +1,10 @@
-import { createInterface } from "node:readline/promises";
-import { createReadStream } from "node:fs";
+import { createReadStream } from "fs";
+import { once } from "events";
+import { pipeline } from "stream/promises";
+import { createInterface } from "readline";
 
 const pattern =
   /^([^ –,-]+([ –-][^ ,–-]+)*)( [–-] (lichá č.|sudá č.|č.|č. p.)( (\d+[a-zA-Z]? ?[–-] ?\d+[a-zA-Z]?|(od )?\d+[a-zA-Z]?( a)? výše|\d+[a-zA-Z]?)((, ?| ?a ?)(\d+[a-zA-Z]? ?[–-] ?\d+[a-zA-Z]?|(od )?\d+[a-zA-Z]?( a)? výše|\d+[a-zA-Z]?))*)?((, ?| ?a ?)(lichá č.|sudá č.|č.|č. p.)( (\d+[a-zA-Z]? ?[–-] ?\d+[a-zA-Z]?|(od )?\d+[a-zA-Z]?( a)? výše|\d+[a-zA-Z]?)((, ?| ?a ?)(\d+[a-zA-Z]? ?[–-] ?\d+[a-zA-Z]?|(od )?\d+[a-zA-Z]?( a)? výše|\d+[a-zA-Z]?))*)?)*)?$/;
-
-var rd = createInterface({
-  input: createReadStream("vyhlaska22_P10.txt"),
-  output: null,
-  console: false,
-});
-
-let districts = [];
-let currentDistrict = null;
-let currentSchool = null;
 
 function getNewDistrict(name) {
   return {
@@ -28,69 +20,86 @@ function getNewSchool(name) {
   };
 }
 
-let lineNumber = 1;
+export async function getParsedDistricts(filePath) {
+  const rl = createInterface({
+    input: createReadStream(filePath),
+  });
 
-rd.on("line", function (line) {
-  let s = line
-    .trim()
-    .replace(/ +(?= )/g, "")
-    .replace(/–/g, "-")
-    .replace(/nábř\./g, "nábřeží")
-    .replace(/Nábř\./g, "Nábřeží")
-    .replace(/nám\./g, "náměstí")
-    .replace(/Nám\./g, "Náměstí");
+  let lineNumber = 1;
+  let districts = [];
+  let currentDistrict = null;
+  let currentSchool = null;
 
-  if (s[0] == "#") {
+  rl.on("line", function (line) {
+    let s = line
+      .trim()
+      .replace(/ +(?= )/g, "")
+      .replace(/–/g, "-")
+      .replace(/nábř\./g, "nábřeží")
+      .replace(/Nábř\./g, "Nábřeží")
+      .replace(/nám\./g, "náměstí")
+      .replace(/Nám\./g, "Náměstí");
+
+    if (s[0] == "#") {
+      if (currentSchool != null) {
+        if (currentDistrict == null) {
+          currentDistrict = getNewDistrict("");
+        }
+        currentDistrict.schools.push(currentSchool);
+        currentSchool = null;
+      }
+
+      if (currentDistrict != null) {
+        districts.push(currentDistrict);
+      }
+
+      currentDistrict = getNewDistrict(s.substring(1).trim());
+
+      currentSchool = null;
+    } else if (s == "") {
+      if (currentSchool != null) {
+        if (currentDistrict == null) {
+          currentDistrict = getNewDistrict("");
+        }
+        currentDistrict.schools.push(currentSchool);
+        currentSchool = null;
+      }
+    } else {
+      if (currentSchool == null) {
+        currentSchool = getNewSchool(s);
+      } else {
+        if (s[0] == "!") {
+          currentSchool.lines.push(s);
+        } else {
+          if (pattern.test(s)) {
+            currentSchool.lines.push(s);
+          } else {
+            console.error(
+              "Invalid street line on line " + lineNumber + ": " + s
+            );
+          }
+        }
+      }
+    }
+
+    lineNumber++;
+  });
+
+  rl.on("close", function () {
     if (currentSchool != null) {
       if (currentDistrict == null) {
         currentDistrict = getNewDistrict("");
       }
       currentDistrict.schools.push(currentSchool);
-      currentSchool = null;
     }
 
     if (currentDistrict != null) {
       districts.push(currentDistrict);
     }
 
-    currentDistrict = getNewDistrict(s.substring(1).trim());
+    // console.log(JSON.stringify(districts));
+  });
 
-    currentSchool = null;
-  } else if (s == "") {
-    if (currentSchool != null) {
-      currentDistrict.schools.push(currentSchool);
-      currentSchool = null;
-    }
-  } else {
-    if (currentSchool == null) {
-      currentSchool = getNewSchool(s);
-    } else {
-      if (s[0] == "!") {
-        currentSchool.lines.push(s);
-      } else {
-        if (pattern.test(s)) {
-          currentSchool.lines.push(s);
-        } else {
-          console.error("Invalid street line on line " + lineNumber + ": " + s);
-        }
-      }
-    }
-  }
-
-  lineNumber++;
-});
-
-rd.on("close", function () {
-  if (currentSchool != null) {
-    if (currentDistrict == null) {
-      currentDistrict = getNewDistrict("");
-    }
-    currentDistrict.schools.push(currentSchool);
-  }
-
-  if (currentDistrict != null) {
-    districts.push(currentDistrict);
-  }
-
-  console.log(JSON.stringify(districts));
-});
+  await once(rl, "close");
+  return districts;
+}
