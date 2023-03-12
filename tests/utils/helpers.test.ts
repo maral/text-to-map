@@ -1,6 +1,9 @@
 import { describe, expect, test } from "@jest/globals";
-import { Founder, MunicipalityType } from "../../src/open-data-sync/models";
-import { extractCityOrDistrictName } from "../../src/utils/helpers";
+import { Founder, MunicipalityType } from "../../src/db/types";
+import {
+  extractMunicipalityName,
+  findClosestString,
+} from "../../src/utils/helpers";
 
 const createFounder = (
   name: string,
@@ -37,7 +40,7 @@ describe("utils - extract name of a city or a district from founder's name", () 
     ];
     districts.forEach((district) => {
       expect(
-        extractCityOrDistrictName(
+        extractMunicipalityName(
           createFounder(district[0], MunicipalityType.District)
         )
       ).toBe(district[1]);
@@ -62,8 +65,30 @@ describe("utils - extract name of a city or a district from founder's name", () 
     ];
     cities.forEach((city) => {
       expect(
-        extractCityOrDistrictName(createFounder(city[0], MunicipalityType.City))
+        extractMunicipalityName(createFounder(city[0], MunicipalityType.City))
       ).toBe(city[1]);
     });
+  });
+});
+
+describe("utils - find closest string in Czech", () => {
+  test("test exact match", () => {
+    const result = findClosestString("Praha", ["Praha", "Brno", "Ostrava"]);
+    expect(result).toBe("Praha");
+  });
+
+  test("test closest match", () => {
+    const result = findClosestString("Praha", ["Draha", "Brno", "Ostrava"]);
+    expect(result).toBe("Draha");
+  });
+
+  test("test closest match with different length", () => {
+    const result = findClosestString("Praha", ["raha", "Brno", "Ostrava"]);
+    expect(result).toBe("raha");
+  });
+
+  test("test diacritics mistake preference", () => {
+    const result = findClosestString("Praha", ["Draha", "Práha", "Ostrava"]);
+    expect(result).toBe("Práha");
   });
 });

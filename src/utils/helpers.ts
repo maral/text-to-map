@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
-import { Founder, MunicipalityType } from "../open-data-sync/models";
+import { Founder, MunicipalityType } from "../db/types";
 
 const appName = "text-to-map";
 
@@ -92,7 +92,7 @@ const districtPatterns = [
   /^[sS]tatutární město +.*, [mM]ěstský obvod +(.*)$/,
 ];
 
-export const extractCityOrDistrictName = (founder: Founder): string => {
+export const extractMunicipalityName = (founder: Founder): string => {
   const patterns =
     founder.municipalityType === MunicipalityType.City
       ? cityPatterns
@@ -111,4 +111,110 @@ export const extractCityOrDistrictName = (founder: Founder): string => {
   }
 
   return founder.name;
+};
+
+export const findClosestString = (str: string, arr: string[]): string => {
+  let closestStr = "";
+  let closestDistance = Number.MAX_SAFE_INTEGER;
+
+  for (let i = 0; i < arr.length; i++) {
+    const currentStr = arr[i];
+    const distance = interpunctionDistance(str, currentStr);
+
+    if (distance < closestDistance) {
+      closestStr = currentStr;
+      closestDistance = distance;
+    }
+
+    // exact match found, exit loop
+    if (closestDistance === 0) {
+      break;
+    }
+  }
+
+  return closestStr;
+};
+
+const interpunctionDistance = (str1: string, str2: string): number => {
+  let distance = levenshteinDistance(str1, str2);
+
+  const interpunctionMistakes = {
+    a: ["á"],
+    á: ["a"],
+    e: ["é", "ě"],
+    é: ["e", "ě"],
+    ě: ["e", "é"],
+    i: ["í"],
+    í: ["i"],
+    y: ["ý"],
+    ý: ["y"],
+    o: ["ó"],
+    ó: ["o"],
+    u: ["ú", "ů"],
+    ů: ["u", "ú"],
+    ú: ["u", "ů"],
+    c: ["č"],
+    č: ["c"],
+    d: ["ď"],
+    ď: ["d"],
+    n: ["ň"],
+    ň: ["n"],
+    r: ["ř"],
+    ř: ["r"],
+    s: ["š"],
+    š: ["s"],
+    t: ["ť"],
+    ť: ["t"],
+    z: ["ž"],
+    ž: ["z"],
+  };
+
+  const str1Chars = str1.split("");
+  const str2Chars = str2.split("");
+
+  for (let i = 0; i < str1Chars.length; i++) {
+    const char1 = str1Chars[i];
+    const char2 = str2Chars[i];
+
+    if (
+      interpunctionMistakes[char1] &&
+      interpunctionMistakes[char1].includes(char2)
+    ) {
+      // Subtract a penalty from the distance for interpunction mistakes
+      distance -= 0.5;
+    }
+  }
+
+  return distance;
+};
+
+const levenshteinDistance = (str1: string, str2: string): number => {
+  const matrix: number[][] = Array(str2.length + 1)
+    .fill(null)
+    .map(() => Array(str1.length + 1).fill(null));
+
+  for (let i = 0; i <= str1.length; i++) {
+    matrix[0][i] = i;
+  }
+
+  for (let j = 0; j <= str2.length; j++) {
+    matrix[j][0] = j;
+  }
+
+  for (let j = 1; j <= str2.length; j++) {
+    for (let i = 1; i <= str1.length; i++) {
+      if (str1[i - 1] === str2[j - 1]) {
+        matrix[j][i] = matrix[j - 1][i - 1];
+      } else {
+        matrix[j][i] =
+          Math.min(
+            matrix[j][i - 1], // deletion
+            matrix[j - 1][i], // insertion
+            matrix[j - 1][i - 1] // substitution
+          ) + 1;
+      }
+    }
+  }
+
+  return matrix[str2.length][str1.length];
 };

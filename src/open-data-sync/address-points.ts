@@ -1,22 +1,25 @@
 import FeedParser from "feedparser";
 import fetch from "node-fetch";
-import { createWriteStream, createReadStream, rmSync, readdirSync } from "fs";
+import {
+  createWriteStream,
+  createReadStream,
+  rmSync,
+  readdirSync,
+  existsSync,
+} from "fs";
 import { pipeline } from "stream/promises";
 import { join } from "path";
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse";
 import iconv from "iconv-lite";
 
-import {
-  commitAddressPoints,
-  importParsedLine,
-  setDbConfig,
-} from "./search-db";
+import { setDbConfig } from "../db/db";
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsNotEmpty,
   prepareOptions,
 } from "../utils/helpers";
+import { commitAddressPoints, importParsedLine } from "../db/address-points";
 
 const getLatestUrlFromAtomFeed = async (
   atomFeedUrl: string
@@ -143,4 +146,11 @@ export const importOnly = async (
 ): Promise<void> => {
   const completeOptions = prepareOptions(options);
   await importDataToDb(completeOptions);
+};
+
+export const deleteDb = (options: OpenDataSyncOptions = {}) => {
+  const completeOptions = prepareOptions(options);
+  if (existsSync(completeOptions.dbFilePath)) {
+    rmSync(completeOptions.dbFilePath);
+  }
 };

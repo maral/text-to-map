@@ -84,6 +84,7 @@ IZO;Je základní;adresa1;adresa2;adresa3
 #108010597;FALSE;Veslařská 1;690 02 Břeclav
 #108010597;FALSE;Sady 28. října 1;690 21 Břeclav
 #108010562;FALSE;691 82 Novosedly 3
+#049939386;FALSE;U Červených domků 4/A;695 01 Hodonín
 #049939424;FALSE;poz. p.č. 35/3 k.ú. Strážnice na Moravě (budova bez č.p./č.e.);696 62 Strážnice
 #181123908;FALSE;parc. č. 502/1;674 01 Třebíč
 #108012271;FALSE;671 34 Želetice 161
@@ -102,6 +103,7 @@ IZO;Je základní;adresa1;adresa2;adresa3
 #161100473;FALSE;Raisova 333;461 41 Tanvald
 #161100473;FALSE;Tyršova 409;593 01 Bystřice pod Pernštejnem
 #045241945;FALSE;Tři Studně - Tábor "Vysočina", čp. 45;592 04 Fryšava pod Žákovou horou
+#108011780;FALSE;Nosálovice 400;682 01 Vyškov
 #181053179;FALSE;Lidická 86;796 01 Prostějov
 #181068397;FALSE;V Zahrádkách 48 1966;130 00 Praha 3
 #181068401;FALSE;V Zahrádkách 48 1966;130 00 Praha 3
@@ -218,7 +220,6 @@ IZO;Je základní;adresa1;adresa2;adresa3
 #181068800;FALSE;Bílá Lhota 56;783 21 Chudobín
 #108033635;FALSE;Parcelní číslo  1967/5;785 01 Šternberk
 #108033635;FALSE;Parcelní číslo  1967/6;785 01 Šternberk
-#120004402;FALSE;Podvihovská 197;747 70 Opava - Komárov
 #120201585;FALSE;Tyršova p.č. 633/1 a 633/4;Kojetín I-Město;752 01 Kojetín
 #107632586;FALSE;Malá Morava-Vys. Potok 40;788 33 Hanušovice
 #120300125;FALSE;Malá Morava-Vys. Potok 40;788 33 Hanušovice
@@ -415,6 +416,8 @@ IZO;Je základní;adresa1;adresa2;adresa3
 #181070120;FALSE;Školská 555;281 02 Cerhenice
 #181070138;FALSE;Školská 555;281 02 Cerhenice
 #181071339;TRUE;K Radonicům, p.č. 930, č. 33, 34, 35;Satalice;190 15 Praha 9
+#181077795;FALSE;Polní 567/23;250 64 Zlonín
+#181077809;FALSE;Polní 567/23;250 64 Zlonín
 #181118181;FALSE;pozemek p.č. 7/2 (k. ú. Velenov);680 01 Obec Velenov
 #181085861;FALSE;Tisová č. pozemku 75/1;251 68 Kamenice
 #181085887;FALSE;(pozemek s parcelním číslem 418/11);Hradec Králové - katastrální území Kluky

@@ -1,6 +1,5 @@
 import { createReadStream } from "fs";
 import { once } from "events";
-import { pipeline } from "stream/promises";
 import { createInterface } from "readline";
 
 const pattern =

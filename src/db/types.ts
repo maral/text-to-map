@@ -14,8 +14,9 @@ export interface School {
 export interface Founder {
   name: string;
   ico: string;
-  originalType?: string;
+  originalType?: number;
   municipalityType: MunicipalityType;
+  cityOrDistrictCode?: number;
   schools: School[];
 }
 

@@ -2,8 +2,10 @@
   "type": "module",
   "dependencies": {
     "@arodax/jtsk2wgs84": "^1.0.2",
+    "@chevrotain/types": "^10.4.2",
     "adm-zip": "^0.5.9",
     "better-sqlite3": "^8.0.1",
+    "chevrotain": "^10.4.2",
     "csv-parse": "^5.3.3",
     "feedparser": "^2.2.10",
     "iconv-lite": "^0.6.3",
@@ -28,6 +30,7 @@
     "address-points": "ts-node --experimental-specifier-resolution=node --esm src/bin/address-points.ts",
     "address-points-import-only": "ts-node --experimental-specifier-resolution=node --esm src/bin/address-points-import-only.ts",
     "schools": "ts-node --experimental-specifier-resolution=node --esm src/bin/schools.ts",
+    "clear-all": "ts-node --experimental-specifier-resolution=node --esm src/bin/clear-all.ts",
     "test": "jest"
   }
 }

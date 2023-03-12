@@ -1,18 +1,17 @@
-import request from "superagent";
 import { createReadStream, createWriteStream, existsSync, rmSync } from "fs";
 import { join } from "path";
 import sax, { Tag } from "sax";
 import fetch from "node-fetch";
 
-import { insertFounders, insertSchools, setDbConfig } from "./search-db";
+import { setDbConfig } from "../db/db";
 import {
-  getAppDataDirPath,
   OpenDataSyncOptions,
   OpenDataSyncOptionsNotEmpty,
   prepareOptions,
 } from "../utils/helpers";
 import { pipeline } from "stream/promises";
-import { Founder, MunicipalityType, School, SchoolLocation } from "./models";
+import { Founder, MunicipalityType, School, SchoolLocation } from "../db/types";
+import { insertFounders, insertSchools } from "../db/schools";
 
 const downloadXml = async (
   options: OpenDataSyncOptionsNotEmpty
@@ -57,25 +56,8 @@ const createNewSchool = (): School => {
   };
 };
 
-const incorrectFoundersCitiesIcos = ["00245780", "00281727"];
-const incorrectFoundersDistrictsIcos = [
-  "44992785",
-  "00241717",
-  "00231134",
-  "00241628",
-  "00231215",
-  "0084545116",
-];
-
-const getCorrectFounderType = (founderType: string, ico: string): string => {
-  let type = founderType === "" ? "101" : founderType;
-  // fix the mistakes in MŠMT data
-  if (incorrectFoundersCitiesIcos.includes(ico)) {
-    return "261"; // city
-  } else if (incorrectFoundersDistrictsIcos.includes(ico)) {
-    return "263"; // district
-  }
-  return type;
+const getCorrectFounderType = (founderType: string): string => {
+  return founderType === "" ? "101" : founderType;
 };
 
 const getMunicipalityType = (founderType: string): MunicipalityType => {
@@ -100,6 +82,7 @@ const processSchoolRegisterXml = async (
   let currentIzo: string;
   let currentIco: string;
   let currentType: string;
+  let currentCapacity: number;
   let currentLocations: SchoolLocation[] = [];
   let state: XMLState = XMLState.None;
   let currentFounders = [];
@@ -195,10 +178,7 @@ const processSchoolRegisterXml = async (
               currentFounders.push({
                 ico: currentFounderIco,
                 name: currentFounderName,
-                type: getCorrectFounderType(
-                  currentFounderType,
-                  currentFounderIco
-                ),
+                type: getCorrectFounderType(currentFounderType),
               });
             }
             currentFounderIco = "";
@@ -210,6 +190,7 @@ const processSchoolRegisterXml = async (
             if (currentType === SCHOOL_TYPE_PRIMARY) {
               currentSchool.izo = currentIzo;
               currentSchool.locations = currentLocations;
+              currentSchool.capacity = currentCapacity;
             }
             currentLocations = [];
             break;
@@ -228,6 +209,7 @@ const processSchoolRegisterXml = async (
           case "ICO":
           case "IZO":
           case "SkolaDruhTyp":
+          case "SkolaKapacita":
           case "ZrizNazev":
           case "ZrizICO":
           case "ZrizDatumNarozeni":
@@ -273,6 +255,9 @@ const processSchoolRegisterXml = async (
             break;
           case XMLState.FounderType:
             currentFounderType = text;
+            break;
+          case XMLState.Capacity:
+            currentCapacity = parseInt(text);
             break;
         }
       })
@@ -360,4 +345,12 @@ export const downloadAndImportAllSchools = async (
 
   await downloadXml(runOptions);
   await importDataToDb(runOptions, false, true);
+};
+
+export const deleteSchoolsXmlFile = (options: OpenDataSyncOptions = {}) => {
+  const runOptions = prepareOptions(options);
+
+  if (existsSync(getXmlFilePath(runOptions))) {
+    rmSync(getXmlFilePath(runOptions));
+  }
 };

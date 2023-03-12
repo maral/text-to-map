@@ -1,4 +1,4 @@
-import { createToken, Lexer } from "chevrotain";
+import { createToken, Lexer, TokenVocabulary } from "chevrotain";
 
 const MainSeparator = createToken({ name: "MainSeparator", pattern: / - / });
 const Separator = createToken({ name: "Separator", pattern: /,| a / });
@@ -38,8 +38,6 @@ const smdTokens = [
   StreetName,
 ];
 
-const SmdLexer = new Lexer(smdTokens, { positionTracking: "onlyStart" });
-
 MainSeparator.LABEL = "' - '";
 Separator.LABEL = "','";
 Hyphen.LABEL = "'-'";
@@ -50,7 +48,7 @@ EvenType.LABEL = "'sudá č.'";
 CPType.LABEL = "'č. p.'";
 AllType.LABEL = "'č.'";
 
-const tokenVocabulary = {};
+const tokenVocabulary: TokenVocabulary = {};
 
 smdTokens.forEach((tokenType) => {
   tokenVocabulary[tokenType.name] = tokenType;
@@ -69,6 +67,5 @@ export {
   Space,
   StreetName,
   smdTokens,
-  SmdLexer,
   tokenVocabulary,
 };
