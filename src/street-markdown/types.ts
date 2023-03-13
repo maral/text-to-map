@@ -47,7 +47,7 @@ export enum AddressPointType {
 export interface AddressPoint {
   address: string;
   type: AddressPointType;
-  street: string;
+  street?: string;
   descriptiveNumber: number;
   orientationalNumber?: number;
   orientationalNumberLetter?: string;
@@ -57,4 +57,15 @@ export interface AddressPoint {
   municipalityPart?: string;
   lat: number;
   lng: number;
+}
+
+export interface School {
+  name: string;
+  position?: AddressPoint;
+  addresses: AddressPoint[];
+}
+
+export interface Municipality {
+  municipalityName: string;
+  schools: School[];
 }

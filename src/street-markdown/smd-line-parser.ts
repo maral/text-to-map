@@ -14,26 +14,31 @@ const printLexingResultInfo = (lexingResult: ILexingResult) => {
   console.log(tokens);
 };
 
-const smdLexer = new Lexer(smdTokens);
+const smdLexer = new Lexer(smdTokens, { positionTracking: "onlyOffset" });
 const smdParser = new SmdParser(tokenVocabulary);
 
-export const parseLine = (text: string): SmdLine | null => {
+export const parseLine = (
+  text: string
+): { smdLine: SmdLine | null; errors: string[] } => {
+  const errors: string[] = [];
   const lexingResult = smdLexer.tokenize(text);
+
+  if (lexingResult.errors.length > 0) {
+    errors.push(...lexingResult.errors.map((error) => error.message));
+    return { smdLine: null, errors };
+  }
 
   // printLexingResultInfo(lexingResult);
 
-  if (lexingResult.errors.length > 0) {
-    console.error(lexingResult.errors);
-    console.error(JSON.stringify(lexingResult.errors));
-    return null;
-  }
-
   smdParser.input = lexingResult.tokens;
-  const output = <SmdLine>(<unknown>smdParser.street());
+  const smdLine = <SmdLine>(<unknown>smdParser.street());
+  if (smdLine) {
+    smdLine.numberSpec = smdLine.numberSpec ?? [];
+  }
 
   if (smdParser.errors.length > 0) {
-    console.error(smdParser.errors);
+    errors.push(...smdParser.errors.map((error) => error.message));
   }
 
-  return output;
+  return { smdLine, errors };
 };

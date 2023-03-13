@@ -1,21 +1,27 @@
 import { createToken, Lexer, TokenVocabulary } from "chevrotain";
 
 const MainSeparator = createToken({ name: "MainSeparator", pattern: / - / });
-const Separator = createToken({ name: "Separator", pattern: /,| a / });
+const From = createToken({ name: "From", pattern: /od/ });
+const AndAbove = createToken({ name: "AndAbove", pattern: / (a )?výše/ });
+const Separator = createToken({
+  name: "Separator",
+  pattern: /,| a /,
+  longer_alt: [AndAbove],
+});
 const StreetName = createToken({
   name: "StreetName",
   pattern: /[^\n -]+([ -]?[^\n -]+)*/,
 });
 const OddType = createToken({ name: "OddType", pattern: /lichá č./ });
 const EvenType = createToken({ name: "EvenType", pattern: /sudá č./ });
-const CPType = createToken({ name: "CPType", pattern: /č. ?p./ });
+const DescriptiveType = createToken({ name: "CPType", pattern: /č. ?p./ });
 const AllType = createToken({
   name: "AllType",
   pattern: /č./,
-  longer_alt: CPType,
+  longer_alt: DescriptiveType,
 });
+
 const Number = createToken({ name: "Number", pattern: /\d+[a-zA-Z]?/ });
-const NewLine = createToken({ name: "NewLine", pattern: /\n/ });
 const Hyphen = createToken({ name: "Hyphen", pattern: /-/ });
 const Space = createToken({
   name: "Space",
@@ -29,10 +35,11 @@ const smdTokens = [
   Separator,
   OddType,
   EvenType,
-  CPType,
+  DescriptiveType,
   AllType,
   Number,
-  NewLine,
+  From,
+  AndAbove,
   Hyphen,
   Space,
   StreetName,
@@ -41,11 +48,12 @@ const smdTokens = [
 MainSeparator.LABEL = "' - '";
 Separator.LABEL = "','";
 Hyphen.LABEL = "'-'";
-NewLine.LABEL = "'\\n'";
+From.LABEL = "'od'";
+AndAbove.LABEL = "'a výše'";
 Space.LABEL = "' '";
 OddType.LABEL = "'lichá č.'";
 EvenType.LABEL = "'sudá č.'";
-CPType.LABEL = "'č. p.'";
+DescriptiveType.LABEL = "'č. p.'";
 AllType.LABEL = "'č.'";
 
 const tokenVocabulary: TokenVocabulary = {};
@@ -59,10 +67,11 @@ export {
   Separator,
   OddType,
   EvenType,
-  CPType,
+  DescriptiveType,
   AllType,
   Number,
-  NewLine,
+  From,
+  AndAbove,
   Hyphen,
   Space,
   StreetName,

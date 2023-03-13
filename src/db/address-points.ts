@@ -153,6 +153,33 @@ export const insertStreets = (buffer: string[][]): number => {
   );
 };
 
+const addressPointSelect = `
+  SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
+        a.orientational_number, a.orientational_number_letter, c.name AS city_name,
+        m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
+        a.wgs84_latitude, a.wgs84_longitude
+  FROM address_point a
+  LEFT JOIN street s ON a.street_code = s.code
+  INNER JOIN object_type o ON o.id = a.object_type_id
+  INNER JOIN city c ON c.code = a.city_code
+  LEFT JOIN city_district d ON a.city_district_code = d.code
+  LEFT JOIN municipality_part m ON a.municipality_part_code = m.code`;
+
+export const getAddressPointById = (
+  addressPointId: number
+): AddressPoint | null => {
+  const db = getDb();
+  const statement = db.prepare(
+    `${addressPointSelect}
+      WHERE a.id = ?`
+  );
+  const row = statement.get(addressPointId);
+  if (!row) {
+    return null;
+  }
+  return rowToAddressPoint(row);
+};
+
 export const findAddressPoints = (
   smdLine: SmdLine,
   founder: Founder
@@ -161,23 +188,21 @@ export const findAddressPoints = (
 
   const municipalityWhere =
     founder.municipalityType === MunicipalityType.City
-      ? "c.code = ?"
-      : "d.code = ?";
-  const cityJoin =
-    founder.municipalityType === MunicipalityType.City ? "a" : "d";
-  const statement = db.prepare(
-    `SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
-            a.orientational_number, a.orientational_number_letter, c.name AS city_name,
-            m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
-            a.wgs84_latitude, a.wgs84_longitude
-      FROM address_point a
-      INNER JOIN object_type o ON o.id = a.object_type_id
-      INNER JOIN street s ON a.street_code = s.code
-      LEFT JOIN city_district d ON a.city_district_code = d.code
-      INNER JOIN city c ON c.code = ${cityJoin}.city_code
-      LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
-      WHERE s.name = ? AND ${municipalityWhere}`
-  );
+      ? "a.city_code = ?"
+      : "a.city_district_code = ?";
+
+  const statement = db.prepare(`
+    SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
+          a.orientational_number, a.orientational_number_letter, c.name AS city_name,
+          m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
+          a.wgs84_latitude, a.wgs84_longitude
+    FROM address_point a
+    JOIN street s ON a.street_code = s.code AND s.name = ? COLLATE NOCASE
+    INNER JOIN object_type o ON o.id = a.object_type_id
+    INNER JOIN city c ON c.code = a.city_code
+    LEFT JOIN city_district d ON a.city_district_code = d.code
+    LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
+    WHERE ${municipalityWhere}`);
 
   const filteredAddressPoints = statement
     .all(smdLine.street, founder.cityOrDistrictCode)
@@ -285,13 +310,15 @@ const rowToAddressPoint = (row: any): AddressPoint => {
       row.object_type_name === DescriptiveType
         ? AddressPointType.Descriptive
         : AddressPointType.Registration,
-    street: row.street_name,
     descriptiveNumber: row.descriptive_number,
     city: row.city_name,
     postalCode: row.postal_code,
     lat: row.wgs84_latitude,
     lng: row.wgs84_longitude,
   };
+  if (row.street_name !== null) {
+    point.street = row.street_name;
+  }
   if (row.orientational_number !== null) {
     point.orientationalNumber = row.orientational_number;
   }

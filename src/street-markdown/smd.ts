@@ -1,98 +1,98 @@
-import { readFileSync } from "fs";
-import { findFounder } from "../db/schools";
-import { Founder, School } from "../db/types";
+import { findAddressPoints, getAddressPointById } from "../db/address-points";
+import { findFounder } from "../db/founders";
+import { findSchool } from "../db/schools";
+import { Founder } from "../db/types";
+import { parseLine } from "./smd-line-parser";
+import { Municipality, School } from "./types";
 
-interface Municipality {
-  name: string;
-  schools: School[];
+interface MunicipalityWithFounder extends Municipality {
+  founder: Founder | null;
 }
 
-interface MunicipalityWithFounder {
-  name: string;
-  founder: Founder;
-  schools: School[];
-}
-
-const getNewMunicipality = (
-  name?: string
-): MunicipalityWithFounder | Municipality => {
-  if (name) {
-    const { founder } = findFounder(name);
-    return {
-      name: founder.name,
-      founder,
-      schools: [],
-    };
-  } else {
-    return {
-      name: "Neznámá obec",
-      schools: [],
-    };
+const getNewMunicipality = (name: string): MunicipalityWithFounder => {
+  const { founder, errors } = findFounder(name);
+  if (errors.length > 0) {
+    errors.forEach(console.error);
   }
-};
-
-const getNewSchool = (name: string) => {
   return {
-    name: name,
-    lines: [],
+    municipalityName: founder ? founder.name : "Neznámá obec",
+    founder,
+    schools: [],
   };
 };
 
-const cleanLine = (line: string) => {
-  return line
-    .trim()
-    .replace(/ +(?= )/g, "")
-    .replace(/–/g, "-")
-    .replace(/nábř\./g, "nábřeží")
-    .replace(/Nábř\./g, "Nábřeží")
-    .replace(/nám\./g, "náměstí")
-    .replace(/Nám\./g, "Náměstí");
+const getNewSchool = (name: string, founder: Founder | null): School => {
+  let exportSchool: School = {
+    name: name,
+    addresses: [],
+  };
+  if (founder !== null) {
+    const { school } = findSchool(name, founder.schools);
+    if (school && school.locations.length > 0) {
+      const position = getAddressPointById(school.locations[0].addressPointId);
+      if (position !== null) {
+        exportSchool.position = position;
+      }
+    }
+  }
+  return exportSchool;
 };
 
-export const parseOrdinanceToAddressPoints = (filePath: string) => {
-  const fileContent = readFileSync(filePath);
-  const lines = fileContent.toString().split("\n");
+const cleanLine = (line: string) => {
+  return line.trim().replace(/–/g, "-");
+};
 
+export const parseOrdinanceToAddressPoints = (lines: string[]) => {
   let lineNumber = 1;
   let municipalities: Municipality[] = [];
-  let currentMunicipality: MunicipalityWithFounder | Municipality = null;
-  let currentSchool = null;
+  let currentMunicipality: MunicipalityWithFounder = null;
+  let currentSchool: School = null;
 
   lines.forEach((line) => {
     let s = cleanLine(line);
 
-    if (s[0] == "#") {
+    if (s[0] === "#") {
       // a new municipality
-      if (currentSchool != null) {
+      if (currentSchool !== null) {
         currentMunicipality.schools.push(currentSchool);
         currentSchool = null;
       }
 
-      if (currentMunicipality != null) {
+      if (currentMunicipality !== null) {
         municipalities.push(convertMunicipality(currentMunicipality));
       }
 
       currentMunicipality = getNewMunicipality(s.substring(1).trim());
 
       currentSchool = null;
-    } else if (s == "") {
+    } else if (s === "") {
       // empty line (end of school)
-      if (currentSchool != null) {
-        if (currentMunicipality == null) {
-          currentMunicipality = getNewMunicipality("");
-        }
+      if (currentSchool !== null) {
         currentMunicipality.schools.push(currentSchool);
         currentSchool = null;
       }
     } else {
-      if (currentSchool == null) {
-        if (currentMunicipality == null) {
-          currentMunicipality = getNewMunicipality("");
+      if (currentSchool === null) {
+        if (currentMunicipality === null) {
+          throw new Error("No municipality defined on line " + lineNumber);
         }
-        currentSchool = getNewSchool(s);
+        currentSchool = getNewSchool(s, currentMunicipality.founder);
       } else {
-        if (s[0] == "!") {
-          currentSchool.lines.push(s);
+        if (s[0] !== "!") {
+          // address point
+          const { smdLine, errors } = parseLine(s);
+          if (errors.length > 0) {
+            errors.forEach(console.error);
+            console.error(
+              "Invalid address point on line " + lineNumber + ": " + s
+            );
+          } else {
+            const addressPoints = findAddressPoints(
+              smdLine,
+              currentMunicipality.founder
+            );
+            currentSchool.addresses.push(...addressPoints);
+          }
         } else {
           // street definition
           console.error("Invalid street line on line " + lineNumber + ": " + s);
@@ -118,10 +118,10 @@ export const parseOrdinanceToAddressPoints = (filePath: string) => {
 };
 
 export const convertMunicipality = (
-  municipality: Municipality | MunicipalityWithFounder
+  municipality: MunicipalityWithFounder
 ): Municipality => {
   return {
-    name: municipality.name,
+    municipalityName: municipality.municipalityName,
     schools: municipality.schools,
   };
 };

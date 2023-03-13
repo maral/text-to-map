@@ -6,11 +6,8 @@ import {
   testRows,
   testSchools,
 } from "./db-setup";
-import {
-  insertSchools,
-  insertFounders,
-  findFounder,
-} from "../../src/db/schools";
+import { insertSchools } from "../../src/db/schools";
+import { findFounder, insertFounders } from "../../src/db/founders";
 import {
   commitAddressPoints,
   importParsedLine,

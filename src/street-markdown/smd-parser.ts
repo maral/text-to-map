@@ -5,11 +5,13 @@ import {
   Separator,
   OddType,
   EvenType,
-  CPType as DescriptiveType,
+  DescriptiveType,
   AllType,
   Number,
   Hyphen,
   StreetName,
+  From,
+  AndAbove,
 } from "./token-definition";
 import { RichNumber, SeriesType, SmdLine } from "./types";
 
@@ -131,6 +133,11 @@ export class SmdParser extends EmbeddedActionsParser {
       },
       {
         ALT: () => {
+          result = this.SUBRULE(this.fromAndAbove);
+        },
+      },
+      {
+        ALT: () => {
           const n = SmdParser.parseRichNumber(this.CONSUME(Number).image);
           result = { from: n, to: n };
         },
@@ -147,5 +154,28 @@ export class SmdParser extends EmbeddedActionsParser {
     ]);
     const to = SmdParser.parseRichNumber(this.CONSUME3(Number).image);
     return { from, to };
+  });
+
+  private fromAndAbove = this.RULE("fromAndAbove", () => {
+    let from: RichNumber;
+    this.OR([
+      {
+        ALT: () => {
+          this.OPTION(() => {
+            this.CONSUME(From);
+          });
+          from = SmdParser.parseRichNumber(this.CONSUME(Number).image);
+          this.CONSUME(AndAbove);
+        },
+      },
+      {
+        ALT: () => {
+          this.CONSUME2(From);
+          from = SmdParser.parseRichNumber(this.CONSUME2(Number).image);
+        },
+      },
+    ]);
+
+    return { from };
   });
 }
