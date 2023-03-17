@@ -1,4 +1,5 @@
 import { EmbeddedActionsParser, TokenVocabulary } from "chevrotain";
+import { splitStreetViaRomanNumerals } from "./roman-numerals";
 
 import {
   MainSeparator,
@@ -12,8 +13,9 @@ import {
   StreetName,
   From,
   AndAbove,
+  Slash,
 } from "./token-definition";
-import { RichNumber, SeriesType, SmdLine } from "./types";
+import { FullStreetNumber, RichNumber, SeriesType, SmdLine } from "./types";
 
 export class SmdParser extends EmbeddedActionsParser {
   constructor(tokenVocabulary: TokenVocabulary) {
@@ -21,23 +23,7 @@ export class SmdParser extends EmbeddedActionsParser {
     this.performSelfAnalysis();
   }
 
-  static readonly numberWithCharacterPattern = /^(\d+)([a-z])$/;
-
-  public static parseRichNumber(number: string): RichNumber {
-    if (this.numberWithCharacterPattern.test(number)) {
-      const match = this.numberWithCharacterPattern.exec(number);
-      return {
-        number: parseInt(match[1]),
-        letter: match[2],
-      };
-    } else {
-      return {
-        number: parseInt(number),
-      };
-    }
-  }
-
-  public street = this.RULE("street", (): SmdLine => {
+  public street = this.RULE("street", (): SmdLine[] => {
     let result;
     this.OR([
       {
@@ -47,18 +33,24 @@ export class SmdParser extends EmbeddedActionsParser {
       },
       {
         ALT: () => {
-          result = { street: this.CONSUME(StreetName).image };
+          result = { street: this.CONSUME(StreetName).image, numberSpec: [] };
         },
       },
     ]);
-    return result;
+
+    return splitStreetViaRomanNumerals(result.street).map((street) => ({
+      street,
+      numberSpec: result.numberSpec,
+    }));
   });
 
   private streetNameAndNumbersSpecs = this.RULE(
     "streetNameAndNumbersSpecs",
     () => {
       const street = this.CONSUME(StreetName).image;
-      this.CONSUME(MainSeparator);
+      this.OPTION(() => {
+        this.CONSUME(MainSeparator);
+      });
       const numberSpec = this.SUBRULE(this.numberSpecs);
       return { street, numberSpec };
     }
@@ -76,24 +68,47 @@ export class SmdParser extends EmbeddedActionsParser {
   });
 
   private seriesSpecs = this.RULE("seriesSpecs", () => {
-    const type = this.SUBRULE(this.seriesType);
-    const ranges = [];
-    this.OPTION(() => {
-      ranges.push(this.SUBRULE(this.rangeOrNumber));
-      this.MANY({
-        GATE: () => this.LA(2).tokenType === Number,
-        DEF: () => {
-          this.CONSUME(Separator);
-          ranges.push(this.SUBRULE2(this.rangeOrNumber));
+    let ranges = [];
+    let type: SeriesType;
+    this.OR([
+      {
+        ALT: () => {
+          type = this.SUBRULE(this.seriesType);
+          this.OPTION(() => {
+            this.OR2([
+              {
+                ALT: () => {
+                  ranges.push(this.SUBRULE(this.rangeOrNumber));
+                  this.MANY({
+                    GATE: () => this.LA(2).tokenType === Number,
+                    DEF: () => {
+                      this.CONSUME(Separator);
+                      ranges.push(this.SUBRULE2(this.rangeOrNumber));
+                    },
+                  });
+                },
+              },
+              {
+                ALT: () => {
+                  ({ ranges } = this.SUBRULE(this.fromAndAboveWithType));
+                },
+              },
+            ]);
+          });
         },
-      });
-    });
+      },
+      {
+        ALT: () => {
+          ({ type, ranges } = this.SUBRULE2(this.fromAndAboveWithType));
+        },
+      },
+    ]);
 
     return { type, ranges };
   });
 
   private seriesType = this.RULE("seriesType", () => {
-    let type;
+    let type: SeriesType;
     this.OR([
       {
         ALT: () => {
@@ -138,7 +153,12 @@ export class SmdParser extends EmbeddedActionsParser {
       },
       {
         ALT: () => {
-          const n = SmdParser.parseRichNumber(this.CONSUME(Number).image);
+          result = this.SUBRULE(this.fullStreetNumber);
+        },
+      },
+      {
+        ALT: () => {
+          const n = parseRichNumber(this.CONSUME(Number).image);
           result = { from: n, to: n };
         },
       },
@@ -147,12 +167,12 @@ export class SmdParser extends EmbeddedActionsParser {
   });
 
   private range = this.RULE("range", () => {
-    const from = SmdParser.parseRichNumber(this.CONSUME(Number).image);
+    const from = parseRichNumber(this.CONSUME(Number).image);
     this.OR([
       { ALT: () => this.CONSUME1(Hyphen) },
       { ALT: () => this.CONSUME2(MainSeparator) },
     ]);
-    const to = SmdParser.parseRichNumber(this.CONSUME3(Number).image);
+    const to = parseRichNumber(this.CONSUME3(Number).image);
     return { from, to };
   });
 
@@ -164,18 +184,68 @@ export class SmdParser extends EmbeddedActionsParser {
           this.OPTION(() => {
             this.CONSUME(From);
           });
-          from = SmdParser.parseRichNumber(this.CONSUME(Number).image);
+          from = parseRichNumber(this.CONSUME(Number).image);
           this.CONSUME(AndAbove);
         },
       },
       {
         ALT: () => {
           this.CONSUME2(From);
-          from = SmdParser.parseRichNumber(this.CONSUME2(Number).image);
+          from = parseRichNumber(this.CONSUME2(Number).image);
         },
       },
     ]);
 
     return { from };
   });
+
+  private fromAndAboveWithType = this.RULE("fromAndAboveWithType", () => {
+    let type: SeriesType;
+    this.CONSUME(From);
+    this.OR([
+      {
+        ALT: () => {
+          type = SeriesType.All;
+          this.CONSUME(AllType);
+        },
+      },
+      {
+        ALT: () => {
+          type = SeriesType.Descriptive;
+          this.CONSUME(DescriptiveType);
+        },
+      },
+    ]);
+    const from = parseRichNumber(this.CONSUME(Number).image);
+    this.OPTION(() => {
+      this.CONSUME(AndAbove);
+    });
+    return { type, ranges: [{ from }] };
+  });
+
+  private fullStreetNumber = this.RULE(
+    "fullStreetNumber",
+    (): FullStreetNumber => {
+      const descriptiveNumber = parseRichNumber(this.CONSUME(Number).image);
+      this.CONSUME(Slash);
+      const orientationNumber = parseRichNumber(this.CONSUME2(Number).image);
+      return { descriptiveNumber, orientationalNumber: orientationNumber };
+    }
+  );
 }
+
+const numberWithCharacterPattern = /^(\d+)([a-z])$/;
+
+export const parseRichNumber = (number: string): RichNumber => {
+  if (numberWithCharacterPattern.test(number)) {
+    const match = numberWithCharacterPattern.exec(number);
+    return {
+      number: parseInt(match[1]),
+      letter: match[2],
+    };
+  } else {
+    return {
+      number: parseInt(number),
+    };
+  }
+};

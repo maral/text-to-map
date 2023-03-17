@@ -1,9 +1,19 @@
-import { findAddressPoints, getAddressPointById } from "../db/address-points";
+import {
+  checkStreetExists,
+  findAddressPoints,
+  getAddressPointById,
+} from "../db/address-points";
 import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
 import { Founder } from "../db/types";
 import { parseLine } from "./smd-line-parser";
-import { Municipality, School } from "./types";
+import {
+  AddressPoint,
+  ExportAddressPoint,
+  isAddressPoint,
+  Municipality,
+  School,
+} from "./types";
 
 interface MunicipalityWithFounder extends Municipality {
   founder: Founder | null;
@@ -38,11 +48,28 @@ const getNewSchool = (name: string, founder: Founder | null): School => {
   return exportSchool;
 };
 
+const mapAddressPointForExport = (
+  addressPoint: AddressPoint | ExportAddressPoint
+): ExportAddressPoint => {
+  return {
+    address: addressPoint.address,
+    lat: addressPoint.lat,
+    lng: addressPoint.lng,
+  };
+};
+
+const mapSchoolForExport = (school: School): School => ({
+  name: school.name,
+  addresses: school.addresses,
+  position: mapAddressPointForExport(school.position),
+});
+
 const cleanLine = (line: string) => {
   return line.trim().replace(/–/g, "-");
 };
 
 export const parseOrdinanceToAddressPoints = (lines: string[]) => {
+  let errorLines = 0;
   let lineNumber = 1;
   let municipalities: Municipality[] = [];
   let currentMunicipality: MunicipalityWithFounder = null;
@@ -80,22 +107,44 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
       } else {
         if (s[0] !== "!") {
           // address point
-          const { smdLine, errors } = parseLine(s);
+          const { smdLines, errors } = parseLine(s);
           if (errors.length > 0) {
             errors.forEach(console.error);
             console.error(
-              "Invalid address point on line " + lineNumber + ": " + s
+              `Invalid street definition on line ${lineNumber}: ${s}`
             );
+            errorLines++;
           } else {
-            const addressPoints = findAddressPoints(
-              smdLine,
-              currentMunicipality.founder
-            );
-            currentSchool.addresses.push(...addressPoints);
+            smdLines.forEach((smdLine) => {
+              const { exists, errors } = checkStreetExists(
+                smdLine.street,
+                currentMunicipality.founder
+              );
+              if (errors.length > 0) {
+                errors.map((error) => {
+                  console.error(`Line ${lineNumber}: ${error}`);
+                });
+                errorLines++;
+              }
+              if (exists) {
+                let addressPoints = findAddressPoints(
+                  smdLine,
+                  currentMunicipality.founder
+                );
+
+                // filter out school address point
+                const schoolPosition = currentSchool.position;
+                if (schoolPosition && isAddressPoint(schoolPosition)) {
+                  addressPoints = addressPoints.filter(
+                    (ap) => ap.id !== schoolPosition.id
+                  );
+                }
+                currentSchool.addresses.push(
+                  ...addressPoints.map(mapAddressPointForExport)
+                );
+              }
+            });
           }
-        } else {
-          // street definition
-          console.error("Invalid street line on line " + lineNumber + ": " + s);
         }
       }
     }
@@ -107,12 +156,14 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
     if (currentMunicipality == null) {
       currentMunicipality = getNewMunicipality("");
     }
-    currentMunicipality.schools.push(currentSchool);
+    currentMunicipality.schools.push(mapSchoolForExport(currentSchool));
   }
 
   if (currentMunicipality != null) {
     municipalities.push(convertMunicipality(currentMunicipality));
   }
+
+  console.log(`Parsed ${lineNumber} lines, ${errorLines} errors.`);
 
   return municipalities;
 };

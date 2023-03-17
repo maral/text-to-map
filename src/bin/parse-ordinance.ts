@@ -1,4 +1,4 @@
-import { readFileSync } from "fs";
+import { readFileSync, writeFileSync } from "fs";
 import { setDbConfig } from "../db/db";
 import { parseOrdinanceToAddressPoints } from "../street-markdown/smd";
 import { prepareOptions } from "../utils/helpers";
@@ -21,4 +21,11 @@ setDbConfig({
 
 const addressPoints = parseOrdinanceToAddressPoints(lines);
 
-console.log(JSON.stringify(addressPoints));
+if (process.argv.length >= 4) {
+  const outputFileName = process.argv[3];
+  const output = JSON.stringify(addressPoints);
+  console.log(`Writing output to ${outputFileName}`);
+  writeFileSync(outputFileName, output);
+} else {
+  console.log(JSON.stringify(addressPoints));
+}

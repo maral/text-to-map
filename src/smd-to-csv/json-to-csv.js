@@ -130,7 +130,8 @@ const removeSeparatorFromEnd = (text) => {
 
 // desired output format:
 // Příčná(str);from(int);to(int);[odd|even|all|cp];school(str)
-export function districtsToCsvRules(districts) {
+export function districtsToCsvRules(districts, includeDistrictName = false) {
+  const lines = [];
   districts.forEach((district) => {
     district.schools.forEach((school) => {
       school.lines.forEach((street) => {
@@ -146,7 +147,7 @@ export function districtsToCsvRules(districts) {
           return;
         }
         rules.forEach((rule) => {
-          console.log(
+          lines.push(
             streetName +
               ";" +
               rule.from +
@@ -156,13 +157,14 @@ export function districtsToCsvRules(districts) {
               rule.type +
               ";" +
               school.name +
-              ";" +
-              district.name
+              (includeDistrictName ? ";" + district.name : "")
           );
         });
       });
     });
   });
+
+  return lines.join("\n");
 }
 
 // let raw = readFileSync("out.json", "utf-8");

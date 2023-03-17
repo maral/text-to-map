@@ -11,6 +11,7 @@ import {
   isInRange,
   fitsType,
   findAddressPoints,
+  equalsFullStreetNumber,
 } from "../../src/db/address-points";
 import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 
@@ -187,21 +188,46 @@ describe("find address points", () => {
     expect(isInRange(1000, "a", range)).toBe(false);
   });
 
-  test("find address points", () => {
-    const expected: AddressPoint[] = [
-      {
-        address: "Lysá 686, Želechovice nad Dřevnicí",
-        street: "Lysá",
-        city: "Želechovice nad Dřevnicí",
-        descriptiveNumber: 686,
-        lat: 49.2148644630034,
-        lng: 17.737142251143794,
-        municipalityPart: "Dřevník",
-        postalCode: "76311",
-        type: 0,
-      },
-    ];
+  const testAddressPoints: AddressPoint[] = [
+    {
+      id: 82338752,
+      address: "Lysá 686/20a, Želechovice nad Dřevnicí",
+      street: "Lysá",
+      city: "Želechovice nad Dřevnicí",
+      descriptiveNumber: 686,
+      orientationalNumber: 20,
+      orientationalNumberLetter: "a",
+      lat: 49.2148644630034,
+      lng: 17.737142251143794,
+      municipalityPart: "Dřevník",
+      postalCode: "76311",
+      type: 0,
+    },
+  ];
 
+  test("equalsFullStreetNumber", () => {
+    expect(
+      equalsFullStreetNumber(
+        {
+          descriptiveNumber: { number: 686 },
+          orientationalNumber: { number: 20, letter: "a" },
+        },
+        testAddressPoints[0]
+      )
+    ).toBe(true);
+
+    expect(
+      equalsFullStreetNumber(
+        {
+          descriptiveNumber: { number: 686 },
+          orientationalNumber: { number: 20 },
+        },
+        testAddressPoints[0]
+      )
+    ).toBe(false);
+  });
+
+  test("find address points", () => {
     expect(
       findAddressPoints(
         {
@@ -210,7 +236,7 @@ describe("find address points", () => {
         },
         testFounders[0]
       )
-    ).toEqual(expected);
+    ).toEqual(testAddressPoints);
 
     expect(
       findAddressPoints(
@@ -225,7 +251,7 @@ describe("find address points", () => {
         },
         testFounders[0]
       )
-    ).toEqual(expected);
+    ).toEqual(testAddressPoints);
 
     expect(
       findAddressPoints(
@@ -240,6 +266,6 @@ describe("find address points", () => {
         },
         testFounders[0]
       )
-    ).toEqual(expected);
+    ).toEqual(testAddressPoints);
   });
 });

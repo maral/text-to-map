@@ -140,6 +140,27 @@ export const findFounder = (
   }
 };
 
+let cachedCityCode: number = null;
+let cityCodeFounder: Founder = null;
+export const getFounderCityCode = (founder: Founder): number => {
+  const db = getDb();
+  if (founder.municipalityType === MunicipalityType.District) {
+    if (cityCodeFounder !== founder) {
+      const founderStatement = db.prepare(`
+        SELECT city_code
+        FROM city_district
+        WHERE code = ?
+      `);
+      cachedCityCode = founderStatement.get(
+        founder.cityOrDistrictCode
+      ).city_code;
+    }
+    return cachedCityCode;
+  } else {
+    return founder.cityOrDistrictCode;
+  }
+};
+
 interface FounderNames {
   id: number;
   founderName: string;

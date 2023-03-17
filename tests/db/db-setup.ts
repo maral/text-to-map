@@ -20,8 +20,8 @@ export const testRows = [
     "Lysá", // Název ulice
     "č.p.", // Typ SO
     "686", // Číslo domovní
-    "", // Číslo orientační
-    "", // Znak čísla orientačního
+    "20", // Číslo orientační
+    "a", // Znak čísla orientačního
     "76311", // PSČ
     "516081.77", // Souřadnice Y
     "1166800.80", // Souřadnice X

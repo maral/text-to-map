@@ -1,0 +1,517 @@
+
+<!-- This is a generated file -->
+<!DOCTYPE html>
+<meta charset="utf-8">
+<style>
+  body {
+    background-color: hsl(30, 20%, 95%)
+  }
+</style>
+
+
+<link rel='stylesheet' href='https://unpkg.com/chevrotain@10.4.2/diagrams/diagrams.css'>
+
+<script src='https://unpkg.com/chevrotain@10.4.2/diagrams/vendor/railroad-diagrams.js'></script>
+<script src='https://unpkg.com/chevrotain@10.4.2/diagrams/src/diagrams_builder.js'></script>
+<script src='https://unpkg.com/chevrotain@10.4.2/diagrams/src/diagrams_behavior.js'></script>
+<script src='https://unpkg.com/chevrotain@10.4.2/diagrams/src/main.js'></script>
+
+<div id="diagrams" align="center"></div>    
+
+<script>
+    window.serializedGrammar = [
+  {
+    "type": "Rule",
+    "name": "street",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "streetNameAndNumbersSpecs",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "StreetName",
+                "label": "StreetName",
+                "idx": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "streetNameAndNumbersSpecs",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Terminal",
+        "name": "StreetName",
+        "label": "StreetName",
+        "idx": 0
+      },
+      {
+        "type": "Option",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Terminal",
+            "name": "MainSeparator",
+            "label": "' - '",
+            "idx": 0,
+            "pattern": " - "
+          }
+        ]
+      },
+      {
+        "type": "NonTerminal",
+        "name": "numberSpecs",
+        "idx": 0
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "numberSpecs",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "RepetitionMandatoryWithSeparator",
+        "idx": 0,
+        "separator": {
+          "type": "Terminal",
+          "name": "Separator",
+          "label": "','",
+          "idx": 1,
+          "pattern": ",| a "
+        },
+        "definition": [
+          {
+            "type": "NonTerminal",
+            "name": "seriesSpecs",
+            "idx": 0
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "seriesSpecs",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "seriesType",
+                "idx": 0
+              },
+              {
+                "type": "Option",
+                "idx": 0,
+                "definition": [
+                  {
+                    "type": "Alternation",
+                    "idx": 2,
+                    "definition": [
+                      {
+                        "type": "Alternative",
+                        "definition": [
+                          {
+                            "type": "NonTerminal",
+                            "name": "rangeOrNumber",
+                            "idx": 0
+                          },
+                          {
+                            "type": "Repetition",
+                            "idx": 0,
+                            "definition": [
+                              {
+                                "type": "Terminal",
+                                "name": "Separator",
+                                "label": "','",
+                                "idx": 0,
+                                "pattern": ",| a "
+                              },
+                              {
+                                "type": "NonTerminal",
+                                "name": "rangeOrNumber",
+                                "idx": 2
+                              }
+                            ]
+                          }
+                        ]
+                      },
+                      {
+                        "type": "Alternative",
+                        "definition": [
+                          {
+                            "type": "NonTerminal",
+                            "name": "fromAndAboveWithType",
+                            "idx": 0
+                          }
+                        ]
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "fromAndAboveWithType",
+                "idx": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "seriesType",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "OddType",
+                "label": "'lichá č.'",
+                "idx": 0,
+                "pattern": "(pouze |všechna )?(lich[áé]( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? lich[áé])"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "EvenType",
+                "label": "'sudá č.'",
+                "idx": 1,
+                "pattern": "(pouze |všechna )?(sud[áé]( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? sud[áé])"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "AllType",
+                "label": "'č.'",
+                "idx": 2,
+                "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "CPType",
+                "label": "'č. p.'",
+                "idx": 3,
+                "pattern": "(pouze |všechna )?č. ?p."
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "rangeOrNumber",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "range",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "fromAndAbove",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "fullStreetNumber",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "Number",
+                "label": "Number",
+                "idx": 0
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "range",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Terminal",
+        "name": "Number",
+        "label": "Number",
+        "idx": 0
+      },
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "Hyphen",
+                "label": "'-'",
+                "idx": 1,
+                "pattern": "-"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "MainSeparator",
+                "label": "' - '",
+                "idx": 2,
+                "pattern": " - "
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Terminal",
+        "name": "Number",
+        "label": "Number",
+        "idx": 3
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "fromAndAbove",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Option",
+                "idx": 0,
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "From",
+                    "label": "'od'",
+                    "idx": 0,
+                    "pattern": "od"
+                  }
+                ]
+              },
+              {
+                "type": "Terminal",
+                "name": "Number",
+                "label": "Number",
+                "idx": 0
+              },
+              {
+                "type": "Terminal",
+                "name": "AndAbove",
+                "label": "'a výše'",
+                "idx": 0,
+                "pattern": " (a )?(výše?|vyšší)"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "From",
+                "label": "'od'",
+                "idx": 2,
+                "pattern": "od"
+              },
+              {
+                "type": "Terminal",
+                "name": "Number",
+                "label": "Number",
+                "idx": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "fromAndAboveWithType",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Terminal",
+        "name": "From",
+        "label": "'od'",
+        "idx": 0,
+        "pattern": "od"
+      },
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "AllType",
+                "label": "'č.'",
+                "idx": 0,
+                "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "CPType",
+                "label": "'č. p.'",
+                "idx": 0,
+                "pattern": "(pouze |všechna )?č. ?p."
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Terminal",
+        "name": "Number",
+        "label": "Number",
+        "idx": 0
+      },
+      {
+        "type": "Option",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Terminal",
+            "name": "AndAbove",
+            "label": "'a výše'",
+            "idx": 0,
+            "pattern": " (a )?(výše?|vyšší)"
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "fullStreetNumber",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Terminal",
+        "name": "Number",
+        "label": "Number",
+        "idx": 0
+      },
+      {
+        "type": "Terminal",
+        "name": "Hyphen",
+        "label": "'/'",
+        "idx": 0,
+        "pattern": "\\/"
+      },
+      {
+        "type": "Terminal",
+        "name": "Number",
+        "label": "Number",
+        "idx": 2
+      }
+    ]
+  }
+];
+</script>
+
+<script>
+    var diagramsDiv = document.getElementById("diagrams");
+    main.drawDiagramsFromSerializedGrammar(serializedGrammar, diagramsDiv);
+</script>
