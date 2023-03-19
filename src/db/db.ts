@@ -97,6 +97,23 @@ export const insertAutoincrementRow = (
   return Number(insertStatement.run(row).lastInsertRowid);
 };
 
+export const deleteMultipleRows = (
+  keys: string[],
+  table: string,
+  keyColumnName: string
+): void => {
+  const db = getDb();
+
+  if (keys.length === 0) {
+    return;
+  }
+  db.prepare(
+    `DELETE FROM ${table} WHERE ${keyColumnName} IN (${generatePlaceholders(
+      keys.length
+    )})`
+  ).run(keys);
+};
+
 export const clearDuplicates = (
   rows: string[][],
   table: string,

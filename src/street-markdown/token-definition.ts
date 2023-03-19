@@ -27,9 +27,22 @@ const tokenBlockerFactory = (
   };
 };
 
-const interruptPatterns = ["lichá", "sudá", "č.", "od ", "pouze", "všechna"];
+const interruptPatterns = [
+  "lichá",
+  "sudá",
+  "č.",
+  "od",
+  "do",
+  "pouze",
+  "všechna",
+  "bez",
+  "vyjma",
+  "mimo",
+  "s výjimkou",
+  "kromě",
+];
 const streetNamePattern = /[^ -]+([ -]?[^ -]+)*/;
-const streetNameMatcher = (
+export const streetNameMatcher = (
   text: string,
   startOffset: number
 ): RegExpExecArray | [string] | null => {
@@ -41,7 +54,7 @@ const streetNameMatcher = (
       streetNameWasMatched = true;
       const firstIndex = interruptPatterns.reduce(
         (currentMin: number, pattern: string) => {
-          const index = text.indexOf(` ${pattern}`);
+          const index = text.search(new RegExp(` ${pattern}( |$)`));
           return index >= 0 ? Math.min(index, currentMin) : currentMin;
         },
         Infinity
@@ -56,20 +69,19 @@ const streetNameMatcher = (
 
 const MainSeparator = createToken({ name: "MainSeparator", pattern: / - / });
 const From = createToken({ name: "From", pattern: /od/ });
-const To = createToken({ name: "From", pattern: /do/ });
+const To = createToken({ name: "To", pattern: /do/ });
 const AndAbove = createToken({
   name: "AndAbove",
   pattern: / (a )?(výše?|vyšší)/,
 });
+const AndBelow = createToken({
+  name: "AndBelow",
+  pattern: / a (níže?|nižší)/,
+});
 const Separator = createToken({
   name: "Separator",
   pattern: /,| a /,
-  longer_alt: [AndAbove],
-});
-const EvenType = createToken({
-  name: "EvenType",
-  pattern:
-    /(pouze |všechna )?(sud[áé]( č(\.|ísla))?( ?o\.)?|č(\.|ísla)( ?o\.)? sud[áé])/,
+  longer_alt: [AndAbove, AndBelow],
 });
 const DescriptiveType = createToken({
   name: "CPType",
@@ -83,8 +95,17 @@ const AllType = createToken({
 const OddType = createToken({
   name: "OddType",
   pattern:
-    /(pouze |všechna )?(lich[áé]( č(\.|ísla))?( ?o\.)?|č(\.|ísla)( ?o\.)? lich[áé])/,
+    /(pouze |všechna )?(lich([áé]|ých)( č(\.|ísla))?( ?o\.)?|č(\.|ísla)( ?o\.)? lich[áé])/,
   longer_alt: AllType,
+});
+const EvenType = createToken({
+  name: "EvenType",
+  pattern:
+    /(pouze |všechna )?(sud([áé]|ých)( č(\.|ísla))?( ?o\.)?|č(\.|ísla)( ?o\.)? sud[áé])/,
+});
+const Without = createToken({
+  name: "Without",
+  pattern: /bez|vyjma|mimo|s výjimkou|kromě/,
 });
 const StreetName = createToken({
   name: "StreetName",
@@ -113,7 +134,10 @@ const smdTokens = [
   AllType,
   Number,
   From,
+  To,
   AndAbove,
+  AndBelow,
+  Without,
   Hyphen,
   Slash,
   Space,
@@ -125,12 +149,15 @@ Separator.LABEL = "','";
 Hyphen.LABEL = "'-'";
 Slash.LABEL = "'/'";
 From.LABEL = "'od'";
+To.LABEL = "'do'";
 AndAbove.LABEL = "'a výše'";
+AndBelow.LABEL = "'a níže'";
 Space.LABEL = "' '";
 OddType.LABEL = "'lichá č.'";
 EvenType.LABEL = "'sudá č.'";
 DescriptiveType.LABEL = "'č. p.'";
 AllType.LABEL = "'č.'";
+Without.LABEL = "'bez'";
 
 const tokenVocabulary: TokenVocabulary = {};
 
@@ -147,7 +174,10 @@ export {
   AllType,
   Number,
   From,
+  To,
   AndAbove,
+  AndBelow,
+  Without,
   Hyphen,
   Slash,
   Space,

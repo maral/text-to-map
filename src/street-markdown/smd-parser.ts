@@ -12,8 +12,11 @@ import {
   Hyphen,
   StreetName,
   From,
+  To,
   AndAbove,
+  AndBelow,
   Slash,
+  Without,
 } from "./token-definition";
 import { FullStreetNumber, RichNumber, SeriesType, SmdLine } from "./types";
 
@@ -58,12 +61,35 @@ export class SmdParser extends EmbeddedActionsParser {
 
   private numberSpecs = this.RULE("numberSpecs", () => {
     const result = [];
-    this.AT_LEAST_ONE_SEP({
-      SEP: Separator,
-      DEF: () => {
-        result.push(this.SUBRULE(this.seriesSpecs));
+    this.OR([
+      {
+        GATE: () => this.LA(2).tokenType === Without,
+        ALT: () => {
+          const type = this.SUBRULE(this.seriesType);
+          this.CONSUME(Without);
+          const ranges = this.SUBRULE(this.rangeList);
+          return { negative: true, type, ranges };
+        },
       },
-    });
+      {
+        ALT: () => {
+          this.CONSUME2(Without);
+          const type = this.SUBRULE2(this.seriesType);
+          const ranges = this.SUBRULE2(this.rangeList);
+          return { negative: true, type, ranges };
+        },
+      },
+      {
+        ALT: () => {
+          this.AT_LEAST_ONE_SEP({
+            SEP: Separator,
+            DEF: () => {
+              result.push(this.SUBRULE(this.seriesSpecs));
+            },
+          });
+        },
+      },
+    ]);
     return result;
   });
 
@@ -75,25 +101,7 @@ export class SmdParser extends EmbeddedActionsParser {
         ALT: () => {
           type = this.SUBRULE(this.seriesType);
           this.OPTION(() => {
-            this.OR2([
-              {
-                ALT: () => {
-                  ranges.push(this.SUBRULE(this.rangeOrNumber));
-                  this.MANY({
-                    GATE: () => this.LA(2).tokenType === Number,
-                    DEF: () => {
-                      this.CONSUME(Separator);
-                      ranges.push(this.SUBRULE2(this.rangeOrNumber));
-                    },
-                  });
-                },
-              },
-              {
-                ALT: () => {
-                  ({ ranges } = this.SUBRULE(this.fromAndAboveWithType));
-                },
-              },
-            ]);
+            ranges = this.SUBRULE(this.rangeList);
           });
         },
       },
@@ -102,9 +110,27 @@ export class SmdParser extends EmbeddedActionsParser {
           ({ type, ranges } = this.SUBRULE2(this.fromAndAboveWithType));
         },
       },
+      {
+        ALT: () => {
+          ({ type, ranges } = this.SUBRULE(this.toOrBelowWithType));
+        },
+      },
     ]);
 
     return { type, ranges };
+  });
+
+  private rangeList = this.RULE("rangeList", () => {
+    let ranges = [];
+    ranges.push(this.SUBRULE(this.rangeOrNumber));
+    this.MANY({
+      GATE: () => [Number, To, From].includes(this.LA(2).tokenType),
+      DEF: () => {
+        this.CONSUME(Separator);
+        ranges.push(this.SUBRULE2(this.rangeOrNumber));
+      },
+    });
+    return ranges;
   });
 
   private seriesType = this.RULE("seriesType", () => {
@@ -153,6 +179,11 @@ export class SmdParser extends EmbeddedActionsParser {
       },
       {
         ALT: () => {
+          result = this.SUBRULE(this.toOrBelow);
+        },
+      },
+      {
+        ALT: () => {
           result = this.SUBRULE(this.fullStreetNumber);
         },
       },
@@ -181,17 +212,20 @@ export class SmdParser extends EmbeddedActionsParser {
     this.OR([
       {
         ALT: () => {
-          this.OPTION(() => {
-            this.CONSUME(From);
-          });
           from = parseRichNumber(this.CONSUME(Number).image);
           this.CONSUME(AndAbove);
         },
       },
       {
         ALT: () => {
-          this.CONSUME2(From);
+          this.CONSUME(From);
+          this.OPTION(() => {
+            this.CONSUME(AllType);
+          });
           from = parseRichNumber(this.CONSUME2(Number).image);
+          this.OPTION2(() => {
+            this.CONSUME2(AndAbove);
+          });
         },
       },
     ]);
@@ -200,27 +234,72 @@ export class SmdParser extends EmbeddedActionsParser {
   });
 
   private fromAndAboveWithType = this.RULE("fromAndAboveWithType", () => {
-    let type: SeriesType;
+    let type = SeriesType.All;
     this.CONSUME(From);
-    this.OR([
-      {
-        ALT: () => {
-          type = SeriesType.All;
-          this.CONSUME(AllType);
-        },
-      },
-      {
-        ALT: () => {
-          type = SeriesType.Descriptive;
-          this.CONSUME(DescriptiveType);
-        },
-      },
-    ]);
-    const from = parseRichNumber(this.CONSUME(Number).image);
     this.OPTION(() => {
+      this.OR([
+        {
+          ALT: () => {
+            type = SeriesType.All;
+            this.CONSUME(AllType);
+          },
+        },
+        {
+          ALT: () => {
+            type = SeriesType.Descriptive;
+            this.CONSUME(DescriptiveType);
+          },
+        },
+      ]);
+    });
+    const from = parseRichNumber(this.CONSUME(Number).image);
+    this.OPTION2(() => {
       this.CONSUME(AndAbove);
     });
     return { type, ranges: [{ from }] };
+  });
+
+  private toOrBelow = this.RULE("toOrBelow", () => {
+    let to: RichNumber;
+    this.OR([
+      {
+        ALT: () => {
+          to = parseRichNumber(this.CONSUME(Number).image);
+          this.CONSUME(AndBelow);
+        },
+      },
+      {
+        ALT: () => {
+          this.CONSUME2(To);
+          to = parseRichNumber(this.CONSUME2(Number).image);
+        },
+      },
+    ]);
+
+    return { to };
+  });
+
+  private toOrBelowWithType = this.RULE("toOrBelowWithType", () => {
+    let type = SeriesType.All;
+    this.CONSUME(To);
+    this.OPTION(() => {
+      this.OR([
+        {
+          ALT: () => {
+            type = SeriesType.All;
+            this.CONSUME(AllType);
+          },
+        },
+        {
+          ALT: () => {
+            type = SeriesType.Descriptive;
+            this.CONSUME(DescriptiveType);
+          },
+        },
+      ]);
+    });
+    const to = parseRichNumber(this.CONSUME(Number).image);
+    return { type, ranges: [{ to }] };
   });
 
   private fullStreetNumber = this.RULE(

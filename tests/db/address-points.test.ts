@@ -268,4 +268,44 @@ describe("find address points", () => {
       )
     ).toEqual(testAddressPoints);
   });
+
+  test("find address points", () => {
+    expect(
+      findAddressPoints(
+        {
+          street: "Lysá",
+          numberSpec: { negative: true, ranges: [], type: SeriesType.Even },
+        },
+        testFounders[0]
+      )
+    ).toEqual([]);
+
+    expect(
+      findAddressPoints(
+        {
+          street: "Lysá",
+          numberSpec: {
+            negative: true,
+            ranges: [{ from: { number: 686 }, to: { number: 686 } }],
+            type: SeriesType.Descriptive,
+          },
+        },
+        testFounders[0]
+      )
+    ).toEqual([]);
+
+    expect(
+      findAddressPoints(
+        {
+          street: "Lysá",
+          numberSpec: {
+            negative: true,
+            ranges: [{ from: { number: 1 }, to: { number: 15 } }],
+            type: SeriesType.Odd,
+          },
+        },
+        testFounders[0]
+      )
+    ).toEqual(testAddressPoints);
+  });
 });

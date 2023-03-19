@@ -9,8 +9,11 @@ import {
   AddressPoint,
   AddressPointType,
   FullStreetNumber,
+  isNegativeSeriesSpec,
   isRange,
+  isSeriesSpecArray,
   RangeSpec,
+  SeriesSpec,
   SeriesType,
   SmdLine,
 } from "../street-markdown/types";
@@ -148,11 +151,10 @@ export const insertStreets = (buffer: string[][]): number => {
   return insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.streetCode, [
       Column.cityCode,
-      Column.districtCode,
       Column.streetName,
     ]),
     "street",
-    ["code", "city_code", "city_district_code", "name"]
+    ["code", "city_code", "name"]
   );
 };
 
@@ -271,9 +273,42 @@ export const findAddressPoints = (
     .map(rowToAddressPoint);
 
   const result: AddressPoint[] = [];
-  smdLine.numberSpec.forEach((seriesSpec) => {
-    seriesSpec.ranges.forEach((range) => {
-      const addressPoints = filteredAddressPoints.filter((addressPoint) => {
+  const numberSpec = smdLine.numberSpec;
+  if (isSeriesSpecArray(numberSpec)) {
+    numberSpec.forEach((seriesSpec) => {
+      result.push(
+        ...filterAddressPointsByRanges(filteredAddressPoints, seriesSpec)
+      );
+    });
+
+    // when no number specs are present, we take everything
+    if (numberSpec.length === 0) {
+      result.push(...filteredAddressPoints);
+    }
+  } else if (isNegativeSeriesSpec(numberSpec)) {
+    // negative number spec (e.g. odd numbers except 13-17)
+    const toExclude = filterAddressPointsByRanges(
+      filteredAddressPoints,
+      numberSpec
+    );
+    result.push(
+      ...filteredAddressPoints.filter(
+        (addressPoint) => !toExclude.includes(addressPoint)
+      )
+    );
+  }
+
+  return result;
+};
+
+const filterAddressPointsByRanges = (
+  addressPoints: AddressPoint[],
+  seriesSpec: SeriesSpec
+): AddressPoint[] => {
+  const result: AddressPoint[] = [];
+  seriesSpec.ranges.forEach((range) => {
+    result.push(
+      ...addressPoints.filter((addressPoint) => {
         if (isRange(range)) {
           const number = getNumberByType(seriesSpec.type, addressPoint);
           return (
@@ -289,26 +324,20 @@ export const findAddressPoints = (
           const fullStreetNumber: FullStreetNumber = range;
           return equalsFullStreetNumber(fullStreetNumber, addressPoint);
         }
-      });
-      result.push(...addressPoints);
-    });
-
-    // when no series specs are present, we take everything that fits the type
-    if (seriesSpec.ranges.length === 0) {
-      result.push(
-        ...filteredAddressPoints.filter((addressPoint) =>
-          fitsType(
-            getNumberByType(seriesSpec.type, addressPoint),
-            seriesSpec.type
-          )
-        )
-      );
-    }
+      })
+    );
   });
 
-  // when no number specs are present, we take everything
-  if (smdLine.numberSpec.length === 0) {
-    result.push(...filteredAddressPoints);
+  // when no series specs are present, we take everything that fits the type
+  if (seriesSpec.ranges.length === 0) {
+    result.push(
+      ...addressPoints.filter((addressPoint) =>
+        fitsType(
+          getNumberByType(seriesSpec.type, addressPoint),
+          seriesSpec.type
+        )
+      )
+    );
   }
 
   return result;

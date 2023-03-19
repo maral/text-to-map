@@ -69,7 +69,9 @@ const cleanLine = (line: string) => {
 };
 
 export const parseOrdinanceToAddressPoints = (lines: string[]) => {
-  let errorLines = 0;
+  let errorCount = 0;
+  const errorLines: string[] = [];
+  let warningCount = 0;
   let lineNumber = 1;
   let municipalities: Municipality[] = [];
   let currentMunicipality: MunicipalityWithFounder = null;
@@ -113,7 +115,8 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
             console.error(
               `Invalid street definition on line ${lineNumber}: ${s}`
             );
-            errorLines++;
+            errorCount++;
+            errorLines.push(`line ${lineNumber}: ${s}`);
           } else {
             smdLines.forEach((smdLine) => {
               const { exists, errors } = checkStreetExists(
@@ -124,7 +127,7 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
                 errors.map((error) => {
                   console.error(`Line ${lineNumber}: ${error}`);
                 });
-                errorLines++;
+                warningCount++;
               }
               if (exists) {
                 let addressPoints = findAddressPoints(
@@ -163,7 +166,13 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
     municipalities.push(convertMunicipality(currentMunicipality));
   }
 
-  console.log(`Parsed ${lineNumber} lines, ${errorLines} errors.`);
+  console.log(
+    `Parsed ${lineNumber} lines, ${errorCount} errors, ${warningCount} warnings.`
+  );
+  if (errorCount > 0) {
+    console.log("Errors:");
+    errorLines.forEach((line) => console.log(line));
+  }
 
   return municipalities;
 };

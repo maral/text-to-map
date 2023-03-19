@@ -11,7 +11,8 @@ import {
 } from "../utils/helpers";
 import { pipeline } from "stream/promises";
 import { Founder, MunicipalityType, School, SchoolLocation } from "../db/types";
-import { insertFounders, insertSchools } from "../db/schools";
+import { insertSchools } from "../db/schools";
+import { insertFounders } from "../db/founders";
 
 const downloadXml = async (
   options: OpenDataSyncOptionsNotEmpty

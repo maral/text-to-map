@@ -30,3 +30,9 @@ interface Municipality {
   type: MunicipalityType;
   name: string;
 }
+
+export interface DbfStreet {
+  KOD: string;
+  NAZEV: string;
+  OBEC_KOD: string;
+}

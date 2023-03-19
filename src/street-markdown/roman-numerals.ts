@@ -3,7 +3,7 @@ const singleRomanNumeralPattern =
   /X{1,3}(IX|IV|V?I{0,3})|(IX|IV|VI{0,3})|(I{1,3})/g;
 const romanNumeralsListPattern =
   /(X{1,3}(IX|IV|V?I{0,3})|(IX|IV|VI{0,3})|(I{1,3}))(, ?(X{1,3}(IX|IV|V?I{0,3})|(IX|IV|VI{0,3})|(I{1,3})))+$/;
-const romanNumeralsRangePattern = /([IVXLCDM]+)-([IVXLCDM]+)$/;
+const romanNumeralsRangePattern = /([IVXLCDM]+) ?- ?([IVXLCDM]+)$/;
 export const splitStreetViaRomanNumerals = (input: string): string[] => {
   const list = romanNumeralsListPattern.exec(input);
   if (list) {

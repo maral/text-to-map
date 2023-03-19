@@ -1,4 +1,12 @@
 
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>SMD street line Syntax Diagrams</title>
+</head>
+<body>
+
 <!-- This is a generated file -->
 <!DOCTYPE html>
 <meta charset="utf-8">
@@ -91,20 +99,53 @@
     "orgText": "",
     "definition": [
       {
-        "type": "RepetitionMandatoryWithSeparator",
+        "type": "Alternation",
         "idx": 0,
-        "separator": {
-          "type": "Terminal",
-          "name": "Separator",
-          "label": "','",
-          "idx": 1,
-          "pattern": ",| a "
-        },
         "definition": [
           {
-            "type": "NonTerminal",
-            "name": "seriesSpecs",
-            "idx": 0
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "RepetitionMandatoryWithSeparator",
+                "idx": 0,
+                "separator": {
+                  "type": "Terminal",
+                  "name": "Separator",
+                  "label": "','",
+                  "idx": 1,
+                  "pattern": ",| a "
+                },
+                "definition": [
+                  {
+                    "type": "NonTerminal",
+                    "name": "seriesSpecs",
+                    "idx": 0
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "seriesType",
+                "idx": 0
+              },
+              {
+                "type": "Terminal",
+                "name": "Without",
+                "label": "'bez'",
+                "idx": 0,
+                "pattern": "bez|vyjma|mimo|s výjimkou|kromě"
+              },
+              {
+                "type": "NonTerminal",
+                "name": "rangeOrNumber",
+                "idx": 0
+              }
+            ]
           }
         ]
       }
@@ -132,46 +173,25 @@
                 "idx": 0,
                 "definition": [
                   {
-                    "type": "Alternation",
-                    "idx": 2,
+                    "type": "NonTerminal",
+                    "name": "rangeOrNumber",
+                    "idx": 0
+                  },
+                  {
+                    "type": "Repetition",
+                    "idx": 0,
                     "definition": [
                       {
-                        "type": "Alternative",
-                        "definition": [
-                          {
-                            "type": "NonTerminal",
-                            "name": "rangeOrNumber",
-                            "idx": 0
-                          },
-                          {
-                            "type": "Repetition",
-                            "idx": 0,
-                            "definition": [
-                              {
-                                "type": "Terminal",
-                                "name": "Separator",
-                                "label": "','",
-                                "idx": 0,
-                                "pattern": ",| a "
-                              },
-                              {
-                                "type": "NonTerminal",
-                                "name": "rangeOrNumber",
-                                "idx": 2
-                              }
-                            ]
-                          }
-                        ]
+                        "type": "Terminal",
+                        "name": "Separator",
+                        "label": "','",
+                        "idx": 0,
+                        "pattern": ",| a "
                       },
                       {
-                        "type": "Alternative",
-                        "definition": [
-                          {
-                            "type": "NonTerminal",
-                            "name": "fromAndAboveWithType",
-                            "idx": 0
-                          }
-                        ]
+                        "type": "NonTerminal",
+                        "name": "rangeOrNumber",
+                        "idx": 2
                       }
                     ]
                   }
@@ -186,6 +206,16 @@
                 "type": "NonTerminal",
                 "name": "fromAndAboveWithType",
                 "idx": 2
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
+                "name": "toOrBelowWithType",
+                "idx": 0
               }
             ]
           }
@@ -288,6 +318,16 @@
             "definition": [
               {
                 "type": "NonTerminal",
+                "name": "toOrBelow",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
                 "name": "fullStreetNumber",
                 "idx": 0
               }
@@ -331,7 +371,7 @@
                 "name": "Hyphen",
                 "label": "'-'",
                 "idx": 1,
-                "pattern": "-"
+                "pattern": "-|až"
               }
             ]
           },
@@ -370,19 +410,6 @@
             "type": "Alternative",
             "definition": [
               {
-                "type": "Option",
-                "idx": 0,
-                "definition": [
-                  {
-                    "type": "Terminal",
-                    "name": "From",
-                    "label": "'od'",
-                    "idx": 0,
-                    "pattern": "od"
-                  }
-                ]
-              },
-              {
                 "type": "Terminal",
                 "name": "Number",
                 "label": "Number",
@@ -404,14 +431,40 @@
                 "type": "Terminal",
                 "name": "From",
                 "label": "'od'",
-                "idx": 2,
+                "idx": 0,
                 "pattern": "od"
+              },
+              {
+                "type": "Option",
+                "idx": 0,
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "AllType",
+                    "label": "'č.'",
+                    "idx": 0,
+                    "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+                  }
+                ]
               },
               {
                 "type": "Terminal",
                 "name": "Number",
                 "label": "Number",
                 "idx": 2
+              },
+              {
+                "type": "Option",
+                "idx": 2,
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "AndAbove",
+                    "label": "'a výše'",
+                    "idx": 2,
+                    "pattern": " (a )?(výše?|vyšší)"
+                  }
+                ]
               }
             ]
           }
@@ -432,30 +485,36 @@
         "pattern": "od"
       },
       {
-        "type": "Alternation",
+        "type": "Option",
         "idx": 0,
         "definition": [
           {
-            "type": "Alternative",
+            "type": "Alternation",
+            "idx": 0,
             "definition": [
               {
-                "type": "Terminal",
-                "name": "AllType",
-                "label": "'č.'",
-                "idx": 0,
-                "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
-              }
-            ]
-          },
-          {
-            "type": "Alternative",
-            "definition": [
+                "type": "Alternative",
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "AllType",
+                    "label": "'č.'",
+                    "idx": 0,
+                    "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+                  }
+                ]
+              },
               {
-                "type": "Terminal",
-                "name": "CPType",
-                "label": "'č. p.'",
-                "idx": 0,
-                "pattern": "(pouze |všechna )?č. ?p."
+                "type": "Alternative",
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "CPType",
+                    "label": "'č. p.'",
+                    "idx": 0,
+                    "pattern": "(pouze |všechna )?č. ?p."
+                  }
+                ]
               }
             ]
           }
@@ -469,7 +528,7 @@
       },
       {
         "type": "Option",
-        "idx": 0,
+        "idx": 2,
         "definition": [
           {
             "type": "Terminal",
@@ -479,6 +538,111 @@
             "pattern": " (a )?(výše?|vyšší)"
           }
         ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "toOrBelow",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Alternation",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "Number",
+                "label": "Number",
+                "idx": 0
+              },
+              {
+                "type": "Terminal",
+                "name": "AndBelow",
+                "label": "'a níže'",
+                "idx": 0,
+                "pattern": " a (níže?|nižší)"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "To",
+                "label": "'do'",
+                "idx": 2,
+                "pattern": "do"
+              },
+              {
+                "type": "Terminal",
+                "name": "Number",
+                "label": "Number",
+                "idx": 2
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "toOrBelowWithType",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Terminal",
+        "name": "To",
+        "label": "'do'",
+        "idx": 0,
+        "pattern": "do"
+      },
+      {
+        "type": "Option",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Alternation",
+            "idx": 0,
+            "definition": [
+              {
+                "type": "Alternative",
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "AllType",
+                    "label": "'č.'",
+                    "idx": 0,
+                    "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+                  }
+                ]
+              },
+              {
+                "type": "Alternative",
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "CPType",
+                    "label": "'č. p.'",
+                    "idx": 0,
+                    "pattern": "(pouze |všechna )?č. ?p."
+                  }
+                ]
+              }
+            ]
+          }
+        ]
+      },
+      {
+        "type": "Terminal",
+        "name": "Number",
+        "label": "Number",
+        "idx": 0
       }
     ]
   },
@@ -515,3 +679,6 @@
     var diagramsDiv = document.getElementById("diagrams");
     main.drawDiagramsFromSerializedGrammar(serializedGrammar, diagramsDiv);
 </script>
+
+</body>
+</html>

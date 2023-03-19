@@ -1,7 +1,11 @@
+import FeedParser from "feedparser";
+import fetch from "node-fetch";
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { join } from "path";
+import { pipeline } from "stream/promises";
 import { Founder, MunicipalityType } from "../db/types";
+import { setDbConfig } from "../db/db";
 
 const appName = "text-to-map";
 
@@ -13,6 +17,9 @@ export interface OpenDataSyncOptions {
   addressPointsAtomUrl?: string;
   addressPointsZipFileName?: string;
   addressPointsCsvFolderName?: string;
+  streetsAtomUrl?: string;
+  streetZipFolderName?: string;
+  streetDbfFileName?: string;
   schoolsXmlUrl?: string;
   schoolsXmlFileName?: string;
 }
@@ -25,6 +32,9 @@ export interface OpenDataSyncOptionsNotEmpty {
   addressPointsAtomUrl: string;
   addressPointsZipFileName: string;
   addressPointsCsvFolderName: string;
+  streetsAtomUrl: string;
+  streetFolderName: string;
+  streetDbfFileName: string;
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
 }
@@ -63,6 +73,11 @@ export const prepareOptions = (
     addressPointsZipFileName:
       options.addressPointsZipFileName ?? "ruian_csv.zip",
     addressPointsCsvFolderName: options.addressPointsCsvFolderName ?? "CSV",
+    streetsAtomUrl:
+      options.streetsAtomUrl ??
+      "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
+    streetFolderName: options.streetZipFolderName ?? "streets",
+    streetDbfFileName: options.streetDbfFileName ?? "UL_L.dbf",
     schoolsXmlUrl:
       options.schoolsXmlUrl ??
       "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
@@ -70,11 +85,83 @@ export const prepareOptions = (
   };
 };
 
-export const reportError = (error: any): void => {
-  if (error.hasOwnProperty("stack")) {
-    console.log(error, error.stack);
+export const initDb = (options: OpenDataSyncOptionsNotEmpty): void => {
+  setDbConfig({
+    filePath: options.dbFilePath,
+    initFilePath: options.dbInitFilePath,
+  });
+};
+
+export const getLatestUrlFromAtomFeed = async (
+  atomFeedUrl: string
+): Promise<string> => {
+  const response = await fetch(atomFeedUrl);
+  const feedparser = new FeedParser({});
+  let link = null;
+
+  if (response.status !== 200) {
+    throw new Error(
+      `The Atom feed from atom.cuzk.cz not working. HTTP status ${response.status}`
+    );
+  }
+
+  feedparser.on("error", (error) => {
+    throw new Error(`The Atom feed from atom.cuzk.cz could not be loaded.`);
+  });
+
+  feedparser.on("readable", function () {
+    let item: FeedParser.Item;
+
+    let maxDate = new Date();
+    maxDate.setFullYear(1990);
+    while ((item = this.read())) {
+      if (item.date > maxDate) {
+        maxDate = item.date;
+        link = item.link;
+      }
+    }
+  });
+
+  await pipeline(response.body, feedparser);
+
+  if (link != null) {
+    return link;
   } else {
-    console.log(error);
+    throw new Error("Could not find any dataset feed link.");
+  }
+};
+
+export const getAllUrlsFromAtomFeed = async (
+  atomFeedUrl: string
+): Promise<string[]> => {
+  const response = await fetch(atomFeedUrl);
+  const feedparser = new FeedParser({});
+  const links: string[] = [];
+
+  if (response.status !== 200) {
+    throw new Error(
+      `The Atom feed from atom.cuzk.cz not working. HTTP status ${response.status}`
+    );
+  }
+
+  feedparser.on("error", (error) => {
+    throw new Error(`The Atom feed from atom.cuzk.cz could not be loaded.`);
+  });
+
+  feedparser.on("readable", function () {
+    let item: FeedParser.Item;
+
+    while ((item = this.read())) {
+      links.push(item.link);
+    }
+  });
+
+  await pipeline(response.body, feedparser);
+
+  if (links.length > 0) {
+    return links;
+  } else {
+    throw new Error("Could not find any dataset feed link.");
   }
 };
 

@@ -1,7 +1,9 @@
 import { describe, expect, test } from "@jest/globals";
 import { parseLine } from "../../src/street-markdown/smd-line-parser";
 import {
+  FullStreetNumber,
   ProcessedSmdLines,
+  RangeSpec,
   SeriesType,
   SmdLine,
 } from "../../src/street-markdown/types";
@@ -23,12 +25,21 @@ const streetOnlyNoTransform = (street: string): SmdLine => {
 };
 
 const simpleExampleWithType = (type: SeriesType): ProcessedSmdLines => {
+  return exampleWithTypeAndRanges(type, [
+    { from: { number: 19 }, to: { number: 25 } },
+  ]);
+};
+
+const exampleWithTypeAndRanges = (
+  type: SeriesType,
+  ranges: (RangeSpec | FullStreetNumber)[]
+): ProcessedSmdLines => {
   return transform({
     street: "Šrobárova",
     numberSpec: [
       {
         type: type,
-        ranges: [{ from: { number: 19 }, to: { number: 25 } }],
+        ranges: ranges,
       },
     ],
   });
@@ -225,35 +236,128 @@ describe("parse line with street and number information", () => {
   });
 
   test("street with range x and above", () => {
-    const expected = transform({
-      street: "Šrobárova",
-      numberSpec: [
-        {
-          type: SeriesType.All,
-          ranges: [{ from: { number: 19 } }],
-        },
-      ],
-    });
+    const ranges = [{ from: { number: 19 } }];
+    const expectedAll = exampleWithTypeAndRanges(SeriesType.All, ranges);
+    const expectedOdd = exampleWithTypeAndRanges(SeriesType.Odd, ranges);
+    const expectedEven = exampleWithTypeAndRanges(SeriesType.Even, ranges);
+    const expectedDescriptive = exampleWithTypeAndRanges(
+      SeriesType.Descriptive,
+      ranges
+    );
 
-    // different forms of the rule
-    expect(parseLine("Šrobárova - od č. 19")).toEqual(expected);
-    expect(parseLine("Šrobárova od č. 19")).toEqual(expected);
-    expect(parseLine("Šrobárova - od č. 19 výše")).toEqual(expected);
-    expect(parseLine("Šrobárova od č. 19 výše")).toEqual(expected);
-    expect(parseLine("Šrobárova - č. od 19 výše")).toEqual(expected);
-    expect(parseLine("Šrobárova č. od 19 výše")).toEqual(expected);
-    expect(parseLine("Šrobárova - č. od 19 a výše")).toEqual(expected);
-    expect(parseLine("Šrobárova č. od 19 a výše")).toEqual(expected);
-    expect(parseLine("Šrobárova - č. 19 a výše")).toEqual(expected);
-    expect(parseLine("Šrobárova č. 19 a výše")).toEqual(expected);
-    expect(parseLine("Šrobárova - od č. 19 vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova od č. 19 vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova - č. od 19 vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova č. od 19 vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova - č. od 19 a vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova č. od 19 a vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova - č. 19 a vyšší")).toEqual(expected);
-    expect(parseLine("Šrobárova č. 19 a vyšší")).toEqual(expected);
+    expect(parseLine("Šrobárova - od č. 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova od č. 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - od 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova od 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - od č. 19 výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova od č. 19 výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - č. od 19 výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova č. od 19 výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - č. od 19 a výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova č. od 19 a výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - č. 19 a výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova č. 19 a výše")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - od č. 19 vyšší")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - od č. 19 a vyšší")).toEqual(expectedAll);
+
+    expect(parseLine("Šrobárova - lichá č. od 19")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá č. od 19 výše")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá č. o. od 19 výše")).toEqual(
+      expectedOdd
+    );
+    expect(parseLine("Šrobárova - lichá od č. 19")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá od č. o. 19")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá od č. 19 výše")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá od č. o. 19 výše")).toEqual(
+      expectedOdd
+    );
+
+    expect(parseLine("Šrobárova - sudá č. od 19")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá č. od 19 výše")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá č. o. od 19 výše")).toEqual(
+      expectedEven
+    );
+    expect(parseLine("Šrobárova - sudá od č. 19")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá od č. o. 19")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá od č. 19 výše")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá od č. o. 19 výše")).toEqual(
+      expectedEven
+    );
+
+    expect(parseLine("Šrobárova - č. p. od 19")).toEqual(expectedDescriptive);
+    expect(parseLine("Šrobárova - č. p. od 19 výše")).toEqual(
+      expectedDescriptive
+    );
+    expect(parseLine("Šrobárova - č. p. od č. 19")).toEqual(
+      expectedDescriptive
+    );
+    expect(parseLine("Šrobárova - č. p. od č. 19 výše")).toEqual(
+      expectedDescriptive
+    );
+  });
+
+  test("street with possible interruption prefix", () => {
+    expect(parseLine("Národního odboje")).toEqual(
+      streetOnly("Národního odboje")
+    );
+  });
+
+  test("street with range x and below", () => {
+    const ranges = [{ to: { number: 19 } }];
+    const expectedAll = exampleWithTypeAndRanges(SeriesType.All, ranges);
+    const expectedOdd = exampleWithTypeAndRanges(SeriesType.Odd, ranges);
+    const expectedEven = exampleWithTypeAndRanges(SeriesType.Even, ranges);
+    const expectedDescriptive = exampleWithTypeAndRanges(
+      SeriesType.Descriptive,
+      ranges
+    );
+
+    expect(parseLine("Šrobárova - č. 19 a níže")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - č. 19 a níž")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - č. 19 a nižší")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - lichá č. 19 a nižší")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá č. o. 19 a nižší")).toEqual(
+      expectedOdd
+    );
+    expect(parseLine("Šrobárova - lichá 19 a nižší")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - sudá č. 19 a nižší")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá č. o. 19 a nižší")).toEqual(
+      expectedEven
+    );
+    expect(parseLine("Šrobárova - sudá 19 a nižší")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - č. p. 19 a nižší")).toEqual(
+      expectedDescriptive
+    );
+  });
+
+  test("street with range up to x", () => {
+    const ranges = [{ to: { number: 19 } }];
+    const expectedAll = exampleWithTypeAndRanges(SeriesType.All, ranges);
+    const expectedOdd = exampleWithTypeAndRanges(SeriesType.Odd, ranges);
+    const expectedEven = exampleWithTypeAndRanges(SeriesType.Even, ranges);
+    const expectedDescriptive = exampleWithTypeAndRanges(
+      SeriesType.Descriptive,
+      ranges
+    );
+    expect(parseLine("Šrobárova - č. do 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova č. do 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - č. o. do 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova č. o. do 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - lichá č. do 19")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - lichá č. o. do 19")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova lichá č. do 19")).toEqual(expectedOdd);
+    expect(parseLine("Šrobárova - sudá č. do 19")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - sudá č. o. do 19")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova sudá č. do 19")).toEqual(expectedEven);
+    expect(parseLine("Šrobárova - č. p. do 19")).toEqual(expectedDescriptive);
+
+    expect(parseLine("Šrobárova - do č. 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova do č. 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova - do 19")).toEqual(expectedAll);
+    expect(parseLine("Šrobárova do 19")).toEqual(expectedAll);
+
+    expect(parseLine("Šrobárova - do č. p. 19")).toEqual(expectedDescriptive);
+    expect(parseLine("Šrobárova do č. p. 19")).toEqual(expectedDescriptive);
   });
 
   test("street with full street numbers", () => {

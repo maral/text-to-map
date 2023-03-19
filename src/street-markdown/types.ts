@@ -5,13 +5,25 @@ export interface ProcessedSmdLines {
 
 export interface SmdLine {
   street: string;
-  numberSpec: SeriesSpec[];
+  numberSpec: SeriesSpec[] | NegativeSeriesSpec;
 }
 
 export interface SeriesSpec {
   type: SeriesType;
   ranges: (RangeSpec | FullStreetNumber)[];
 }
+
+export interface NegativeSeriesSpec extends SeriesSpec {
+  negative: true;
+}
+
+export const isSeriesSpecArray = (
+  something: SeriesSpec[] | NegativeSeriesSpec
+): something is SeriesSpec[] => Array.isArray(something);
+
+export const isNegativeSeriesSpec = (
+  something: SeriesSpec[] | NegativeSeriesSpec
+): something is SeriesSpec[] => something.hasOwnProperty("negative");
 
 export interface RangeSpec {
   from?: RichNumber;

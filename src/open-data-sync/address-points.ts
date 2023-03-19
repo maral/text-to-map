@@ -1,4 +1,3 @@
-import FeedParser from "feedparser";
 import fetch from "node-fetch";
 import {
   createWriteStream,
@@ -18,47 +17,10 @@ import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsNotEmpty,
   prepareOptions,
+  getLatestUrlFromAtomFeed,
+  initDb,
 } from "../utils/helpers";
 import { commitAddressPoints, importParsedLine } from "../db/address-points";
-
-const getLatestUrlFromAtomFeed = async (
-  atomFeedUrl: string
-): Promise<string> => {
-  const response = await fetch(atomFeedUrl);
-  const feedparser = new FeedParser({});
-  let link = null;
-
-  if (response.status !== 200) {
-    throw new Error(
-      `The Atom feed from atom.cuzk.cz not working. HTTP status ${response.status}`
-    );
-  }
-
-  feedparser.on("error", (error) => {
-    throw new Error(`The Atom feed from atom.cuzk.cz could not be loaded.`);
-  });
-
-  feedparser.on("readable", function () {
-    let item: FeedParser.Item;
-
-    let maxDate = new Date();
-    maxDate.setFullYear(1990);
-    while ((item = this.read())) {
-      if (item.date > maxDate) {
-        maxDate = item.date;
-        link = item.link;
-      }
-    }
-  });
-
-  await pipeline(response.body, feedparser);
-
-  if (link != null) {
-    return link;
-  } else {
-    throw new Error("Could not find any dataset feed link.");
-  }
-};
 
 const downloadAndUnzip = async (
   url: string,
@@ -98,10 +60,7 @@ const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
     "Initiating import of RUIAN data to search DB (~3 million rows to be imported)."
   );
 
-  setDbConfig({
-    filePath: options.dbFilePath,
-    initFilePath: options.dbInitFilePath,
-  });
+  initDb(options);
 
   for (const file of files) {
     const parseStream = parse({ delimiter: ";", fromLine: 2 }).on(
