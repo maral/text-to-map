@@ -127,6 +127,9 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
           throw new Error("No municipality defined on line " + lineNumber);
         }
         currentSchool = getNewSchool(line, currentMunicipality.founder);
+        currentFilterMunicipality = founderToMunicipality(
+          currentMunicipality.founder
+        );
       } else {
         if (line[0] !== "!") {
           if (isMunicipalitySwitch(line)) {
