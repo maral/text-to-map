@@ -1,4 +1,4 @@
-import { EmbeddedActionsParser, TokenVocabulary } from "chevrotain";
+import { EmbeddedActionsParser, EOF, TokenVocabulary } from "chevrotain";
 import { splitStreetViaRomanNumerals } from "./roman-numerals";
 
 import {
@@ -67,6 +67,9 @@ export class SmdParser extends EmbeddedActionsParser {
         ALT: () => {
           const type = this.SUBRULE(this.seriesType);
           this.CONSUME(Without);
+          this.OPTION(() => {
+            this.CONSUME(AllType);
+          });
           const ranges = this.SUBRULE(this.rangeList);
           return { negative: true, type, ranges };
         },
@@ -74,9 +77,24 @@ export class SmdParser extends EmbeddedActionsParser {
       {
         ALT: () => {
           this.CONSUME2(Without);
-          const type = this.SUBRULE2(this.seriesType);
-          const ranges = this.SUBRULE2(this.rangeList);
-          return { negative: true, type, ranges };
+          this.OR1([
+            {
+              GATE: this._gatePostfixTypeSeriesSpec,
+              ALT: () => {
+                const { type, ranges } = this.SUBRULE(
+                  this.postfixTypeSeriesSpec
+                );
+                return { negative: true, type, ranges };
+              },
+            },
+            {
+              ALT: () => {
+                const type = this.SUBRULE2(this.seriesType);
+                const ranges = this.SUBRULE2(this.rangeList);
+                return { negative: true, type, ranges };
+              },
+            },
+          ]);
         },
       },
       {
@@ -98,6 +116,12 @@ export class SmdParser extends EmbeddedActionsParser {
     let type: SeriesType;
     this.OR([
       {
+        GATE: this._gatePostfixTypeSeriesSpec,
+        ALT: () => {
+          ({ type, ranges } = this.SUBRULE(this.postfixTypeSeriesSpec));
+        },
+      },
+      {
         ALT: () => {
           type = this.SUBRULE(this.seriesType);
           this.OPTION(() => {
@@ -117,6 +141,38 @@ export class SmdParser extends EmbeddedActionsParser {
       },
     ]);
 
+    return { type, ranges };
+  });
+
+  private _gatePostfixTypeSeriesSpec = (): boolean => {
+    let index = 2;
+    while (![Separator, EOF].includes(this.LA(index).tokenType)) {
+      if ([OddType, EvenType].includes(this.LA(index).tokenType)) {
+        return true;
+      }
+      index++;
+    }
+    return false;
+  };
+
+  private postfixTypeSeriesSpec = this.RULE("postfixTypeSeriesSpec", () => {
+    this.CONSUME(AllType);
+    const ranges = [this.SUBRULE(this.rangeOrNumber)];
+    let type: SeriesType;
+    this.OR1([
+      {
+        ALT: () => {
+          this.CONSUME(OddType);
+          type = SeriesType.Odd;
+        },
+      },
+      {
+        ALT: () => {
+          this.CONSUME1(EvenType);
+          type = SeriesType.Even;
+        },
+      },
+    ]);
     return { type, ranges };
   });
 
@@ -203,6 +259,9 @@ export class SmdParser extends EmbeddedActionsParser {
       { ALT: () => this.CONSUME1(Hyphen) },
       { ALT: () => this.CONSUME2(MainSeparator) },
     ]);
+    this.OPTION(() => {
+      this.CONSUME(AllType);
+    });
     const to = parseRichNumber(this.CONSUME3(Number).image);
     return { from, to };
   });

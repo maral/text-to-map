@@ -12,14 +12,17 @@ import {
   isNegativeSeriesSpec,
   isRange,
   isSeriesSpecArray,
+  isWholeMunicipalitySmdLine,
   RangeSpec,
   SeriesSpec,
   SeriesType,
   SmdLine,
+  WholeMunicipalitySmdLine,
 } from "../street-markdown/types";
-import { Founder, MunicipalityType } from "./types";
+import { Founder, Municipality, MunicipalityType } from "./types";
 import { findClosestString } from "../utils/helpers";
 import { getFounderCityCode } from "./founders";
+import { buildInline } from "../utils/addressBuilder";
 
 const buffer: string[][] = [];
 const MaxBufferSize = 1000;
@@ -250,10 +253,14 @@ const getAllStreets = (cityCode: number): string[] => {
 };
 
 export const findAddressPoints = (
-  smdLine: SmdLine,
-  founder: Founder
+  smdLine: SmdLine | WholeMunicipalitySmdLine,
+  municipality: Municipality
 ): AddressPoint[] => {
   const db = getDb();
+
+  const streetJoinCondition = isWholeMunicipalitySmdLine(smdLine)
+    ? "LEFT JOIN street s ON a.street_code = s.code"
+    : "JOIN street s ON a.street_code = s.code AND s.name = ? COLLATE NOCASE";
 
   const statement = db.prepare(`
     SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
@@ -261,16 +268,21 @@ export const findAddressPoints = (
           m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
           a.wgs84_latitude, a.wgs84_longitude
     FROM address_point a
-    JOIN street s ON a.street_code = s.code AND s.name = ? COLLATE NOCASE
+    ${streetJoinCondition}
     INNER JOIN object_type o ON o.id = a.object_type_id
     INNER JOIN city c ON c.code = a.city_code
     LEFT JOIN city_district d ON a.city_district_code = d.code
     LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
-    WHERE ${getMunicipalityWhere("a", founder)}`);
+    WHERE ${getMunicipalityWhere("a", municipality)}`);
 
-  const filteredAddressPoints = statement
-    .all(smdLine.street, founder.cityOrDistrictCode)
-    .map(rowToAddressPoint);
+  const params = isWholeMunicipalitySmdLine(smdLine)
+    ? [municipality.code]
+    : [smdLine.street, municipality.code];
+  const filteredAddressPoints = statement.all(...params).map(rowToAddressPoint);
+
+  if (isWholeMunicipalitySmdLine(smdLine)) {
+    return filteredAddressPoints;
+  }
 
   const result: AddressPoint[] = [];
   const numberSpec = smdLine.numberSpec;
@@ -406,8 +418,11 @@ const getNumberByType = (
     : addressPoint.orientationalNumber ?? null;
 };
 
-const getMunicipalityWhere = (alias: string, founder: Founder): string => {
-  return founder.municipalityType === MunicipalityType.City
+const getMunicipalityWhere = (
+  alias: string,
+  municipality: Municipality
+): string => {
+  return municipality.type === MunicipalityType.City
     ? `${alias}.city_code = ?`
     : `${alias}.city_district_code = ?`;
 };
@@ -424,7 +439,7 @@ const createAddress = (result: any): string => {
 const rowToAddressPoint = (row: any): AddressPoint => {
   const point: AddressPoint = {
     id: row.id,
-    address: createAddress(row),
+    address: "",
     type:
       row.object_type_name === DescriptiveType
         ? AddressPointType.Descriptive
@@ -450,5 +465,6 @@ const rowToAddressPoint = (row: any): AddressPoint => {
   if (row.municipality_part_name !== null) {
     point.municipalityPart = row.municipality_part_name;
   }
+  point.address = buildInline(point);
   return point;
 };

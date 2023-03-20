@@ -106,6 +106,71 @@
             "type": "Alternative",
             "definition": [
               {
+                "type": "NonTerminal",
+                "name": "seriesType",
+                "idx": 0
+              },
+              {
+                "type": "Terminal",
+                "name": "Without",
+                "label": "'bez'",
+                "idx": 0,
+                "pattern": "bez|vyjma|mimo|s výjimkou|kromě"
+              },
+              {
+                "type": "NonTerminal",
+                "name": "rangeList",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "Without",
+                "label": "'bez'",
+                "idx": 2,
+                "pattern": "bez|vyjma|mimo|s výjimkou|kromě"
+              },
+              {
+                "type": "Alternation",
+                "idx": 1,
+                "definition": [
+                  {
+                    "type": "Alternative",
+                    "definition": [
+                      {
+                        "type": "NonTerminal",
+                        "name": "postfixTypeSeriesSpec",
+                        "idx": 0
+                      }
+                    ]
+                  },
+                  {
+                    "type": "Alternative",
+                    "definition": [
+                      {
+                        "type": "NonTerminal",
+                        "name": "seriesType",
+                        "idx": 2
+                      },
+                      {
+                        "type": "NonTerminal",
+                        "name": "rangeList",
+                        "idx": 2
+                      }
+                    ]
+                  }
+                ]
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
                 "type": "RepetitionMandatoryWithSeparator",
                 "idx": 0,
                 "separator": {
@@ -122,28 +187,6 @@
                     "idx": 0
                   }
                 ]
-              }
-            ]
-          },
-          {
-            "type": "Alternative",
-            "definition": [
-              {
-                "type": "NonTerminal",
-                "name": "seriesType",
-                "idx": 0
-              },
-              {
-                "type": "Terminal",
-                "name": "Without",
-                "label": "'bez'",
-                "idx": 0,
-                "pattern": "bez|vyjma|mimo|s výjimkou|kromě"
-              },
-              {
-                "type": "NonTerminal",
-                "name": "rangeOrNumber",
-                "idx": 0
               }
             ]
           }
@@ -165,6 +208,16 @@
             "definition": [
               {
                 "type": "NonTerminal",
+                "name": "postfixTypeSeriesSpec",
+                "idx": 0
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "NonTerminal",
                 "name": "seriesType",
                 "idx": 0
               },
@@ -174,26 +227,8 @@
                 "definition": [
                   {
                     "type": "NonTerminal",
-                    "name": "rangeOrNumber",
+                    "name": "rangeList",
                     "idx": 0
-                  },
-                  {
-                    "type": "Repetition",
-                    "idx": 0,
-                    "definition": [
-                      {
-                        "type": "Terminal",
-                        "name": "Separator",
-                        "label": "','",
-                        "idx": 0,
-                        "pattern": ",| a "
-                      },
-                      {
-                        "type": "NonTerminal",
-                        "name": "rangeOrNumber",
-                        "idx": 2
-                      }
-                    ]
                   }
                 ]
               }
@@ -225,6 +260,85 @@
   },
   {
     "type": "Rule",
+    "name": "postfixTypeSeriesSpec",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "Terminal",
+        "name": "AllType",
+        "label": "'č.'",
+        "idx": 0,
+        "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+      },
+      {
+        "type": "NonTerminal",
+        "name": "rangeOrNumber",
+        "idx": 0
+      },
+      {
+        "type": "Alternation",
+        "idx": 1,
+        "definition": [
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "OddType",
+                "label": "'lichá č.'",
+                "idx": 0,
+                "pattern": "(pouze |všechna )?(lich([áé]|ých)( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? lich[áé])"
+              }
+            ]
+          },
+          {
+            "type": "Alternative",
+            "definition": [
+              {
+                "type": "Terminal",
+                "name": "EvenType",
+                "label": "'sudá č.'",
+                "idx": 1,
+                "pattern": "(pouze |všechna )?(sud([áé]|ých)( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? sud[áé])"
+              }
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
+    "name": "rangeList",
+    "orgText": "",
+    "definition": [
+      {
+        "type": "NonTerminal",
+        "name": "rangeOrNumber",
+        "idx": 0
+      },
+      {
+        "type": "Repetition",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Terminal",
+            "name": "Separator",
+            "label": "','",
+            "idx": 0,
+            "pattern": ",| a "
+          },
+          {
+            "type": "NonTerminal",
+            "name": "rangeOrNumber",
+            "idx": 2
+          }
+        ]
+      }
+    ]
+  },
+  {
+    "type": "Rule",
     "name": "seriesType",
     "orgText": "",
     "definition": [
@@ -240,7 +354,7 @@
                 "name": "OddType",
                 "label": "'lichá č.'",
                 "idx": 0,
-                "pattern": "(pouze |všechna )?(lich[áé]( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? lich[áé])"
+                "pattern": "(pouze |všechna )?(lich([áé]|ých)( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? lich[áé])"
               }
             ]
           },
@@ -252,7 +366,7 @@
                 "name": "EvenType",
                 "label": "'sudá č.'",
                 "idx": 1,
-                "pattern": "(pouze |všechna )?(sud[áé]( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? sud[áé])"
+                "pattern": "(pouze |všechna )?(sud([áé]|ých)( č(\\.|ísla))?( ?o\\.)?|č(\\.|ísla)( ?o\\.)? sud[áé])"
               }
             ]
           },
@@ -386,6 +500,19 @@
                 "pattern": " - "
               }
             ]
+          }
+        ]
+      },
+      {
+        "type": "Option",
+        "idx": 0,
+        "definition": [
+          {
+            "type": "Terminal",
+            "name": "AllType",
+            "label": "'č.'",
+            "idx": 0,
+            "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
           }
         ]
       },

@@ -124,6 +124,11 @@ const Space = createToken({
   longer_alt: [MainSeparator, Separator],
   group: Lexer.SKIPPED,
 });
+const Colon = createToken({
+  name: "Colon",
+  pattern: /:/,
+  group: Lexer.SKIPPED,
+});
 
 const smdTokens = [
   MainSeparator,
@@ -141,6 +146,7 @@ const smdTokens = [
   Hyphen,
   Slash,
   Space,
+  Colon,
   StreetName,
 ];
 

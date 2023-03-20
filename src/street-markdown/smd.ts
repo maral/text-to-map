@@ -5,7 +5,17 @@ import {
 } from "../db/address-points";
 import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
-import { Founder } from "../db/types";
+import {
+  Founder,
+  founderToMunicipality,
+  Municipality as DbMunicipality,
+} from "../db/types";
+import {
+  getSwitchMunicipality,
+  getWholeMunicipality,
+  isMunicipalitySwitch,
+  isWholeMunicipality,
+} from "./municipality";
 import { parseLine } from "./smd-line-parser";
 import {
   AddressPoint,
@@ -75,12 +85,20 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
   let lineNumber = 1;
   let municipalities: Municipality[] = [];
   let currentMunicipality: MunicipalityWithFounder = null;
+  let currentFilterMunicipality: DbMunicipality = null;
   let currentSchool: School = null;
 
-  lines.forEach((line) => {
-    let s = cleanLine(line);
+  const reportErrors = (line: string, errors: string[]): void => {
+    errors.forEach(console.error);
+    console.error(`Invalid street definition on line ${lineNumber}: ${line}`);
+    errorCount++;
+    errorLines.push(`line ${lineNumber}: ${line}`);
+  };
 
-    if (s[0] === "#") {
+  lines.forEach((rawLine) => {
+    let line = cleanLine(rawLine);
+
+    if (line[0] === "#") {
       // a new municipality
       if (currentSchool !== null) {
         currentMunicipality.schools.push(currentSchool);
@@ -91,10 +109,13 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
         municipalities.push(convertMunicipality(currentMunicipality));
       }
 
-      currentMunicipality = getNewMunicipality(s.substring(1).trim());
+      currentMunicipality = getNewMunicipality(line.substring(1).trim());
+      currentFilterMunicipality = founderToMunicipality(
+        currentMunicipality.founder
+      );
 
       currentSchool = null;
-    } else if (s === "") {
+    } else if (line === "") {
       // empty line (end of school)
       if (currentSchool !== null) {
         currentMunicipality.schools.push(currentSchool);
@@ -105,48 +126,64 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
         if (currentMunicipality === null) {
           throw new Error("No municipality defined on line " + lineNumber);
         }
-        currentSchool = getNewSchool(s, currentMunicipality.founder);
+        currentSchool = getNewSchool(line, currentMunicipality.founder);
       } else {
-        if (s[0] !== "!") {
-          // address point
-          const { smdLines, errors } = parseLine(s);
-          if (errors.length > 0) {
-            errors.forEach(console.error);
-            console.error(
-              `Invalid street definition on line ${lineNumber}: ${s}`
-            );
-            errorCount++;
-            errorLines.push(`line ${lineNumber}: ${s}`);
-          } else {
-            smdLines.forEach((smdLine) => {
-              const { exists, errors } = checkStreetExists(
-                smdLine.street,
-                currentMunicipality.founder
+        if (line[0] !== "!") {
+          if (isMunicipalitySwitch(line)) {
+            const { municipality, errors } = getSwitchMunicipality(line);
+            if (errors.length > 0) {
+              reportErrors(line, errors);
+            } else {
+              currentFilterMunicipality = municipality;
+            }
+          } else if (isWholeMunicipality(line)) {
+            const { municipality, errors } = getWholeMunicipality(line);
+            if (errors.length > 0) {
+              reportErrors(line, errors);
+            } else {
+              const addressPoints = findAddressPoints(
+                { wholeMunicipality: true, street: "", numberSpec: [] },
+                municipality
               );
-              if (errors.length > 0) {
-                errors.map((error) => {
-                  console.error(`Line ${lineNumber}: ${error}`);
-                });
-                warningCount++;
-              }
-              if (exists) {
-                let addressPoints = findAddressPoints(
-                  smdLine,
+              currentSchool.addresses.push(
+                ...filterOutSchoolAddressPoint(
+                  addressPoints,
+                  currentSchool
+                ).map(mapAddressPointForExport)
+              );
+            }
+          } else {
+            // address point
+            const { smdLines, errors } = parseLine(line);
+            if (errors.length > 0) {
+              reportErrors(line, errors);
+            } else {
+              smdLines.forEach((smdLine) => {
+                const { exists, errors } = checkStreetExists(
+                  smdLine.street,
                   currentMunicipality.founder
                 );
+                if (errors.length > 0) {
+                  errors.map((error) => {
+                    console.error(`Line ${lineNumber}: ${error}`);
+                  });
+                  warningCount++;
+                }
+                if (exists) {
+                  let addressPoints = findAddressPoints(
+                    smdLine,
+                    currentFilterMunicipality
+                  );
 
-                // filter out school address point
-                const schoolPosition = currentSchool.position;
-                if (schoolPosition && isAddressPoint(schoolPosition)) {
-                  addressPoints = addressPoints.filter(
-                    (ap) => ap.id !== schoolPosition.id
+                  currentSchool.addresses.push(
+                    ...filterOutSchoolAddressPoint(
+                      addressPoints,
+                      currentSchool
+                    ).map(mapAddressPointForExport)
                   );
                 }
-                currentSchool.addresses.push(
-                  ...addressPoints.map(mapAddressPointForExport)
-                );
-              }
-            });
+              });
+            }
           }
         }
       }
@@ -175,6 +212,18 @@ export const parseOrdinanceToAddressPoints = (lines: string[]) => {
   }
 
   return municipalities;
+};
+
+const filterOutSchoolAddressPoint = (
+  addressPoints: AddressPoint[],
+  school: School
+) => {
+  const schoolPosition = school.position;
+  return schoolPosition && isAddressPoint(schoolPosition)
+    ? (addressPoints = addressPoints.filter(
+        (ap) => ap.id !== schoolPosition.id
+      ))
+    : addressPoints;
 };
 
 export const convertMunicipality = (

@@ -14,6 +14,7 @@ import {
   equalsFullStreetNumber,
 } from "../../src/db/address-points";
 import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
+import { founderToMunicipality } from "../../src/db/types";
 
 // let testRowsLarge: string[][] = [];
 const prefix = "address-points";
@@ -234,7 +235,7 @@ describe("find address points", () => {
           street: "Lysá",
           numberSpec: [],
         },
-        testFounders[0]
+        founderToMunicipality(testFounders[0])
       )
     ).toEqual(testAddressPoints);
 
@@ -249,7 +250,7 @@ describe("find address points", () => {
             },
           ],
         },
-        testFounders[0]
+        founderToMunicipality(testFounders[0])
       )
     ).toEqual(testAddressPoints);
 
@@ -264,7 +265,7 @@ describe("find address points", () => {
             },
           ],
         },
-        testFounders[0]
+        founderToMunicipality(testFounders[0])
       )
     ).toEqual(testAddressPoints);
   });
@@ -276,7 +277,7 @@ describe("find address points", () => {
           street: "Lysá",
           numberSpec: { negative: true, ranges: [], type: SeriesType.Even },
         },
-        testFounders[0]
+        founderToMunicipality(testFounders[0])
       )
     ).toEqual([]);
 
@@ -290,7 +291,7 @@ describe("find address points", () => {
             type: SeriesType.Descriptive,
           },
         },
-        testFounders[0]
+        founderToMunicipality(testFounders[0])
       )
     ).toEqual([]);
 
@@ -304,7 +305,7 @@ describe("find address points", () => {
             type: SeriesType.Odd,
           },
         },
-        testFounders[0]
+        founderToMunicipality(testFounders[0])
       )
     ).toEqual(testAddressPoints);
   });

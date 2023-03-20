@@ -1,32 +1,16 @@
 import fetch from "node-fetch";
-import {
-  createWriteStream,
-  createReadStream,
-  rmSync,
-  readdirSync,
-  existsSync,
-  mkdirSync,
-} from "fs";
+import { createWriteStream, rmSync, existsSync, mkdirSync } from "fs";
 import { pipeline } from "stream/promises";
 import { join } from "path";
 import AdmZip from "adm-zip";
-import { parse } from "csv-parse";
-import iconv from "iconv-lite";
 import parseDBF from "parsedbf";
 
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsNotEmpty,
   prepareOptions,
-  getLatestUrlFromAtomFeed,
-  getAllUrlsFromAtomFeed,
   initDb,
 } from "../utils/helpers";
-import {
-  commitAddressPoints,
-  importParsedLine,
-  insertStreets,
-} from "../db/address-points";
 import {
   deleteStreets,
   getAllSyncedStreets,
@@ -34,6 +18,10 @@ import {
   setStreetAsSynced,
 } from "../db/street-sync";
 import { DbfStreet } from "../db/types";
+import {
+  getAllUrlsFromAtomFeed,
+  getLatestUrlFromAtomFeed,
+} from "../utils/atom";
 
 const prepareFolders = (options: OpenDataSyncOptionsNotEmpty) => {
   const tempFolder = getTempFolder(options);

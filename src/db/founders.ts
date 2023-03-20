@@ -1,6 +1,10 @@
-import { Founder, MunicipalityType, School } from "./types";
+import { Founder, Municipality, MunicipalityType, School } from "./types";
 import { getDb, insertAutoincrementRow, insertMultipleRows } from "./db";
 import { extractMunicipalityName, findClosestString } from "../utils/helpers";
+import { DbMunicipalityResult } from "../street-markdown/types";
+
+const cityTypeCode = 261;
+const cityDistrictTypeCode = 263;
 
 export const insertFounders = (founders: Founder[]): number => {
   const db = getDb();
@@ -173,7 +177,7 @@ const resultToFounder = (result: any): Founder => {
     ico: result.ico,
     originalType: result.founder_type_code,
     municipalityType:
-      result.founder_type_code === 261
+      result.founder_type_code === cityTypeCode
         ? MunicipalityType.City
         : MunicipalityType.District,
     cityOrDistrictCode: result.city_code || result.city_district_code,
@@ -216,5 +220,55 @@ const getAllFounderNames = (): FounderNames[] => {
     municipalityName: String(
       row.city_name ? row.city_name : row.city_district_name
     ),
+  }));
+};
+
+export const findMunicipalityByNameAndType = (
+  name: string,
+  type: MunicipalityType
+): DbMunicipalityResult => {
+  const errors = [];
+  const db = getDb();
+
+  const exactMatchStatement = db.prepare(
+    `SELECT code FROM ${
+      type === MunicipalityType.City ? "city" : "city_district"
+    } WHERE name = ?`
+  );
+  const result = exactMatchStatement.get(name);
+  if (result) {
+    return { municipality: { code: result.code, type }, errors };
+  } else {
+    const allNames = getAllMunicipalityNames(type);
+    const namesList = allNames.map((row) => row.name);
+    const bestMatch = findClosestString(name, namesList);
+    const bestMatchRow = allNames.find(
+      (municipality) => municipality.name === bestMatch
+    );
+
+    errors.push(
+      `No exact match for municipality "${name}", using "${bestMatch}" instead.`
+    );
+
+    return {
+      municipality: { code: bestMatchRow.code, type },
+      errors,
+    };
+  }
+};
+
+const getAllMunicipalityNames = (
+  type: MunicipalityType
+): { name: string; code: number }[] => {
+  const db = getDb();
+  const statement = db.prepare(
+    `SELECT name, code FROM ${
+      type === MunicipalityType.City ? "city" : "city_district"
+    }`
+  );
+  const result = statement.all();
+  return result.map((row) => ({
+    name: row.name,
+    code: row.code,
   }));
 };

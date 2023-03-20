@@ -26,10 +26,17 @@ export enum MunicipalityType {
   Other,
 }
 
-interface Municipality {
+export interface Municipality {
   type: MunicipalityType;
-  name: string;
+  code: number;
 }
+
+export const founderToMunicipality = (founder: Founder): Municipality => {
+  return {
+    type: founder.municipalityType,
+    code: founder.cityOrDistrictCode,
+  };
+};
 
 export interface DbfStreet {
   KOD: string;

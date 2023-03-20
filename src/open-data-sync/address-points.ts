@@ -12,15 +12,14 @@ import AdmZip from "adm-zip";
 import { parse } from "csv-parse";
 import iconv from "iconv-lite";
 
-import { setDbConfig } from "../db/db";
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsNotEmpty,
   prepareOptions,
-  getLatestUrlFromAtomFeed,
   initDb,
 } from "../utils/helpers";
 import { commitAddressPoints, importParsedLine } from "../db/address-points";
+import { getLatestUrlFromAtomFeed } from "../utils/atom";
 
 const downloadAndUnzip = async (
   url: string,

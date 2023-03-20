@@ -1,3 +1,5 @@
+import { Municipality as DbMunicipality } from "../db/types";
+
 export interface ProcessedSmdLines {
   smdLines: SmdLine[];
   errors: string[];
@@ -7,6 +9,17 @@ export interface SmdLine {
   street: string;
   numberSpec: SeriesSpec[] | NegativeSeriesSpec;
 }
+
+export interface WholeMunicipalitySmdLine extends SmdLine {
+  wholeMunicipality: true;
+  street: string;
+  numberSpec: SeriesSpec[] | NegativeSeriesSpec;
+}
+
+export const isWholeMunicipalitySmdLine = (
+  something: SmdLine | WholeMunicipalitySmdLine
+): something is WholeMunicipalitySmdLine =>
+  something.hasOwnProperty("wholeMunicipality");
 
 export interface SeriesSpec {
   type: SeriesType;
@@ -96,4 +109,9 @@ export interface School {
 export interface Municipality {
   municipalityName: string;
   schools: School[];
+}
+
+export interface DbMunicipalityResult {
+  municipality: DbMunicipality;
+  errors: string[];
 }
