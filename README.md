@@ -7,4 +7,4 @@ Text To Map usiluje o lepší, strojově zpracovatelné využití částí vyhl�
 ## Živě na webu
 - [Spádové oblasti - Praha](https://mareklisy.cz/spadovosti-praha/)
 
-<script type='text/javascript' src='https://storage.ko-fi.com/cdn/widget/Widget_2.js'></script><script type='text/javascript'>kofiwidget2.init('Buy me a coffee', '#29abe0', 'E1E5JOMLT');kofiwidget2.draw();</script> 
+[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/E1E5JOMLT)
