@@ -1,10 +1,8 @@
 import { writeFileSync } from "fs";
 import { createSyntaxDiagramsCode } from "chevrotain";
 import { smdParser } from "../street-markdown/smd-line-parser";
-
 // extract the serialized grammar.
 const serializedGrammar = smdParser.getSerializedGastProductions();
-
 // create the HTML Text
 const htmlText = `
 <!DOCTYPE html>
@@ -17,6 +15,5 @@ const htmlText = `
 ${createSyntaxDiagramsCode(serializedGrammar)}
 </body>
 </html>`;
-
 // Write the HTML file to disk
 writeFileSync("generated_diagrams.html", htmlText);

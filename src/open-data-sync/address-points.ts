@@ -88,7 +88,7 @@ const getExtractionFolder = (options: OpenDataSyncOptionsNotEmpty) =>
   join(options.tmpDir, options.addressPointsCsvFolderName);
 
 export const downloadAndImportAllLatestAddressPoints = async (
-  options: OpenDataSyncOptions
+  options: OpenDataSyncOptions = {}
 ): Promise<void> => {
   const completeOptions = prepareOptions(options);
   const datasetFeedLink = await getLatestUrlFromAtomFeed(
@@ -99,8 +99,8 @@ export const downloadAndImportAllLatestAddressPoints = async (
   await importDataToDb(completeOptions);
 };
 
-export const importOnly = async (
-  options: OpenDataSyncOptions
+export const importAllLatestAddressPoints = async (
+  options: OpenDataSyncOptions = {}
 ): Promise<void> => {
   const completeOptions = prepareOptions(options);
   await importDataToDb(completeOptions);

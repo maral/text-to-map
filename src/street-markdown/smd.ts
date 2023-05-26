@@ -3,6 +3,7 @@ import {
   findAddressPoints,
   getAddressPointById,
 } from "../db/address-points";
+import { setDbConfig } from "../db/db";
 import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
 import {
@@ -10,6 +11,7 @@ import {
   founderToMunicipality,
   Municipality as DbMunicipality,
 } from "../db/types";
+import { OpenDataSyncOptions, prepareOptions } from "../utils/helpers";
 import {
   getSwitchMunicipality,
   getWholeMunicipality,
@@ -85,7 +87,13 @@ const cleanLine = (line: string) => {
   return line.trim().replace(/–/g, "-");
 };
 
-export const parseOrdinanceToAddressPoints = (lines: string[]) => {
+export const parseOrdinanceToAddressPoints = (lines: string[], options: OpenDataSyncOptions = {}) => {
+  const readyOptions = prepareOptions(options);
+  setDbConfig({
+    filePath: readyOptions.dbFilePath,
+    initFilePath: readyOptions.dbInitFilePath,
+  });
+  
   let errorCount = 0;
   const errorLines: string[] = [];
   let warningCount = 0;

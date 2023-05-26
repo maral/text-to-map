@@ -1,14 +1,14 @@
 import { importAllLatestAddressPoints } from "../open-data-sync/address-points";
-
 console.time("importOnly");
 importAllLatestAddressPoints({})
-  .then(() => {
+    .then(() => {
     console.timeEnd("importOnly");
-  })
-  .catch((error: any) => {
+})
+    .catch((error) => {
     if (error.hasOwnProperty("stack")) {
-      console.log(error, error.stack);
-    } else {
-      console.log(error);
+        console.log(error, error.stack);
     }
-  });
+    else {
+        console.log(error);
+    }
+});
