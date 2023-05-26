@@ -102,6 +102,7 @@ export const isAddressPoint = (
 
 export interface School {
   name: string;
+  izo: string;
   position?: AddressPoint | ExportAddressPoint;
   addresses: ExportAddressPoint[];
 }

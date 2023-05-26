@@ -4373,7 +4373,6 @@ Cigánkova
 Hornomlýnská
 Hráského
 Hroncova
-Jana Růžičky
 Jarníkova
 Klírova
 Láskova
@@ -4381,10 +4380,12 @@ Malenická
 Nechvílova
 Roztylská
 Šustova
-U Kunratického lesa
-U zeleného ptáka
 Vojtíškova
 Zlešická
+navíc ulice městské části Praha-Kunratice:
+Jana Růžičky
+U Kunratického lesa
+U zeleného ptáka
 
 Základní škola s rozšířenou výukou jazyků, Praha 4, K Milíčovu 674
 Bajkonurská
