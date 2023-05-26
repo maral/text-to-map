@@ -44,14 +44,20 @@ const getNewMunicipality = (name: string): MunicipalityWithFounder => {
 const getNewSchool = (name: string, founder: Founder | null): School => {
   let exportSchool: School = {
     name: name,
+    izo: "",
     addresses: [],
   };
   if (founder !== null) {
     const { school } = findSchool(name, founder.schools);
-    if (school && school.locations.length > 0) {
-      const position = getAddressPointById(school.locations[0].addressPointId);
-      if (position !== null) {
-        exportSchool.position = position;
+    if (school) {
+      school.izo = school.izo || "";
+      if (school.locations.length > 0) {
+        const position = getAddressPointById(
+          school.locations[0].addressPointId
+        );
+        if (position !== null) {
+          exportSchool.position = position;
+        }
       }
     }
   }
@@ -70,6 +76,7 @@ const mapAddressPointForExport = (
 
 const mapSchoolForExport = (school: School): School => ({
   name: school.name,
+  izo: school.izo,
   addresses: school.addresses,
   position: mapAddressPointForExport(school.position),
 });

@@ -15,6 +15,7 @@ import {
 } from "../../src/db/address-points";
 import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import { founderToMunicipality } from "../../src/db/types";
+import { buildInline } from "../../src/utils/addressBuilder";
 
 // let testRowsLarge: string[][] = [];
 const prefix = "address-points";
@@ -192,7 +193,7 @@ describe("find address points", () => {
   const testAddressPoints: AddressPoint[] = [
     {
       id: 82338752,
-      address: "Lysá 686/20a, Želechovice nad Dřevnicí",
+      address: "",
       street: "Lysá",
       city: "Želechovice nad Dřevnicí",
       descriptiveNumber: 686,
@@ -205,6 +206,8 @@ describe("find address points", () => {
       type: 0,
     },
   ];
+
+  testAddressPoints[0].address = buildInline(testAddressPoints[0]);
 
   test("equalsFullStreetNumber", () => {
     expect(
