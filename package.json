@@ -3,11 +3,14 @@
   "dependencies": {
     "@arodax/jtsk2wgs84": "^1.0.2",
     "@chevrotain/types": "^10.4.2",
+    "@turf/turf": "^6.5.0",
+    "@types/graphlib": "^2.1.8",
     "adm-zip": "^0.5.9",
     "better-sqlite3": "^8.0.1",
     "chevrotain": "^10.4.2",
     "csv-parse": "^5.3.3",
     "feedparser": "^2.2.10",
+    "graphlib": "^2.1.8",
     "iconv-lite": "^0.6.3",
     "jtsk2wgs84": "^1.0.0",
     "node-fetch": "^3.3.0",
@@ -35,9 +38,8 @@
     "parse-ordinance": "ts-node --experimental-specifier-resolution=node --esm src/bin/parse-ordinance.ts",
     "diagrams": "ts-node --experimental-specifier-resolution=node --esm src/bin/generate-syntax-diagrams.ts",
     "streets": "ts-node --experimental-specifier-resolution=node --esm src/bin/streets.ts",
-    "dbf": "ts-node --experimental-specifier-resolution=node --esm src/bin/dbf.ts",
+    "polygons": "ts-node --experimental-specifier-resolution=node --esm src/bin/polygons.ts",
     "test": "jest",
-
     "ordinance-to-csv-rules": "node src/smd-to-csv/ordinance-to-csv-rules.js"
   }
 }
