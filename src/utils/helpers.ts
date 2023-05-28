@@ -1,8 +1,9 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 import { Founder, MunicipalityType } from "../db/types";
 import { setDbConfig } from "../db/db";
+import { fileURLToPath } from "url";
 
 const appName = "text-to-map";
 
@@ -19,6 +20,8 @@ export interface OpenDataSyncOptions {
   streetDbfFileName?: string;
   schoolsXmlUrl?: string;
   schoolsXmlFileName?: string;
+  regionsCsvUrl?: string;
+  regionsCsvFileName?: string;
 }
 
 export interface OpenDataSyncOptionsNotEmpty {
@@ -34,6 +37,8 @@ export interface OpenDataSyncOptionsNotEmpty {
   streetDbfFileName: string;
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
+  regionsCsvUrl: string;
+  regionsCsvFileName: string;
 }
 
 export const getAppDataDirPath = (): string =>
@@ -58,12 +63,15 @@ export const prepareOptions = (
     mkdirSync(tmpAppDir);
   }
 
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+
   return {
     tmpDir: options.tmpDir ?? tmpAppDir,
     dataDir: dataDir,
     dbFilePath: options.dbFilePath ?? join(dataDir, "address_points.db"),
     dbInitFilePath:
-      options.dbInitFilePath ?? join("src", "address_points_init.db"),
+      options.dbInitFilePath ?? join(__dirname, "..", "address_points_init.db"),
     addressPointsAtomUrl:
       options.addressPointsAtomUrl ??
       "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
@@ -79,6 +87,10 @@ export const prepareOptions = (
       options.schoolsXmlUrl ??
       "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
     schoolsXmlFileName: options.schoolsXmlFileName ?? "school-register.xml",
+    regionsCsvUrl:
+      options.regionsCsvUrl ??
+      "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
+    regionsCsvFileName: options.regionsCsvFileName ?? "struktura_uzemi_cr.csv",
   };
 };
 

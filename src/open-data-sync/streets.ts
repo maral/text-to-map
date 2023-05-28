@@ -58,8 +58,7 @@ const downloadZipAndParseDbfFile = async (
 };
 
 const importDataToDb = async (
-  data: DbfStreet[],
-  options: OpenDataSyncOptionsNotEmpty
+  data: DbfStreet[]
 ) => {
   if (data.length === 0) {
     return;
@@ -110,7 +109,7 @@ export const downloadAndImportAllStreets = async (
       done,
       completeOptions
     );
-    await importDataToDb(dbfObject, completeOptions);
+    await importDataToDb(dbfObject);
     setStreetAsSynced(link);
 
     done++;

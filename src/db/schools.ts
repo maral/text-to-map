@@ -18,8 +18,10 @@ export const insertSchools = (
     );
   }
 
+  const uniqueSchools = filterOutDuplicates(schools);
+
   const insertedSchools = insertMultipleRows(
-    schools.map((school) => [
+    uniqueSchools.map((school) => [
       school.izo,
       school.name,
       school.capacity.toString(),
@@ -38,7 +40,7 @@ export const insertSchools = (
   //   ]);
   // });
 
-  const locations = schools
+  const locations = uniqueSchools
     .filter((school) => school.locations.length > 0)
     .map((school) => [
       school.izo,
@@ -46,7 +48,6 @@ export const insertSchools = (
     ]);
 
   let insertedLocations = 0;
-  // @todo prevent FK errors (address point might not exist, maybe even school?) - or maybe the DB wasn't fresh
 
   // plus filter out duplicit locations (same address id + izo)
   locations.forEach((location) => {
@@ -92,4 +93,13 @@ export const findSchool = (
   );
 
   return { school, errors };
+};
+
+const filterOutDuplicates = (schools: School[]): School[] => {
+  const izoSet = new Set();
+  return schools.filter(school => {
+    const duplicate = izoSet.has(school.izo);
+    izoSet.add(school.izo);
+    return !duplicate;
+  });
 };

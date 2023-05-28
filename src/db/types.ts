@@ -26,10 +26,17 @@ export enum MunicipalityType {
   Other,
 }
 
+export interface Position {
+  lat: number;
+  lng: number;
+}
+
 export interface Municipality {
   type: MunicipalityType;
   code: number;
 }
+
+export type MunicipalityWithPosition = Municipality & Position;
 
 export const founderToMunicipality = (founder: Founder): Municipality => {
   return {

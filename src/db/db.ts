@@ -1,6 +1,7 @@
 import Database from "better-sqlite3";
 import { existsSync, copyFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 
 let _db: Database.Database;
 
@@ -10,9 +11,12 @@ interface DbConfig {
   verbose?: boolean;
 }
 
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
+
 const defaults = {
   filePath: "address_points.db",
-  initFilePath: join("src", "address_points_init.db"),
+  initFilePath: join(__dirname, "..", "address_points_init.db"),
   verbose: false,
 };
 
@@ -146,7 +150,7 @@ const generateRepetitiveString = (
   return new Array(n).fill(value).join(glue);
 };
 
-const generatePlaceholders = (n: number): string => {
+export const generatePlaceholders = (n: number): string => {
   return generateRepetitiveString("?", ",", n);
 };
 

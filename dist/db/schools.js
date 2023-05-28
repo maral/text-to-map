@@ -14,7 +14,7 @@ export const insertSchools = (schools, doNotClearTable = false) => {
         school.izo,
         school.name,
         school.capacity.toString(),
-    ]), "school", ["izo", "name", "capacity"]);
+    ]), "school", ["izo", "name", "capacity"], true);
     // const locations = schools.flatMap((school) => {
     //   const uniqueAddressPoints = [
     //     ...new Set(school.locations.map((location) => location.addressPointId)),

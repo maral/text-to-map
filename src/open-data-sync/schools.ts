@@ -346,6 +346,7 @@ export const downloadAndImportAllSchools = async (
 
   await downloadXml(runOptions);
   await importDataToDb(runOptions, false, true);
+  deleteSchoolsXmlFile(runOptions);
 };
 
 export const deleteSchoolsXmlFile = (options: OpenDataSyncOptions = {}) => {
