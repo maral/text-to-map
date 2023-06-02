@@ -8,6 +8,6 @@ export var SeriesType;
     SeriesType[SeriesType["Even"] = 0] = "Even";
     SeriesType[SeriesType["Odd"] = 1] = "Odd";
     SeriesType[SeriesType["All"] = 2] = "All";
-    SeriesType[SeriesType["Descriptive"] = 3] = "Descriptive";
+    SeriesType[SeriesType["Description"] = 3] = "Description";
 })(SeriesType || (SeriesType = {}));
 export const isAddressPoint = (something) => something.hasOwnProperty("id");

@@ -32,7 +32,7 @@ export interface RichNumber {
     letter?: string;
 }
 export interface FullStreetNumber {
-    descriptiveNumber: RichNumber;
+    descriptionNumber: RichNumber;
     orientationalNumber: RichNumber;
 }
 export declare const isFullStreetNumber: (something: RangeSpec | FullStreetNumber) => something is FullStreetNumber;
@@ -41,7 +41,7 @@ export declare enum SeriesType {
     Even = 0,
     Odd = 1,
     All = 2,
-    Descriptive = 3
+    Description = 3
 }
 export interface AddressPoint extends CzechAddressPoint {
     id: number;

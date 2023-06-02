@@ -1,4 +1,4 @@
-import jtsk2wgs84 from "@arodax/jtsk2wgs84";
+import jtsk2wgs84 from "../utils/jtsk2wgs84";
 import { AddressPointType, createSingleLineAddress } from "czech-address";
 import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, isWholeMunicipalitySmdLine, } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
@@ -216,7 +216,7 @@ const filterAddressPointsByRanges = (addressPoints, seriesSpec) => {
             var _a;
             if (isRange(range)) {
                 const number = getNumberByType(seriesSpec.type, addressPoint);
-                return (isInRange(number, seriesSpec.type !== SeriesType.Descriptive
+                return (isInRange(number, seriesSpec.type !== SeriesType.Description
                     ? (_a = addressPoint.orientationalNumberLetter) !== null && _a !== void 0 ? _a : null
                     : null, range) && fitsType(number, seriesSpec.type));
             }
@@ -252,13 +252,13 @@ export const isInRange = (number, letter, range) => {
     return satisfiesFrom && satisfiesTo;
 };
 export const fitsType = (number, type) => {
-    return (type === SeriesType.Descriptive ||
+    return (type === SeriesType.Description ||
         type === SeriesType.All ||
         (type === SeriesType.Odd && number % 2 === 1) ||
         (type === SeriesType.Even && number % 2 === 0));
 };
 export const equalsFullStreetNumber = (fullStreetNumber, addressPoint) => {
-    return (fullStreetNumber.descriptiveNumber.number === addressPoint.houseNumber &&
+    return (fullStreetNumber.descriptionNumber.number === addressPoint.houseNumber &&
         fullStreetNumber.orientationalNumber.number ===
             addressPoint.orientationalNumber &&
         ((!fullStreetNumber.orientationalNumber.letter &&
@@ -268,7 +268,7 @@ export const equalsFullStreetNumber = (fullStreetNumber, addressPoint) => {
 };
 const getNumberByType = (type, addressPoint) => {
     var _a;
-    return type === SeriesType.Descriptive
+    return type === SeriesType.Description
         ? addressPoint.houseNumber
         : (_a = addressPoint.orientationalNumber) !== null && _a !== void 0 ? _a : null;
 };
@@ -303,7 +303,7 @@ const rowToAddressPoint = (row) => {
     if (row.district_name !== null) {
         point.district = row.district_name;
     }
-    if (row.prague_district !== null) {
+    if (row.prague_district_name !== null) {
         point.pragueDistrict = row.prague_district_name;
     }
     point.address = createSingleLineAddress(point);

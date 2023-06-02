@@ -178,7 +178,7 @@ export class SmdParser extends EmbeddedActionsParser {
                 {
                     ALT: () => {
                         this.CONSUME3(DescriptiveType);
-                        type = SeriesType.Descriptive;
+                        type = SeriesType.Description;
                     },
                 },
             ]);
@@ -265,7 +265,7 @@ export class SmdParser extends EmbeddedActionsParser {
                     },
                     {
                         ALT: () => {
-                            type = SeriesType.Descriptive;
+                            type = SeriesType.Description;
                             this.CONSUME(DescriptiveType);
                         },
                     },
@@ -308,7 +308,7 @@ export class SmdParser extends EmbeddedActionsParser {
                     },
                     {
                         ALT: () => {
-                            type = SeriesType.Descriptive;
+                            type = SeriesType.Description;
                             this.CONSUME(DescriptiveType);
                         },
                     },
@@ -321,7 +321,7 @@ export class SmdParser extends EmbeddedActionsParser {
             const descriptiveNumber = parseRichNumber(this.CONSUME(Number).image);
             this.CONSUME(Slash);
             const orientationNumber = parseRichNumber(this.CONSUME2(Number).image);
-            return { descriptiveNumber, orientationalNumber: orientationNumber };
+            return { descriptionNumber: descriptiveNumber, orientationalNumber: orientationNumber };
         });
         this.performSelfAnalysis();
     }
