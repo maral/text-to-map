@@ -347,7 +347,7 @@ const getXmlFilePath = (options: OpenDataSyncOptions): string => {
   return join(options.tmpDir, options.schoolsXmlFileName);
 };
 
-export const downloadAndImportAllSchools = async (
+export const downloadAndImportSchools = async (
   options: OpenDataSyncOptions
 ) => {
   const runOptions = prepareOptions(options);

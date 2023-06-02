@@ -57,20 +57,19 @@ const downloadZipAndParseDbfFile = async (
   return obj;
 };
 
-const importDataToDb = async (
-  data: DbfStreet[]
-) => {
+const importDataToDb = async (data: DbfStreet[]) => {
   if (data.length === 0) {
     return;
   }
   insertStreetsFromDbf(data);
 };
 
-type StreetLinks = { [key: string]: string };
-
-export const downloadAndImportAllStreets = async (
+export const downloadAndImportStreets = async (
   options: OpenDataSyncOptions
 ): Promise<void> => {
+
+  console.log("Starting to download and import streets. This takes up to 1 hour.");
+
   const completeOptions = prepareOptions(options);
   initDb(completeOptions);
   prepareFolders(completeOptions);
