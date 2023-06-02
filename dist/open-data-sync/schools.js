@@ -32,21 +32,23 @@ const downloadXml = (options) => __awaiter(void 0, void 0, void 0, function* () 
 var XMLState;
 (function (XMLState) {
     XMLState[XMLState["None"] = 0] = "None";
-    XMLState[XMLState["SchoolName"] = 1] = "SchoolName";
-    XMLState[XMLState["Izo"] = 2] = "Izo";
-    XMLState[XMLState["Ico"] = 3] = "Ico";
-    XMLState[XMLState["SchoolType"] = 4] = "SchoolType";
-    XMLState[XMLState["Capacity"] = 5] = "Capacity";
-    XMLState[XMLState["RuianCode"] = 6] = "RuianCode";
-    XMLState[XMLState["Address"] = 7] = "Address";
-    XMLState[XMLState["FounderName"] = 8] = "FounderName";
-    XMLState[XMLState["FounderType"] = 9] = "FounderType";
-    XMLState[XMLState["FounderIco"] = 10] = "FounderIco";
+    XMLState[XMLState["RedIzo"] = 1] = "RedIzo";
+    XMLState[XMLState["SchoolName"] = 2] = "SchoolName";
+    XMLState[XMLState["Izo"] = 3] = "Izo";
+    XMLState[XMLState["Ico"] = 4] = "Ico";
+    XMLState[XMLState["SchoolType"] = 5] = "SchoolType";
+    XMLState[XMLState["Capacity"] = 6] = "Capacity";
+    XMLState[XMLState["RuianCode"] = 7] = "RuianCode";
+    XMLState[XMLState["Address"] = 8] = "Address";
+    XMLState[XMLState["FounderName"] = 9] = "FounderName";
+    XMLState[XMLState["FounderType"] = 10] = "FounderType";
+    XMLState[XMLState["FounderIco"] = 11] = "FounderIco";
 })(XMLState || (XMLState = {}));
 const SCHOOL_TYPE_PRIMARY = "B00";
 const createNewSchool = () => {
     return {
         name: "",
+        redizo: "",
         izo: "",
         capacity: 0,
         locations: [],
@@ -90,6 +92,9 @@ const processSchoolRegisterXml = (options) => __awaiter(void 0, void 0, void 0, 
                     currentSchool = createNewSchool();
                     isCurrentSchoolPrimary = false;
                     isRuianCodeMissing = false;
+                    break;
+                case "RedIzo":
+                    state = XMLState.RedIzo;
                     break;
                 case "RedPlnyNazev":
                     state = XMLState.SchoolName;
@@ -191,6 +196,7 @@ const processSchoolRegisterXml = (options) => __awaiter(void 0, void 0, void 0, 
                 case "MistoRUAINKod":
                     isRuianCodeMissing = !isRuianCodeSet;
                 case "RedPlnyNazev":
+                case "RedIzo":
                 case "ICO":
                 case "IZO":
                 case "SkolaDruhTyp":
@@ -208,6 +214,8 @@ const processSchoolRegisterXml = (options) => __awaiter(void 0, void 0, void 0, 
         })
             .on("text", (text) => {
             switch (state) {
+                case XMLState.RedIzo:
+                    currentSchool.redizo = text;
                 case XMLState.SchoolName:
                     currentSchool.name = text;
                     break;
@@ -299,6 +307,7 @@ export const downloadAndImportAllSchools = (options) => __awaiter(void 0, void 0
     const runOptions = prepareOptions(options);
     yield downloadXml(runOptions);
     yield importDataToDb(runOptions, false, true);
+    deleteSchoolsXmlFile(runOptions);
 });
 export const deleteSchoolsXmlFile = (options = {}) => {
     const runOptions = prepareOptions(options);

@@ -10,9 +10,4 @@ export var SeriesType;
     SeriesType[SeriesType["All"] = 2] = "All";
     SeriesType[SeriesType["Descriptive"] = 3] = "Descriptive";
 })(SeriesType || (SeriesType = {}));
-export var AddressPointType;
-(function (AddressPointType) {
-    AddressPointType[AddressPointType["Descriptive"] = 0] = "Descriptive";
-    AddressPointType[AddressPointType["Registration"] = 1] = "Registration";
-})(AddressPointType || (AddressPointType = {}));
 export const isAddressPoint = (something) => something.hasOwnProperty("id");

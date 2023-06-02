@@ -12,6 +12,8 @@ export interface OpenDataSyncOptions {
     streetDbfFileName?: string;
     schoolsXmlUrl?: string;
     schoolsXmlFileName?: string;
+    regionsCsvUrl?: string;
+    regionsCsvFileName?: string;
 }
 export interface OpenDataSyncOptionsNotEmpty {
     tmpDir: string;
@@ -26,9 +28,12 @@ export interface OpenDataSyncOptionsNotEmpty {
     streetDbfFileName: string;
     schoolsXmlUrl: string;
     schoolsXmlFileName: string;
+    regionsCsvUrl: string;
+    regionsCsvFileName: string;
 }
 export declare const getAppDataDirPath: () => string;
 export declare const prepareOptions: (options: OpenDataSyncOptions) => OpenDataSyncOptionsNotEmpty;
 export declare const initDb: (options: OpenDataSyncOptionsNotEmpty) => void;
 export declare const extractMunicipalityName: (founder: Founder) => string;
+export declare const sanitizeMunicipalityName: (name: string) => string;
 export declare const findClosestString: (str: string, arr: string[]) => string;

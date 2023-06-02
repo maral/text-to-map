@@ -1,10 +1,13 @@
 import Database from "better-sqlite3";
 import { existsSync, copyFileSync } from "fs";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 let _db;
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = dirname(__filename);
 const defaults = {
     filePath: "address_points.db",
-    initFilePath: join("src", "address_points_init.db"),
+    initFilePath: join(__dirname, "..", "address_points_init.db"),
     verbose: false,
 };
 export const setDbConfig = (config) => {
@@ -51,7 +54,8 @@ export const insertMultipleRows = (rows, table, columnNames, preventDuplicatesBy
 export const insertAutoincrementRow = (row, table, columnNames) => {
     const db = getDb();
     const insertStatement = db.prepare(`INSERT INTO ${table} (${columnNames.join(",")}) VALUES (${generatePlaceholders(columnNames.length)})`);
-    return Number(insertStatement.run(row).lastInsertRowid);
+    const result = insertStatement.run(row);
+    return result.changes === 1 ? Number(result.lastInsertRowid) : null;
 };
 export const deleteMultipleRows = (keys, table, keyColumnName) => {
     const db = getDb();
@@ -76,8 +80,11 @@ export const disconnect = () => {
 const generateRepetitiveString = (value, glue, n) => {
     return new Array(n).fill(value).join(glue);
 };
-const generatePlaceholders = (n) => {
+export const generatePlaceholders = (n) => {
     return generateRepetitiveString("?", ",", n);
+};
+export const generate2DPlaceholders = (inner, outer) => {
+    return generateRepetitiveString(`(${generatePlaceholders(inner)})`, ",", outer);
 };
 export const extractKeyValuesPairs = (array, keyIndex, valuesIndices) => {
     const object = array.reduce((acc, data) => {

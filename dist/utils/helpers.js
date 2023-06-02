@@ -1,15 +1,16 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
 import { MunicipalityType } from "../db/types";
 import { setDbConfig } from "../db/db";
+import { fileURLToPath } from "url";
 const appName = "text-to-map";
 export const getAppDataDirPath = () => join(process.env.APPDATA ||
     (process.platform == "darwin"
         ? process.env.HOME + "/Library/Preferences"
         : process.env.HOME + "/.local/share"), appName);
 export const prepareOptions = (options) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
     const dataDir = (_a = options.dataDir) !== null && _a !== void 0 ? _a : getAppDataDirPath();
     if (!existsSync(dataDir)) {
         mkdirSync(dataDir);
@@ -18,11 +19,13 @@ export const prepareOptions = (options) => {
     if (!existsSync(tmpAppDir)) {
         mkdirSync(tmpAppDir);
     }
+    const __filename = fileURLToPath(import.meta.url);
+    const __dirname = dirname(__filename);
     return {
         tmpDir: (_b = options.tmpDir) !== null && _b !== void 0 ? _b : tmpAppDir,
         dataDir: dataDir,
         dbFilePath: (_c = options.dbFilePath) !== null && _c !== void 0 ? _c : join(dataDir, "address_points.db"),
-        dbInitFilePath: (_d = options.dbInitFilePath) !== null && _d !== void 0 ? _d : join("src", "address_points_init.db"),
+        dbInitFilePath: (_d = options.dbInitFilePath) !== null && _d !== void 0 ? _d : join(__dirname, "..", "address_points_init.db"),
         addressPointsAtomUrl: (_e = options.addressPointsAtomUrl) !== null && _e !== void 0 ? _e : "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
         addressPointsZipFileName: (_f = options.addressPointsZipFileName) !== null && _f !== void 0 ? _f : "ruian_csv.zip",
         addressPointsCsvFolderName: (_g = options.addressPointsCsvFolderName) !== null && _g !== void 0 ? _g : "CSV",
@@ -31,6 +34,8 @@ export const prepareOptions = (options) => {
         streetDbfFileName: (_k = options.streetDbfFileName) !== null && _k !== void 0 ? _k : "UL_L.dbf",
         schoolsXmlUrl: (_l = options.schoolsXmlUrl) !== null && _l !== void 0 ? _l : "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
         schoolsXmlFileName: (_m = options.schoolsXmlFileName) !== null && _m !== void 0 ? _m : "school-register.xml",
+        regionsCsvUrl: (_o = options.regionsCsvUrl) !== null && _o !== void 0 ? _o : "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
+        regionsCsvFileName: (_p = options.regionsCsvFileName) !== null && _p !== void 0 ? _p : "struktura_uzemi_cr.csv",
     };
 };
 export const initDb = (options) => {
@@ -66,6 +71,12 @@ export const extractMunicipalityName = (founder) => {
         }
     }
     return founder.name;
+};
+export const sanitizeMunicipalityName = (name) => {
+    return name
+        .replace(" - ", "-")
+        .replace(/\s{2,}/g, " ")
+        .trim();
 };
 export const findClosestString = (str, arr) => {
     let closestStr = "";

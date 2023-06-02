@@ -15,9 +15,11 @@ export declare const insertMultipleRows: (rows: string[][], table: string, colum
 /**
  * Insert a single row and return the autoincremented ID.
  */
-export declare const insertAutoincrementRow: (row: string[], table: string, columnNames: string[]) => number;
+export declare const insertAutoincrementRow: (row: string[], table: string, columnNames: string[]) => number | null;
 export declare const deleteMultipleRows: (keys: string[], table: string, keyColumnName: string) => void;
 export declare const clearDuplicates: (rows: string[][], table: string, columnNames: string[]) => string[][];
 export declare const disconnect: () => void;
+export declare const generatePlaceholders: (n: number) => string;
+export declare const generate2DPlaceholders: (inner: number, outer: number) => string;
 export declare const extractKeyValuesPairs: (array: string[][], keyIndex: number, valuesIndices: number[]) => string[][];
 export {};

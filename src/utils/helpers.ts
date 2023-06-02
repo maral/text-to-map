@@ -136,6 +136,13 @@ export const extractMunicipalityName = (founder: Founder): string => {
   return founder.name;
 };
 
+export const sanitizeMunicipalityName = (name: string): string => {
+  return name
+    .replace(" - ", "-")
+    .replace(/\s{2,}/g, " ")
+    .trim();
+};
+
 export const findClosestString = (str: string, arr: string[]): string => {
   let closestStr = "";
   let closestDistance = Number.MAX_SAFE_INTEGER;

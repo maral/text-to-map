@@ -1,4 +1,5 @@
 import { Municipality as DbMunicipality } from "../db/types";
+import { AddressPoint as CzechAddressPoint, AddressPointType } from "czech-address";
 
 export interface ProcessedSmdLines {
   smdLines: SmdLine[];
@@ -69,23 +70,9 @@ export enum SeriesType {
   Descriptive,
 }
 
-export enum AddressPointType {
-  Descriptive, // číslo popisné
-  Registration, // číslo evidenční
-}
-
-export interface AddressPoint {
+export interface AddressPoint extends CzechAddressPoint {
   id: number;
   address: string;
-  type: AddressPointType;
-  street?: string;
-  descriptiveNumber: number;
-  orientationalNumber?: number;
-  orientationalNumberLetter?: string;
-  postalCode: string;
-  city: string;
-  district?: string;
-  municipalityPart?: string;
   lat: number;
   lng: number;
 }

@@ -26,6 +26,7 @@ export declare const commitAddressPoints: () => number;
 export declare const insertCities: (buffer: string[][]) => number;
 export declare const insertDistricts: (buffer: string[][]) => number;
 export declare const insertMunicipalityParts: (buffer: string[][]) => number;
+export declare const insertPragueDistricts: (buffer: string[][]) => number;
 export declare const insertStreets: (buffer: string[][]) => number;
 export declare const getAddressPointById: (addressPointId: number) => AddressPoint | null;
 export declare const checkStreetExists: (streetName: string, founder: Founder) => {

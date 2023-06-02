@@ -1,9 +1,8 @@
 import { downloadAndImportRegions } from "../open-data-sync/regions";
-
 downloadAndImportRegions()
-  .then(() => {
+    .then(() => {
     console.log("Completed");
-  })
-  .catch((error) => {
+})
+    .catch((error) => {
     console.log(error);
-  });
+});

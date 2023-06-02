@@ -6,6 +6,7 @@ export interface SchoolLocation {
 export interface School {
     name: string;
     izo: string;
+    redizo: string;
     capacity: number;
     locations: SchoolLocation[];
 }
@@ -22,10 +23,15 @@ export declare enum MunicipalityType {
     District = 1,
     Other = 2
 }
+export interface Position {
+    lat: number;
+    lng: number;
+}
 export interface Municipality {
     type: MunicipalityType;
     code: number;
 }
+export type MunicipalityWithPosition = Municipality & Position;
 export declare const founderToMunicipality: (founder: Founder) => Municipality;
 export interface DbfStreet {
     KOD: string;

@@ -12,7 +12,11 @@ import {
   insertAutoincrementRow,
   insertMultipleRows,
 } from "./db";
-import { extractMunicipalityName, findClosestString } from "../utils/helpers";
+import {
+  extractMunicipalityName,
+  findClosestString,
+  sanitizeMunicipalityName,
+} from "../utils/helpers";
 import { DbMunicipalityResult } from "../street-markdown/types";
 import distance from "@turf/distance";
 
@@ -54,7 +58,6 @@ export const insertFounders = (founders: Founder[]): number => {
     // check if the extracted municipality name is the same as in all the schools' locations
     let differingSchools = [];
     let municipalityCode = -1;
-    let municipalityName = extractedMunicipalityName;
     founder.schools.forEach((school) => {
       const result = (
         founder.municipalityType === MunicipalityType.City
@@ -76,94 +79,40 @@ export const insertFounders = (founders: Founder[]): number => {
         }
         // store municipalityCode even if the names don't match, we will use it later
         municipalityCode = parseInt(code);
-        municipalityName = name;
       }
     });
 
-    if (
-      differingSchools.length > 0 &&
-      differingSchools.length === founder.schools.length
-    ) {
-      // find all cities and their position with the same name as municipalityName
-      const municipalities = findMunicipalitiesAndPositionsByNameAndType(
-        extractedMunicipalityName,
-        founder.municipalityType
-      );
+    municipalityCode = fixFounderProblems(
+      founder,
+      municipalityCode,
+      differingSchools,
+      extractedMunicipalityName
+    );
 
-      // get one school position (if there are more schools, they should be close to each other)
-      const schoolPosition:
-        | { wgs84_latitude: number; wgs84_longitude: number }
-        | undefined = db
-        .prepare(
-          `SELECT a.wgs84_latitude, a.wgs84_longitude FROM school s
-          JOIN school_location l ON s.izo = l.school_izo
-          JOIN address_point a ON l.address_point_id = a.id
-          WHERE s.izo IN (${generatePlaceholders(differingSchools.length)})
-          LIMIT 1`
-        )
-        .get(...differingSchools.map((school) => school.izo));
-
-      if (schoolPosition) {
-        municipalityName = extractedMunicipalityName;
-        if (municipalities.length === 0) {
-          if (municipalityCode === -1) {
-            console.log(
-              `no municipality by name or by location found for ${founder.name}`
-            );
-            return;
-          } else {
-            console.log("no municipality matching the extracted name, using the municipality from RUIAN code");
-          }
-        } else if (municipalities.length === 1) {
-          municipalityCode = municipalities[0].code;
-          console.log("using the only municipality found matching the extracted name");
-        } else {
-          // get code and position of the closest city
-          let lowestDistance = Number.MAX_SAFE_INTEGER;
-          for (const municipality of municipalities) {
-            let municipalityDistance = distance(
-              [municipality.lat, municipality.lng],
-              [schoolPosition.wgs84_latitude, schoolPosition.wgs84_longitude]
-            );
-            if (municipalityDistance < lowestDistance) {
-              lowestDistance = municipalityDistance;
-              municipalityCode = municipality.code;
-            }
-          }
-          console.log("using the closest municipality matching the extracted name");
-        }
-      } else {
-        if (municipalities.length > 0) {
-          municipalityCode = municipalities[0].code;
-          if (municipalities.length > 1) {
-            console.log(`using the first municipality matching the extracted name (${municipalities.length} matches) - possibly incorrect!`);
-          } else {
-            console.log("using the only municipality found matching the extracted name");
-          }
-        } else {
-          console.log(
-            `no municipality by name or by location found for ${founder.name}`
-          );
-          return;
-        }
-      }
+    const cityDistrictCode =
+      founder.municipalityType === MunicipalityType.District
+        ? municipalityCode.toString()
+        : null;
+    let cityCode = null;
+    if (founder.municipalityType === MunicipalityType.City) {
+      cityCode = municipalityCode?.toString() ?? null;
+    } else {
+      cityCode = getCityCodeByDistrictCode(municipalityCode).toString();
     }
 
     const founderId = insertAutoincrementRow(
       [
-        founder.name,
+        sanitizeMunicipalityName(founder.name),
         founder.ico,
         String(founder.originalType),
-        founder.municipalityType === MunicipalityType.City
-          ? municipalityCode.toString()
-          : null,
-        founder.municipalityType === MunicipalityType.City
-          ? null
-          : municipalityCode.toString(),
+        cityCode,
+        cityDistrictCode,
       ],
       "founder",
       ["name", "ico", "founder_type_code", "city_code", "city_district_code"]
     );
+    // founder table has unique (name, ico) with on conflict ignore, so possibly
+    // the row has not been inserted
     if (founderId !== null) {
       insertedFounders++;
       founder.schools.forEach((school) => {
@@ -179,6 +128,115 @@ export const insertFounders = (founders: Founder[]): number => {
   );
 
   return insertedFounders + insertedConnections;
+};
+
+const fixFounderProblems = (
+  founder: Founder,
+  municipalityCode: number,
+  differingSchools: School[],
+  extractedMunicipalityName: string
+): number | null => {
+  if (
+    differingSchools.length === 0 ||
+    differingSchools.length < founder.schools.length
+  ) {
+    return municipalityCode;
+  }
+
+  // either the school does not have a position (invalid RUIAN or missing building)
+  // or the school is not in the same municipality as the founder
+
+  const db = getDb();
+
+  // find all cities and their position with the same name as municipalityName
+  const municipalities = findMunicipalitiesAndPositionsByNameAndType(
+    extractedMunicipalityName,
+    founder.municipalityType
+  );
+
+  // get one school position (if there are more schools, they should be close to each other)
+  const schoolPosition:
+    | { wgs84_latitude: number; wgs84_longitude: number }
+    | undefined = db
+    .prepare(
+      `SELECT a.wgs84_latitude, a.wgs84_longitude FROM school s
+        JOIN school_location l ON s.izo = l.school_izo
+        JOIN address_point a ON l.address_point_id = a.id
+        WHERE s.izo IN (${generatePlaceholders(differingSchools.length)})
+        LIMIT 1`
+    )
+    .get(...differingSchools.map((school) => school.izo));
+
+  if (schoolPosition) {
+    if (municipalities.length === 0) {
+      if (municipalityCode === -1) {
+        console.log(
+          `no municipality by name or by location found for ${founder.name}`
+        );
+        return null;
+      } else {
+        console.log(
+          "no municipality matching the extracted name, using the municipality from RUIAN code"
+        );
+      }
+    } else if (municipalities.length === 1) {
+      console.log(
+        "using the only municipality found matching the extracted name"
+      );
+      return municipalities[0].code;
+    } else {
+      // get code and position of the closest city
+      let lowestDistance = Number.MAX_SAFE_INTEGER;
+      let municipalityCode: number = null;
+      for (const municipality of municipalities) {
+        let municipalityDistance = distance(
+          [municipality.lat, municipality.lng],
+          [schoolPosition.wgs84_latitude, schoolPosition.wgs84_longitude]
+        );
+        if (municipalityDistance < lowestDistance) {
+          lowestDistance = municipalityDistance;
+          municipalityCode = municipality.code;
+        }
+      }
+      console.log("using the closest municipality matching the extracted name");
+      return municipalityCode;
+    }
+  } else {
+    if (municipalities.length > 0) {
+      if (municipalities.length > 1) {
+        console.log(
+          `using the first municipality matching the extracted name (${municipalities.length} matches) - possibly incorrect!`
+        );
+      } else {
+        console.log(
+          "using the only municipality found matching the extracted name"
+        );
+      }
+      return municipalities[0].code;
+    } else {
+      console.log(
+        `no municipality by name or by location found for ${founder.name}`
+      );
+      return null;
+    }
+  }
+};
+
+const getCityCodeByDistrictCode = (districtCode: number): number | null => {
+  const db = getDb();
+  const result = db
+    .prepare(
+      `SELECT c.code FROM city_district d
+      JOIN city c ON d.city_code = c.code
+      WHERE d.code = ?
+      LIMIT 1`
+    )
+    .get(districtCode);
+  if (result) {
+    return result.code;
+  } else {
+    return null;
+  }
 };
 
 const findMunicipalitiesAndPositionsByNameAndType = (
@@ -289,7 +347,10 @@ const resultToFounder = (result: any): Founder => {
       result.founder_type_code === cityTypeCode
         ? MunicipalityType.City
         : MunicipalityType.District,
-    cityOrDistrictCode: result.city_code || result.city_district_code,
+    cityOrDistrictCode:
+      result.founder_type_code === cityTypeCode
+        ? result.city_code
+        : result.city_district_code,
     schools: getSchoolsByFounderId(parseInt(result.id)),
   };
 };
@@ -297,7 +358,7 @@ const resultToFounder = (result: any): Founder => {
 const getSchoolsByFounderId = (founderId: number): School[] => {
   const db = getDb();
   const statement = db.prepare(
-    `SELECT s.izo, s.name, s.capacity, sl.address_point_id FROM school s
+    `SELECT s.izo, s.redizo, s.name, s.capacity, sl.address_point_id FROM school s
     JOIN school_founder sf ON s.izo = sf.school_izo
     JOIN school_location sl ON s.izo = sl.school_izo
     WHERE sf.founder_id = ?`
@@ -305,6 +366,7 @@ const getSchoolsByFounderId = (founderId: number): School[] => {
 
   return statement.all(founderId).map((row) => ({
     izo: String(row.izo),
+    redizo: String(row.redizo),
     name: String(row.name),
     capacity: parseInt(row.capacity),
     locations: [

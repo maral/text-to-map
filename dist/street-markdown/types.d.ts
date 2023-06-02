@@ -1,4 +1,5 @@
 import { Municipality as DbMunicipality } from "../db/types";
+import { AddressPoint as CzechAddressPoint } from "czech-address";
 export interface ProcessedSmdLines {
     smdLines: SmdLine[];
     errors: string[];
@@ -42,22 +43,9 @@ export declare enum SeriesType {
     All = 2,
     Descriptive = 3
 }
-export declare enum AddressPointType {
-    Descriptive = 0,
-    Registration = 1
-}
-export interface AddressPoint {
+export interface AddressPoint extends CzechAddressPoint {
     id: number;
     address: string;
-    type: AddressPointType;
-    street?: string;
-    descriptiveNumber: number;
-    orientationalNumber?: number;
-    orientationalNumberLetter?: string;
-    postalCode: string;
-    city: string;
-    district?: string;
-    municipalityPart?: string;
     lat: number;
     lng: number;
 }

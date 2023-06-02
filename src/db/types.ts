@@ -7,6 +7,7 @@ export interface SchoolLocation {
 export interface School {
   name: string;
   izo: string;
+  redizo: string;
   capacity: number;
   locations: SchoolLocation[];
 }

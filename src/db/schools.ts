@@ -1,55 +1,47 @@
-import { School } from "./types";
-import { getDb, insertMultipleRows } from "./db";
 import { findClosestString } from "../utils/helpers";
+import { getDb, insertMultipleRows } from "./db";
+import { School } from "./types";
 
-export const insertSchools = (
-  schools: School[],
-  doNotClearTable: boolean = false
-): number => {
-  if (!doNotClearTable) {
-    const db = getDb();
-    db.exec("DELETE FROM school_location");
-    db.exec("DELETE FROM school_founder");
-    db.exec("DELETE FROM school_location");
-    db.exec("DELETE FROM founder");
-    db.exec("DELETE FROM school");
-    db.exec(
-      "DELETE FROM sqlite_sequence WHERE name='school_location' OR name='founder' OR name='school_founder'"
-    );
-  }
-
+export const insertSchools = (schools: School[]): number => {
+  const db = getDb();
+  
   const uniqueSchools = filterOutDuplicates(schools);
+  const existingIzo = db.prepare("SELECT izo FROM school").pluck(). all();
+
+  const toInsert = uniqueSchools.filter(
+    (school) => !existingIzo.includes(school.izo)
+  );
+  const toUpdate = uniqueSchools.filter((school) =>
+    existingIzo.includes(school.izo)
+  );
+
+  toUpdate.forEach((school) => {
+    db.prepare(
+      "UPDATE school SET name = ?, capacity = ? WHERE izo = ?"
+    ).run(school.name, school.capacity, school.izo);
+  });
 
   const insertedSchools = insertMultipleRows(
-    uniqueSchools.map((school) => [
+    toInsert.map((school) => [
       school.izo,
+      school.redizo,
       school.name,
       school.capacity.toString(),
     ]),
     "school",
-    ["izo", "name", "capacity"]
+    ["izo", "redizo", "name", "capacity"]
   );
 
-  // const locations = schools.flatMap((school) => {
-  //   const uniqueAddressPoints = [
-  //     ...new Set(school.locations.map((location) => location.addressPointId)),
-  //   ];
-  //   return uniqueAddressPoints.map((addressPoint) => [
-  //     school.izo,
-  //     addressPoint.toString(),
-  //   ]);
-  // });
-
-  const locations = uniqueSchools
+  const locations = toInsert
     .filter((school) => school.locations.length > 0)
     .map((school) => [
       school.izo,
-      school.locations[0].addressPointId.toString(),
+      school.locations[0].addressPointId.toString(), // add only first location
     ]);
 
   let insertedLocations = 0;
 
-  // plus filter out duplicit locations (same address id + izo)
+  // plus filter out duplicate locations (same address id + izo)
   locations.forEach((location) => {
     try {
       insertedLocations += insertMultipleRows(
@@ -97,7 +89,7 @@ export const findSchool = (
 
 const filterOutDuplicates = (schools: School[]): School[] => {
   const izoSet = new Set();
-  return schools.filter(school => {
+  return schools.filter((school) => {
     const duplicate = izoSet.has(school.izo);
     izoSet.add(school.izo);
     return !duplicate;

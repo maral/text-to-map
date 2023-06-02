@@ -39,7 +39,7 @@ const downloadZipAndParseDbfFile = (url, index, options) => __awaiter(void 0, vo
     rmSync(zipFilePath);
     return obj;
 });
-const importDataToDb = (data, options) => __awaiter(void 0, void 0, void 0, function* () {
+const importDataToDb = (data) => __awaiter(void 0, void 0, void 0, function* () {
     if (data.length === 0) {
         return;
     }
@@ -69,7 +69,7 @@ export const downloadAndImportAllStreets = (options) => __awaiter(void 0, void 0
     for (const link of newLinks) {
         const zipLink = yield getLatestUrlFromAtomFeed(link);
         const dbfObject = yield downloadZipAndParseDbfFile(zipLink, done, completeOptions);
-        yield importDataToDb(dbfObject, completeOptions);
+        yield importDataToDb(dbfObject);
         setStreetAsSynced(link);
         done++;
         console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);

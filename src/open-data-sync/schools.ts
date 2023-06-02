@@ -34,6 +34,7 @@ const downloadXml = async (
 
 enum XMLState {
   None,
+  RedIzo,
   SchoolName,
   Izo,
   Ico,
@@ -51,6 +52,7 @@ const SCHOOL_TYPE_PRIMARY = "B00";
 const createNewSchool = (): School => {
   return {
     name: "",
+    redizo: "",
     izo: "",
     capacity: 0,
     locations: [],
@@ -106,6 +108,9 @@ const processSchoolRegisterXml = async (
             currentSchool = createNewSchool();
             isCurrentSchoolPrimary = false;
             isRuianCodeMissing = false;
+            break;
+          case "RedIzo":
+            state = XMLState.RedIzo;
             break;
           case "RedPlnyNazev":
             state = XMLState.SchoolName;
@@ -207,6 +212,7 @@ const processSchoolRegisterXml = async (
           case "MistoRUAINKod":
             isRuianCodeMissing = !isRuianCodeSet;
           case "RedPlnyNazev":
+          case "RedIzo":
           case "ICO":
           case "IZO":
           case "SkolaDruhTyp":
@@ -224,6 +230,8 @@ const processSchoolRegisterXml = async (
       })
       .on("text", (text: string) => {
         switch (state) {
+          case XMLState.RedIzo:
+            currentSchool.redizo = text;
           case XMLState.SchoolName:
             currentSchool.name = text;
             break;

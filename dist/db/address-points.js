@@ -1,10 +1,10 @@
-import { extractKeyValuesPairs, getDb, insertMultipleRows, nonEmptyOrNull, } from "./db";
 import jtsk2wgs84 from "@arodax/jtsk2wgs84";
-import { AddressPointType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, isWholeMunicipalitySmdLine, SeriesType, } from "../street-markdown/types";
-import { MunicipalityType } from "./types";
+import { AddressPointType, createSingleLineAddress } from "czech-address";
+import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, isWholeMunicipalitySmdLine, } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
+import { extractKeyValuesPairs, generate2DPlaceholders, getDb, insertMultipleRows, nonEmptyOrNull, } from "./db";
 import { getFounderCityCode } from "./founders";
-import { buildInline } from "../utils/addressBuilder";
+import { MunicipalityType } from "./types";
 const buffer = [];
 const MaxBufferSize = 1000;
 const DescriptiveType = "č.p.";
@@ -49,12 +49,11 @@ export const commitAddressPoints = () => {
     insertDistricts(buffer);
     insertMunicipalityParts(buffer);
     insertStreets(buffer);
+    insertPragueDistricts(buffer);
     const db = getDb();
-    const placeHolders = new Array(buffer.length)
-        .fill("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-        .join(", ");
+    const placeHolders = generate2DPlaceholders(15, buffer.length);
     const insertStatement = db.prepare(`INSERT OR IGNORE INTO address_point
-      (id, street_code, object_type_id, descriptive_number, orientational_number, orientational_number_letter, city_code, city_district_code, municipality_part_code, postal_code, jtsk_x, jtsk_y, wgs84_latitude, wgs84_longitude)
+      (id, street_code, object_type_id, descriptive_number, orientational_number, orientational_number_letter, city_code, city_district_code, municipality_part_code, prague_district_code, postal_code, jtsk_x, jtsk_y, wgs84_latitude, wgs84_longitude)
       VALUES ${placeHolders}`);
     const params = [];
     buffer.forEach((data) => {
@@ -65,7 +64,7 @@ export const commitAddressPoints = () => {
             const { lat, lon } = jtsk2wgs84(parseFloat(data[Column.xCoordinate]), parseFloat(data[Column.yCoordinate]));
             [latOrNull, lonOrNull] = [lat.toString(), lon.toString()];
         }
-        params.push(data[Column.admCode], nonEmptyOrNull(data[Column.streetCode]), ObjectTypes[data[Column.objectType]], nonEmptyOrNull(data[Column.houseNumber]), nonEmptyOrNull(data[Column.orientationalNumber]), nonEmptyOrNull(data[Column.orientationalNumberLetter]), data[Column.cityCode], nonEmptyOrNull(data[Column.districtCode]), nonEmptyOrNull(data[Column.municipalityPartCode]), data[Column.postalCode], nonEmptyOrNull(data[Column.xCoordinate]), nonEmptyOrNull(data[Column.yCoordinate]), latOrNull, lonOrNull);
+        params.push(data[Column.admCode], nonEmptyOrNull(data[Column.streetCode]), ObjectTypes[data[Column.objectType]], nonEmptyOrNull(data[Column.houseNumber]), nonEmptyOrNull(data[Column.orientationalNumber]), nonEmptyOrNull(data[Column.orientationalNumberLetter]), data[Column.cityCode], nonEmptyOrNull(data[Column.districtCode]), nonEmptyOrNull(data[Column.municipalityPartCode]), nonEmptyOrNull(data[Column.pragueDistrictCode]), data[Column.postalCode], nonEmptyOrNull(data[Column.xCoordinate]), nonEmptyOrNull(data[Column.yCoordinate]), latOrNull, lonOrNull);
     });
     buffer.length = 0;
     return insertStatement.run(params).changes;
@@ -84,6 +83,11 @@ export const insertMunicipalityParts = (buffer) => {
         Column.municipalityPartName,
     ]), "municipality_part", ["code", "name"]);
 };
+export const insertPragueDistricts = (buffer) => {
+    return insertMultipleRows(extractKeyValuesPairs(buffer, Column.pragueDistrictCode, [
+        Column.pragueDistrictName,
+    ]), "prague_district", ["code", "name"]);
+};
 export const insertStreets = (buffer) => {
     return insertMultipleRows(extractKeyValuesPairs(buffer, Column.streetCode, [
         Column.cityCode,
@@ -93,13 +97,14 @@ export const insertStreets = (buffer) => {
 const addressPointSelect = `
   SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
         a.orientational_number, a.orientational_number_letter, c.name AS city_name,
-        m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
-        a.wgs84_latitude, a.wgs84_longitude
+        m.name AS municipality_part_name, p.name AS prague_district_name,
+        d.name AS district_name, a.postal_code, a.wgs84_latitude, a.wgs84_longitude
   FROM address_point a
   LEFT JOIN street s ON a.street_code = s.code
   INNER JOIN object_type o ON o.id = a.object_type_id
   INNER JOIN city c ON c.code = a.city_code
   LEFT JOIN city_district d ON a.city_district_code = d.code
+  LEFT JOIN prague_district p ON a.prague_district_code = p.code
   LEFT JOIN municipality_part m ON a.municipality_part_code = m.code`;
 export const getAddressPointById = (addressPointId) => {
     const db = getDb();
@@ -168,15 +173,16 @@ export const findAddressPoints = (smdLine, municipality) => {
         : "JOIN street s ON a.street_code = s.code AND s.name = ? COLLATE NOCASE";
     const statement = db.prepare(`
     SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
-          a.orientational_number, a.orientational_number_letter, c.name AS city_name,
-          m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
-          a.wgs84_latitude, a.wgs84_longitude
+      a.orientational_number, a.orientational_number_letter, c.name AS city_name,
+      d.name AS district_name, m.name AS municipality_part_name, p.name AS prague_district_name,
+      a.postal_code, a.wgs84_latitude, a.wgs84_longitude
     FROM address_point a
     ${streetJoinCondition}
     INNER JOIN object_type o ON o.id = a.object_type_id
     INNER JOIN city c ON c.code = a.city_code
     LEFT JOIN city_district d ON a.city_district_code = d.code
     LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
+    LEFT JOIN prague_district p ON a.prague_district_code = p.code
     WHERE ${getMunicipalityWhere("a", municipality)}`);
     const params = isWholeMunicipalitySmdLine(smdLine)
         ? [municipality.code]
@@ -252,8 +258,7 @@ export const fitsType = (number, type) => {
         (type === SeriesType.Even && number % 2 === 0));
 };
 export const equalsFullStreetNumber = (fullStreetNumber, addressPoint) => {
-    return (fullStreetNumber.descriptiveNumber.number ===
-        addressPoint.descriptiveNumber &&
+    return (fullStreetNumber.descriptiveNumber.number === addressPoint.houseNumber &&
         fullStreetNumber.orientationalNumber.number ===
             addressPoint.orientationalNumber &&
         ((!fullStreetNumber.orientationalNumber.letter &&
@@ -264,7 +269,7 @@ export const equalsFullStreetNumber = (fullStreetNumber, addressPoint) => {
 const getNumberByType = (type, addressPoint) => {
     var _a;
     return type === SeriesType.Descriptive
-        ? addressPoint.descriptiveNumber
+        ? addressPoint.houseNumber
         : (_a = addressPoint.orientationalNumber) !== null && _a !== void 0 ? _a : null;
 };
 const getMunicipalityWhere = (alias, municipality) => {
@@ -272,22 +277,16 @@ const getMunicipalityWhere = (alias, municipality) => {
         ? `${alias}.city_code = ?`
         : `${alias}.city_district_code = ?`;
 };
-const createAddress = (result) => {
-    var _a;
-    const orientationalPart = result.orientational_number
-        ? `/${result.orientational_number}${(_a = result.orientational_number_letter) !== null && _a !== void 0 ? _a : ""}`
-        : "";
-    return `${result.street_name} ${result.descriptive_number}${orientationalPart}, ${result.city_name}`;
-};
 const rowToAddressPoint = (row) => {
     const point = {
         id: row.id,
         address: "",
         type: row.object_type_name === DescriptiveType
-            ? AddressPointType.Descriptive
+            ? AddressPointType.Description
             : AddressPointType.Registration,
-        descriptiveNumber: row.descriptive_number,
+        houseNumber: row.descriptive_number,
         city: row.city_name,
+        municipalityPart: row.municipality_part_name,
         postalCode: row.postal_code,
         lat: row.wgs84_latitude,
         lng: row.wgs84_longitude,
@@ -304,9 +303,9 @@ const rowToAddressPoint = (row) => {
     if (row.district_name !== null) {
         point.district = row.district_name;
     }
-    if (row.municipality_part_name !== null) {
-        point.municipalityPart = row.municipality_part_name;
+    if (row.prague_district !== null) {
+        point.pragueDistrict = row.prague_district_name;
     }
-    point.address = buildInline(point);
+    point.address = createSingleLineAddress(point);
     return point;
 };

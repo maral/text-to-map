@@ -16,3 +16,15 @@ export const setMetaValue = (key: string, value: any) => {
     return statement.run(value.toString(), key);
   }
 };
+
+export const setCurrentDatetimeMetaValue = (key: string) => {
+  setMetaValue(key, new Date().toISOString());
+};
+
+export const getDatetimeMetaValue = (key: string): Date | undefined => {
+  const value = getMetaValue(key);
+  if (value === undefined) {
+    return undefined;
+  }
+  return new Date(value);
+};

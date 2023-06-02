@@ -1,6 +1,7 @@
-import { MunicipalityType } from "./types";
-import { getDb, insertAutoincrementRow, insertMultipleRows } from "./db";
-import { extractMunicipalityName, findClosestString } from "../utils/helpers";
+import { MunicipalityType, } from "./types";
+import { generatePlaceholders, getDb, insertAutoincrementRow, insertMultipleRows, } from "./db";
+import { extractMunicipalityName, findClosestString, sanitizeMunicipalityName, } from "../utils/helpers";
+import distance from "@turf/distance";
 const cityTypeCode = 261;
 const cityDistrictTypeCode = 263;
 export const insertFounders = (founders) => {
@@ -20,48 +21,53 @@ export const insertFounders = (founders) => {
     let insertedFounders = 0;
     const schoolFounderConnectionData = [];
     founders.forEach((founder) => {
+        var _a;
         if (founder.municipalityType !== MunicipalityType.City &&
             founder.municipalityType !== MunicipalityType.District) {
             return;
         }
-        const municipalityName = extractMunicipalityName(founder);
+        const extractedMunicipalityName = extractMunicipalityName(founder);
         // check if the extracted municipality name is the same as in all the schools' locations
-        let allEqual = true;
-        let municipalityCode = "";
+        let differingSchools = [];
+        let municipalityCode = -1;
         founder.schools.forEach((school) => {
             const result = (founder.municipalityType === MunicipalityType.City
                 ? selectCityStatement
                 : selectDistrictStatement).get(school.izo);
             if (!result) {
-                console.log(`izo: ${school.izo}, extracted: ${municipalityName}, RUIAN: UNDEFINED`);
-                allEqual = false;
+                console.log(`izo: ${school.izo}, extracted: ${extractedMunicipalityName}, RUIAN: UNDEFINED`);
+                differingSchools.push(school);
             }
             else {
                 const { name, code } = result;
-                municipalityCode = code;
-                if (name !== municipalityName) {
-                    console.log(`izo: ${school.izo}, extracted: ${municipalityName}, RUIAN: ${name}`);
-                    allEqual = false;
+                if (name !== extractedMunicipalityName) {
+                    console.log(`izo: ${school.izo}, extracted: ${extractedMunicipalityName}, RUIAN: ${name}`);
+                    differingSchools.push(school);
                 }
+                // store municipalityCode even if the names don't match, we will use it later
+                municipalityCode = parseInt(code);
             }
         });
-        if (!allEqual) {
-            // here we could try to find the correct municipality by searching for the name in the DB
-            // this would solve the case of one school in the whole Czech Republic that is located outside
-            // its founder municipality - too much work for now
-            return;
+        municipalityCode = fixFounderProblems(founder, municipalityCode, differingSchools, extractedMunicipalityName);
+        const cityDistrictCode = founder.municipalityType === MunicipalityType.District
+            ? municipalityCode.toString()
+            : null;
+        let cityCode = null;
+        if (founder.municipalityType === MunicipalityType.City) {
+            cityCode = (_a = municipalityCode === null || municipalityCode === void 0 ? void 0 : municipalityCode.toString()) !== null && _a !== void 0 ? _a : null;
+        }
+        else {
+            cityCode = getCityCodeByDistrictCode(municipalityCode).toString();
         }
         const founderId = insertAutoincrementRow([
-            founder.name,
+            sanitizeMunicipalityName(founder.name),
             founder.ico,
             String(founder.originalType),
-            founder.municipalityType === MunicipalityType.City
-                ? municipalityCode
-                : null,
-            founder.municipalityType === MunicipalityType.City
-                ? null
-                : municipalityCode,
+            cityCode,
+            cityDistrictCode,
         ], "founder", ["name", "ico", "founder_type_code", "city_code", "city_district_code"]);
+        // founder table has unique (name, ico) with on conflict ignore, so possibly
+        // the row has not been inserted
         if (founderId !== null) {
             insertedFounders++;
             founder.schools.forEach((school) => {
@@ -71,6 +77,105 @@ export const insertFounders = (founders) => {
     });
     const insertedConnections = insertMultipleRows(schoolFounderConnectionData, "school_founder", ["school_izo", "founder_id"]);
     return insertedFounders + insertedConnections;
+};
+const fixFounderProblems = (founder, municipalityCode, differingSchools, extractedMunicipalityName) => {
+    if (differingSchools.length === 0 ||
+        differingSchools.length < founder.schools.length) {
+        return municipalityCode;
+    }
+    // either the school does not have a position (invalid RUIAN or missing building)
+    // or the school is not in the same municipality as the founder
+    const db = getDb();
+    // find all cities and their position with the same name as municipalityName
+    const municipalities = findMunicipalitiesAndPositionsByNameAndType(extractedMunicipalityName, founder.municipalityType);
+    // get one school position (if there are more schools, they should be close to each other)
+    const schoolPosition = db
+        .prepare(`SELECT a.wgs84_latitude, a.wgs84_longitude FROM school s
+        JOIN school_location l ON s.izo = l.school_izo
+        JOIN address_point a ON l.address_point_id = a.id
+        WHERE s.izo IN (${generatePlaceholders(differingSchools.length)})
+        LIMIT 1`)
+        .get(...differingSchools.map((school) => school.izo));
+    if (schoolPosition) {
+        if (municipalities.length === 0) {
+            if (municipalityCode === -1) {
+                console.log(`no municipality by name or by location found for ${founder.name}`);
+                return null;
+            }
+            else {
+                console.log("no municipality matching the extracted name, using the municipality from RUIAN code");
+            }
+        }
+        else if (municipalities.length === 1) {
+            console.log("using the only municipality found matching the extracted name");
+            return municipalities[0].code;
+        }
+        else {
+            // get code and position of the closest city
+            let lowestDistance = Number.MAX_SAFE_INTEGER;
+            let municipalityCode = null;
+            for (const municipality of municipalities) {
+                let municipalityDistance = distance([municipality.lat, municipality.lng], [schoolPosition.wgs84_latitude, schoolPosition.wgs84_longitude]);
+                if (municipalityDistance < lowestDistance) {
+                    lowestDistance = municipalityDistance;
+                    municipalityCode = municipality.code;
+                }
+            }
+            console.log("using the closest municipality matching the extracted name");
+            return municipalityCode;
+        }
+    }
+    else {
+        if (municipalities.length > 0) {
+            if (municipalities.length > 1) {
+                console.log(`using the first municipality matching the extracted name (${municipalities.length} matches) - possibly incorrect!`);
+            }
+            else {
+                console.log("using the only municipality found matching the extracted name");
+            }
+            return municipalities[0].code;
+        }
+        else {
+            console.log(`no municipality by name or by location found for ${founder.name}`);
+            return null;
+        }
+    }
+};
+const getCityCodeByDistrictCode = (districtCode) => {
+    const db = getDb();
+    const result = db
+        .prepare(`SELECT c.code FROM city_district d
+      JOIN city c ON d.city_code = c.code
+      WHERE d.code = ?
+      LIMIT 1`)
+        .get(districtCode);
+    if (result) {
+        return result.code;
+    }
+    else {
+        return null;
+    }
+};
+const findMunicipalitiesAndPositionsByNameAndType = (name, type) => {
+    const db = getDb();
+    return (type === MunicipalityType.City
+        ? db
+            .prepare(`SELECT c.name, c.code, a.wgs84_latitude, a.wgs84_longitude FROM city c
+            JOIN address_point a ON c.code = a.city_code
+            WHERE c.name = ?
+            GROUP BY c.code`)
+            .all(name)
+        : db
+            .prepare(`SELECT d.name, d.code, a.wgs84_latitude, a.wgs84_longitude FROM city_district d
+            JOIN address_point a ON d.code = a.city_district_code
+            WHERE d.name = ?
+            GROUP BY d.code`)
+            .all(name)).map((row) => ({
+        code: row.code,
+        type,
+        lat: row.wgs84_latitude,
+        lng: row.wgs84_longitude,
+    }));
 };
 export const findFounder = (name) => {
     const errors = [];
@@ -127,18 +232,21 @@ const resultToFounder = (result) => {
         municipalityType: result.founder_type_code === cityTypeCode
             ? MunicipalityType.City
             : MunicipalityType.District,
-        cityOrDistrictCode: result.city_code || result.city_district_code,
+        cityOrDistrictCode: result.founder_type_code === cityTypeCode
+            ? result.city_code
+            : result.city_district_code,
         schools: getSchoolsByFounderId(parseInt(result.id)),
     };
 };
 const getSchoolsByFounderId = (founderId) => {
     const db = getDb();
-    const statement = db.prepare(`SELECT s.izo, s.name, s.capacity, sl.address_point_id FROM school s
+    const statement = db.prepare(`SELECT s.izo, s.redizo, s.name, s.capacity, sl.address_point_id FROM school s
     JOIN school_founder sf ON s.izo = sf.school_izo
     JOIN school_location sl ON s.izo = sl.school_izo
     WHERE sf.founder_id = ?`);
     return statement.all(founderId).map((row) => ({
         izo: String(row.izo),
+        redizo: String(row.redizo),
         name: String(row.name),
         capacity: parseInt(row.capacity),
         locations: [

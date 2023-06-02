@@ -89,7 +89,7 @@ export const insertAutoincrementRow = (
   row: string[],
   table: string,
   columnNames: string[]
-): number => {
+): number | null => {
   const db = getDb();
 
   const insertStatement = db.prepare(
@@ -97,8 +97,9 @@ export const insertAutoincrementRow = (
       ","
     )}) VALUES (${generatePlaceholders(columnNames.length)})`
   );
-
-  return Number(insertStatement.run(row).lastInsertRowid);
+  
+  const result = insertStatement.run(row);
+  return result.changes === 1 ? Number(result.lastInsertRowid) : null;
 };
 
 export const deleteMultipleRows = (
@@ -152,6 +153,10 @@ const generateRepetitiveString = (
 
 export const generatePlaceholders = (n: number): string => {
   return generateRepetitiveString("?", ",", n);
+};
+
+export const generate2DPlaceholders = (inner: number, outer: number): string => {
+  return generateRepetitiveString(`(${generatePlaceholders(inner)})`, ",", outer);
 };
 
 export const extractKeyValuesPairs = (
