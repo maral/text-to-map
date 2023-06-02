@@ -1,6 +1,6 @@
-import { downloadAndImportAllStreets } from "../open-data-sync/streets";
+import { downloadAndImportStreets } from "../open-data-sync/streets";
 console.time("downloadAndImportAllStreets");
-downloadAndImportAllStreets({})
+downloadAndImportStreets({})
     .then(() => {
     console.timeEnd("downloadAndImportAllStreets");
 })

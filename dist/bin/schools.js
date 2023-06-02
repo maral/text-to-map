@@ -1,5 +1,5 @@
-import { downloadAndImportAllSchools } from "../open-data-sync/schools";
-downloadAndImportAllSchools({ tmpDir: "tmp" })
+import { downloadAndImportSchools } from "../open-data-sync/schools";
+downloadAndImportSchools({ tmpDir: "tmp" })
     .then(() => {
     console.log("Completed");
 })

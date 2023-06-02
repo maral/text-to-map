@@ -45,7 +45,8 @@ const importDataToDb = (data) => __awaiter(void 0, void 0, void 0, function* () 
     }
     insertStreetsFromDbf(data);
 });
-export const downloadAndImportAllStreets = (options) => __awaiter(void 0, void 0, void 0, function* () {
+export const downloadAndImportStreets = (options) => __awaiter(void 0, void 0, void 0, function* () {
+    console.log("Starting to download and import streets. This takes up to 1 hour.");
     const completeOptions = prepareOptions(options);
     initDb(completeOptions);
     prepareFolders(completeOptions);

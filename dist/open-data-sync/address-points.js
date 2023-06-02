@@ -54,15 +54,11 @@ const importDataToDb = (options) => __awaiter(void 0, void 0, void 0, function* 
     console.log(`Import completed. Total imported rows: ${total}`);
 });
 const getExtractionFolder = (options) => join(options.tmpDir, options.addressPointsCsvFolderName);
-export const downloadAndImportAllLatestAddressPoints = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
+export const downloadAndImportAddressPoints = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
     const completeOptions = prepareOptions(options);
     const datasetFeedLink = yield getLatestUrlFromAtomFeed(completeOptions.addressPointsAtomUrl);
     const zipUrl = yield getLatestUrlFromAtomFeed(datasetFeedLink);
     yield downloadAndUnzip(zipUrl, completeOptions);
-    yield importDataToDb(completeOptions);
-});
-export const importAllLatestAddressPoints = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
-    const completeOptions = prepareOptions(options);
     yield importDataToDb(completeOptions);
 });
 export const deleteDb = (options = {}) => {
