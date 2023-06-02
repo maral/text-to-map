@@ -176,13 +176,13 @@ describe("parse line with street and number information", () => {
 
   test("street with different variants - descriptive numbers", () => {
     expect(parseLine("Šrobárova - č. p. 19-25")).toEqual(
-      simpleExampleWithType(SeriesType.Descriptive)
+      simpleExampleWithType(SeriesType.Description)
     );
     expect(parseLine("Šrobárova č. p. 19-25")).toEqual(
-      simpleExampleWithType(SeriesType.Descriptive)
+      simpleExampleWithType(SeriesType.Description)
     );
     expect(parseLine("Šrobárova - pouze č. p. 19-25")).toEqual(
-      simpleExampleWithType(SeriesType.Descriptive)
+      simpleExampleWithType(SeriesType.Description)
     );
   });
 
@@ -224,7 +224,7 @@ describe("parse line with street and number information", () => {
           },
 
           {
-            type: SeriesType.Descriptive,
+            type: SeriesType.Description,
             ranges: [
               { from: { number: 326 }, to: { number: 326 } },
               { from: { number: 255 }, to: { number: 258 } },
@@ -241,7 +241,7 @@ describe("parse line with street and number information", () => {
     const expectedOdd = exampleWithTypeAndRanges(SeriesType.Odd, ranges);
     const expectedEven = exampleWithTypeAndRanges(SeriesType.Even, ranges);
     const expectedDescriptive = exampleWithTypeAndRanges(
-      SeriesType.Descriptive,
+      SeriesType.Description,
       ranges
     );
 
@@ -308,7 +308,7 @@ describe("parse line with street and number information", () => {
     const expectedOdd = exampleWithTypeAndRanges(SeriesType.Odd, ranges);
     const expectedEven = exampleWithTypeAndRanges(SeriesType.Even, ranges);
     const expectedDescriptive = exampleWithTypeAndRanges(
-      SeriesType.Descriptive,
+      SeriesType.Description,
       ranges
     );
 
@@ -336,7 +336,7 @@ describe("parse line with street and number information", () => {
     const expectedOdd = exampleWithTypeAndRanges(SeriesType.Odd, ranges);
     const expectedEven = exampleWithTypeAndRanges(SeriesType.Even, ranges);
     const expectedDescriptive = exampleWithTypeAndRanges(
-      SeriesType.Descriptive,
+      SeriesType.Description,
       ranges
     );
     expect(parseLine("Šrobárova - č. do 19")).toEqual(expectedAll);
@@ -368,7 +368,7 @@ describe("parse line with street and number information", () => {
           type: SeriesType.All,
           ranges: [
             {
-              descriptiveNumber: { number: 325 },
+              descriptionNumber: { number: 325 },
               orientationalNumber: { number: 12, letter: "a" },
             },
           ],
@@ -388,7 +388,7 @@ describe("parse line with street and number information", () => {
           type: SeriesType.All,
           ranges: [
             {
-              descriptiveNumber: { number: 325 },
+              descriptionNumber: { number: 325 },
               orientationalNumber: { number: 12, letter: "a" },
             },
           ],

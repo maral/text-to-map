@@ -50,7 +50,7 @@ export interface RichNumber {
 }
 
 export interface FullStreetNumber {
-  descriptiveNumber: RichNumber;
+  descriptionNumber: RichNumber;
   orientationalNumber: RichNumber;
 }
 
@@ -67,7 +67,7 @@ export enum SeriesType {
   Even,
   Odd,
   All,
-  Descriptive,
+  Description,
 }
 
 export interface AddressPoint extends CzechAddressPoint {

@@ -95,6 +95,7 @@ export const testRows = [
 export const testSchools: School[] = [
   {
     izo: "044940998",
+    redizo: "600001733",
     name: "Církevní základní škola a mateřská škola Přemysla Pittra",
     capacity: 300,
     locations: [
@@ -105,6 +106,7 @@ export const testSchools: School[] = [
   },
   {
     izo: "042962358",
+    redizo: "600001741",
     name: "Základní škola a Mateřská škola Sluníčko s.r.o.",
     capacity: 58,
     locations: [

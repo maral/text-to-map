@@ -1,4 +1,4 @@
-import jtsk2wgs84 from "@arodax/jtsk2wgs84";
+import jtsk2wgs84 from "../utils/jtsk2wgs84";
 import { AddressPointType, createSingleLineAddress } from "czech-address";
 import {
   AddressPoint,
@@ -338,7 +338,7 @@ const filterAddressPointsByRanges = (
           return (
             isInRange(
               number,
-              seriesSpec.type !== SeriesType.Descriptive
+              seriesSpec.type !== SeriesType.Description
                 ? addressPoint.orientationalNumberLetter ?? null
                 : null,
               range
@@ -398,7 +398,7 @@ export const isInRange = (
 
 export const fitsType = (number: number | null, type: SeriesType): boolean => {
   return (
-    type === SeriesType.Descriptive ||
+    type === SeriesType.Description ||
     type === SeriesType.All ||
     (type === SeriesType.Odd && number % 2 === 1) ||
     (type === SeriesType.Even && number % 2 === 0)
@@ -410,7 +410,7 @@ export const equalsFullStreetNumber = (
   addressPoint: AddressPoint
 ): boolean => {
   return (
-    fullStreetNumber.descriptiveNumber.number === addressPoint.houseNumber &&
+    fullStreetNumber.descriptionNumber.number === addressPoint.houseNumber &&
     fullStreetNumber.orientationalNumber.number ===
       addressPoint.orientationalNumber &&
     ((!fullStreetNumber.orientationalNumber.letter &&
@@ -424,7 +424,7 @@ const getNumberByType = (
   type: SeriesType,
   addressPoint: AddressPoint
 ): number | null => {
-  return type === SeriesType.Descriptive
+  return type === SeriesType.Description
     ? addressPoint.houseNumber
     : addressPoint.orientationalNumber ?? null;
 };
@@ -465,7 +465,7 @@ const rowToAddressPoint = (row: any): AddressPoint => {
   if (row.district_name !== null) {
     point.district = row.district_name;
   }
-  if (row.prague_district !== null) {
+  if (row.prague_district_name !== null) {
     point.pragueDistrict = row.prague_district_name;
   }
   point.address = createSingleLineAddress(point);

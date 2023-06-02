@@ -1,5 +1,4 @@
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
-import jtsk2wgs84 from "@arodax/jtsk2wgs84";
 import { closeDb, setupDb, testFounders, testRows } from "./db-setup";
 import {
   importParsedLine,
@@ -15,7 +14,8 @@ import {
 } from "../../src/db/address-points";
 import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import { founderToMunicipality } from "../../src/db/types";
-import { buildInline } from "../../src/utils/addressBuilder";
+import { AddressPointType, createSingleLineAddress } from "czech-address";
+import jtsk2wgs84 from "../../src/utils/jtsk2wgs84";
 
 // let testRowsLarge: string[][] = [];
 const prefix = "address-points";
@@ -93,8 +93,8 @@ describe("find address points", () => {
   test("fits type", () => {
     expect(fitsType(1, SeriesType.All)).toBe(true);
     expect(fitsType(1000, SeriesType.All)).toBe(true);
-    expect(fitsType(1, SeriesType.Descriptive)).toBe(true);
-    expect(fitsType(1000, SeriesType.Descriptive)).toBe(true);
+    expect(fitsType(1, SeriesType.Description)).toBe(true);
+    expect(fitsType(1000, SeriesType.Description)).toBe(true);
     expect(fitsType(1, SeriesType.Odd)).toBe(true);
     expect(fitsType(199, SeriesType.Odd)).toBe(true);
     expect(fitsType(2, SeriesType.Odd)).toBe(false);
@@ -196,24 +196,24 @@ describe("find address points", () => {
       address: "",
       street: "Lysá",
       city: "Želechovice nad Dřevnicí",
-      descriptiveNumber: 686,
+      houseNumber: 686,
       orientationalNumber: 20,
       orientationalNumberLetter: "a",
       lat: 49.2148644630034,
       lng: 17.737142251143794,
       municipalityPart: "Dřevník",
       postalCode: "76311",
-      type: 0,
+      type: AddressPointType.Description,
     },
   ];
 
-  testAddressPoints[0].address = buildInline(testAddressPoints[0]);
+  testAddressPoints[0].address = createSingleLineAddress(testAddressPoints[0]);
 
   test("equalsFullStreetNumber", () => {
     expect(
       equalsFullStreetNumber(
         {
-          descriptiveNumber: { number: 686 },
+          descriptionNumber: { number: 686 },
           orientationalNumber: { number: 20, letter: "a" },
         },
         testAddressPoints[0]
@@ -223,7 +223,7 @@ describe("find address points", () => {
     expect(
       equalsFullStreetNumber(
         {
-          descriptiveNumber: { number: 686 },
+          descriptionNumber: { number: 686 },
           orientationalNumber: { number: 20 },
         },
         testAddressPoints[0]
@@ -264,7 +264,7 @@ describe("find address points", () => {
           numberSpec: [
             {
               ranges: [{ from: { number: 686 }, to: { number: 686 } }],
-              type: SeriesType.Descriptive,
+              type: SeriesType.Description,
             },
           ],
         },
@@ -291,7 +291,7 @@ describe("find address points", () => {
           numberSpec: {
             negative: true,
             ranges: [{ from: { number: 686 }, to: { number: 686 } }],
-            type: SeriesType.Descriptive,
+            type: SeriesType.Description,
           },
         },
         founderToMunicipality(testFounders[0])
