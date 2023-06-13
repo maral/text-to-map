@@ -13,6 +13,7 @@ export interface OpenDataSyncOptions {
     schoolsXmlUrl?: string;
     schoolsXmlFileName?: string;
     regionsCsvUrl?: string;
+    regionsSchemaUrl?: string;
     regionsCsvFileName?: string;
 }
 export interface OpenDataSyncOptionsNotEmpty {
@@ -29,6 +30,7 @@ export interface OpenDataSyncOptionsNotEmpty {
     schoolsXmlUrl: string;
     schoolsXmlFileName: string;
     regionsCsvUrl: string;
+    regionsSchemaUrl: string;
     regionsCsvFileName: string;
 }
 export declare const getAppDataDirPath: () => string;

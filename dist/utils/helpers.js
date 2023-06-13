@@ -10,7 +10,7 @@ export const getAppDataDirPath = () => join(process.env.APPDATA ||
         ? process.env.HOME + "/Library/Preferences"
         : process.env.HOME + "/.local/share"), appName);
 export const prepareOptions = (options) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p;
+    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
     const dataDir = (_a = options.dataDir) !== null && _a !== void 0 ? _a : getAppDataDirPath();
     if (!existsSync(dataDir)) {
         mkdirSync(dataDir);
@@ -35,7 +35,8 @@ export const prepareOptions = (options) => {
         schoolsXmlUrl: (_l = options.schoolsXmlUrl) !== null && _l !== void 0 ? _l : "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
         schoolsXmlFileName: (_m = options.schoolsXmlFileName) !== null && _m !== void 0 ? _m : "school-register.xml",
         regionsCsvUrl: (_o = options.regionsCsvUrl) !== null && _o !== void 0 ? _o : "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
-        regionsCsvFileName: (_p = options.regionsCsvFileName) !== null && _p !== void 0 ? _p : "struktura_uzemi_cr.csv",
+        regionsSchemaUrl: (_p = options.regionsSchemaUrl) !== null && _p !== void 0 ? _p : "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr-metadata.json",
+        regionsCsvFileName: (_q = options.regionsCsvFileName) !== null && _q !== void 0 ? _q : "struktura_uzemi_cr.csv",
     };
 };
 export const initDb = (options) => {

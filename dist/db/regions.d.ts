@@ -1,4 +1,4 @@
-export declare const Column: {
+interface RegionsColumn {
     cityName: number;
     cityCode: number;
     cityType: number;
@@ -15,9 +15,17 @@ export declare const Column: {
     regionCsuCode100: number;
     regionCsuCode108Nuts: number;
     regionRuianCode: number;
-};
-export declare const insertRegionsAndOrps: (data: string[][]) => number;
-export declare const insertRegions: (buffer: string[][]) => number;
-export declare const insertCounties: (buffer: string[][]) => number;
-export declare const insertOrps: (buffer: string[][]) => number;
-export declare const insertCities: (buffer: string[][]) => number;
+}
+export interface RegionsTableSchema {
+    tableSchema: {
+        columns: {
+            name: string;
+        }[];
+    };
+}
+export declare const insertRegionsAndOrps: (data: string[][], schema: RegionsTableSchema) => number;
+export declare const insertRegions: (buffer: string[][], columnIndex: RegionsColumn) => number;
+export declare const insertCounties: (buffer: string[][], columnIndex: RegionsColumn) => number;
+export declare const insertOrps: (buffer: string[][], columnIndex: RegionsColumn) => number;
+export declare const insertCities: (buffer: string[][], columnIndex: RegionsColumn) => number;
+export {};

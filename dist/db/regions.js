@@ -1,30 +1,13 @@
 import { extractKeyValuesPairs, getDb, insertMultipleRows } from "./db";
-export const Column = {
-    cityName: 0,
-    cityCode: 1,
-    cityType: 2,
-    orpName: 9,
-    orpCsuCode65: 10,
-    orpRuianCode: 11,
-    orpCityCode: 12,
-    countyName: 13,
-    countyCsuCode101Lau: 14,
-    countyCsuCode109Nuts: 15,
-    countyRuianCode: 16,
-    regionName: 17,
-    regionShortName: 18,
-    regionCsuCode100: 19,
-    regionCsuCode108Nuts: 20,
-    regionRuianCode: 21,
-};
-export const insertRegionsAndOrps = (data) => {
+export const insertRegionsAndOrps = (data, schema) => {
+    const columnIndex = getColumnIndexFromSchema(schema);
     let changes = 0;
-    changes += insertRegions(data);
-    changes += insertCounties(data);
-    changes += insertOrps(data);
+    changes += insertRegions(data, columnIndex);
+    changes += insertCounties(data, columnIndex);
+    changes += insertOrps(data, columnIndex);
     // cities are most likely already inserted, but in case they're not,
     // we need to insert them before updating them with region data
-    changes += insertCities(data);
+    changes += insertCities(data, columnIndex);
     const db = getDb();
     const updateStatement = db.prepare(`UPDATE city SET
       region_code = ?,
@@ -32,34 +15,63 @@ export const insertRegionsAndOrps = (data) => {
       orp_code = ?
     WHERE code = ?`);
     data.forEach((data) => {
-        changes += updateStatement.run(data[Column.regionRuianCode], data[Column.countyRuianCode], data[Column.orpRuianCode], data[Column.cityCode]).changes;
+        changes += updateStatement.run(data[columnIndex.regionRuianCode], data[columnIndex.countyRuianCode], data[columnIndex.orpRuianCode], data[columnIndex.cityCode]).changes;
     });
     return changes;
 };
-export const insertRegions = (buffer) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, Column.regionRuianCode, [
-        Column.regionName,
-        Column.regionShortName,
-        Column.regionCsuCode100,
-        Column.regionCsuCode108Nuts,
+export const insertRegions = (buffer, columnIndex) => {
+    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.regionRuianCode, [
+        columnIndex.regionName,
+        columnIndex.regionShortName,
+        columnIndex.regionCsuCode100,
+        columnIndex.regionCsuCode108Nuts,
     ]), "region", ["code", "name", "short_name", "csu_code_100", "csu_code_108_nuts"]);
 };
-export const insertCounties = (buffer) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, Column.countyRuianCode, [
-        Column.countyName,
-        Column.countyCsuCode101Lau,
-        Column.countyCsuCode109Nuts,
-        Column.regionRuianCode,
+export const insertCounties = (buffer, columnIndex) => {
+    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.countyRuianCode, [
+        columnIndex.countyName,
+        columnIndex.countyCsuCode101Lau,
+        columnIndex.countyCsuCode109Nuts,
+        columnIndex.regionRuianCode,
     ]), "county", ["code", "name", "csu_code_101_lau", "csu_code_109_nuts", "region_code"]);
 };
-export const insertOrps = (buffer) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, Column.orpRuianCode, [
-        Column.orpName,
-        Column.orpCsuCode65,
-        Column.regionRuianCode,
-        Column.countyRuianCode,
+export const insertOrps = (buffer, columnIndex) => {
+    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.orpRuianCode, [
+        columnIndex.orpName,
+        columnIndex.orpCsuCode65,
+        columnIndex.regionRuianCode,
+        columnIndex.countyRuianCode,
     ]), "orp", ["code", "name", "csu_code_65", "region_code", "county_code"]);
 };
-export const insertCities = (buffer) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, Column.cityCode, [Column.cityName]), "city", ["code", "name"]);
+export const insertCities = (buffer, columnIndex) => {
+    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.cityCode, [columnIndex.cityName]), "city", ["code", "name"]);
+};
+const getColumnIndexFromSchema = (schema) => {
+    const names = schema.tableSchema.columns.map((column) => column.name);
+    const columnIndex = {
+        cityName: findOrDie(names, "obec_text"),
+        cityCode: findOrDie(names, "obec_kod"),
+        cityType: findOrDie(names, "obec_typ"),
+        orpName: findOrDie(names, "orp_text"),
+        orpCsuCode65: findOrDie(names, "orp_csu_cis65_kod"),
+        orpRuianCode: findOrDie(names, "orp_ruian_kod"),
+        orpCityCode: findOrDie(names, "orp_sidlo_obec_kod"),
+        countyName: findOrDie(names, "okres_text"),
+        countyCsuCode101Lau: findOrDie(names, "okres_csu_cis101_lau_kod"),
+        countyCsuCode109Nuts: findOrDie(names, "okres_csu_cis109_nuts_kod"),
+        countyRuianCode: findOrDie(names, "okres_ruian_kod"),
+        regionName: findOrDie(names, "kraj_text"),
+        regionShortName: findOrDie(names, "kraj_zkratka"),
+        regionCsuCode100: findOrDie(names, "kraj_csu_cis100_kod"),
+        regionCsuCode108Nuts: findOrDie(names, "kraj_csu_cis108_nuts_kod"),
+        regionRuianCode: findOrDie(names, "kraj_ruian_vusc_kod"),
+    };
+    return columnIndex;
+};
+const findOrDie = (columnNames, name) => {
+    const index = columnNames.indexOf(name);
+    if (index < 0) {
+        throw new Error(`Column '${name}' not found in region schema. Check https://data.gov.cz/datov%C3%A1-sada?iri=https%3A%2F%2Fdata.gov.cz%2Fzdroj%2Fdatov%C3%A9-sady%2F00025593%2F271b0fb7c2abb7f44e12ad57617821b2 for current dataset info or search for 'Struktura území ČR se všemi kódy území od obcí po stát dle číselníků ČSÚ, klasifikace NUTS a kódů RÚIAN.'.`);
+    }
+    return index;
 };

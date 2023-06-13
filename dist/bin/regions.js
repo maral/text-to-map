@@ -1,5 +1,5 @@
 import { downloadAndImportRegions } from "../open-data-sync/regions";
-downloadAndImportRegions()
+downloadAndImportRegions({ dataDir: "./tmp/db" })
     .then(() => {
     console.log("Completed");
 })

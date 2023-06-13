@@ -25,9 +25,15 @@ const downloadAndImportDataToDb = (options) => __awaiter(void 0, void 0, void 0,
         rows.push(data);
     });
     yield pipeline(response.body, iconv.decodeStream("utf-8"), parseStream);
+    const schemaResponse = yield fetch(options.regionsSchemaUrl);
+    if (schemaResponse.status !== 200) {
+        throw new Error(`The file could not be downloaded. HTTP Code: ${schemaResponse.status}`);
+    }
+    // @ts-ignore
+    const schema = yield schemaResponse.json();
     console.log("Parsing completed. Starting to import data to DB...");
     initDb(options);
-    insertRegionsAndOrps(rows);
+    insertRegionsAndOrps(rows, schema);
     console.log(`Import completed. Total imported rows: ${rows.length}`);
 });
 export const downloadAndImportRegions = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
