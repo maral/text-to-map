@@ -1,7 +1,7 @@
 import { downloadAndImportAddressPoints } from "../open-data-sync/address-points";
 
 console.time("downloadAndImportAllLatestAddressPoints");
-downloadAndImportAddressPoints()
+downloadAndImportAddressPoints({ dataDir: "./tmp/db" })
   .then(() => {
     console.timeEnd("downloadAndImportAllLatestAddressPoints");
   })

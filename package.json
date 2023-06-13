@@ -29,14 +29,14 @@
     "ts-node": "^10.9.1"
   },
   "scripts": {
+    "sync-all": "ts-node --experimental-specifier-resolution=node --esm src/bin/sync-all.ts",
     "address-points": "ts-node --experimental-specifier-resolution=node --esm src/bin/address-points.ts",
+    "regions": "ts-node --experimental-specifier-resolution=node --esm src/bin/regions.ts",
     "schools": "ts-node --experimental-specifier-resolution=node --esm src/bin/schools.ts",
+    "streets": "ts-node --experimental-specifier-resolution=node --esm src/bin/streets.ts",
+    "diagrams": "ts-node --experimental-specifier-resolution=node --esm src/bin/generate-syntax-diagrams.ts",
     "clear-all": "ts-node --experimental-specifier-resolution=node --esm src/bin/clear-all.ts",
     "parse-ordinance": "ts-node --experimental-specifier-resolution=node --esm src/bin/parse-ordinance.ts",
-    "diagrams": "ts-node --experimental-specifier-resolution=node --esm src/bin/generate-syntax-diagrams.ts",
-    "streets": "ts-node --experimental-specifier-resolution=node --esm src/bin/streets.ts",
-    "regions": "ts-node --experimental-specifier-resolution=node --esm src/bin/regions.ts",
-    "dbf": "ts-node --experimental-specifier-resolution=node --esm src/bin/dbf.ts",
     "test": "node --experimental-vm-modules --no-warnings node_modules/jest/bin/jest.js -c=jest-esm.config.mjs --no-cache",
     "ordinance-to-csv-rules": "node src/smd-to-csv/ordinance-to-csv-rules.js",
     "clean": "rimraf dist",
