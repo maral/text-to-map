@@ -9,7 +9,7 @@ import {
   initDb,
   prepareOptions,
 } from "../utils/helpers";
-import { insertRegionsAndOrps } from "../db/regions";
+import { RegionsTableSchema, insertRegionsAndOrps } from "../db/regions";
 
 const downloadAndImportDataToDb = async (
   options: OpenDataSyncOptionsNotEmpty
@@ -22,6 +22,7 @@ const downloadAndImportDataToDb = async (
     );
   }
 
+
   console.log("Download completed. Starting to parse CSV file...");
 
   const rows: string[][] = [];
@@ -33,11 +34,20 @@ const downloadAndImportDataToDb = async (
   );
 
   await pipeline(response.body, iconv.decodeStream("utf-8"), parseStream);
+  
+  const schemaResponse = await fetch(options.regionsSchemaUrl);
+  if (schemaResponse.status !== 200) {
+    throw new Error(
+      `The file could not be downloaded. HTTP Code: ${schemaResponse.status}`
+    );
+  }
+  // @ts-ignore
+  const schema: RegionsTableSchema = await schemaResponse.json();
 
   console.log("Parsing completed. Starting to import data to DB...");
 
   initDb(options);
-  insertRegionsAndOrps(rows);
+  insertRegionsAndOrps(rows, schema);
 
   console.log(`Import completed. Total imported rows: ${rows.length}`);
 };

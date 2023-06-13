@@ -21,6 +21,7 @@ export interface OpenDataSyncOptions {
   schoolsXmlUrl?: string;
   schoolsXmlFileName?: string;
   regionsCsvUrl?: string;
+  regionsSchemaUrl?: string;
   regionsCsvFileName?: string;
 }
 
@@ -38,6 +39,7 @@ export interface OpenDataSyncOptionsNotEmpty {
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
   regionsCsvUrl: string;
+  regionsSchemaUrl: string;
   regionsCsvFileName: string;
 }
 
@@ -90,6 +92,9 @@ export const prepareOptions = (
     regionsCsvUrl:
       options.regionsCsvUrl ??
       "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
+    regionsSchemaUrl:
+      options.regionsSchemaUrl ??
+      "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr-metadata.json",
     regionsCsvFileName: options.regionsCsvFileName ?? "struktura_uzemi_cr.csv",
   };
 };
