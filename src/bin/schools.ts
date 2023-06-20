@@ -1,6 +1,7 @@
 import { downloadAndImportSchools } from "../open-data-sync/schools";
+import { defaultBinOptions } from "./constants";
 
-downloadAndImportSchools({ dataDir: "./tmp/db" })
+downloadAndImportSchools(defaultBinOptions, true)
   .then(() => {
     console.log("Completed");
   })

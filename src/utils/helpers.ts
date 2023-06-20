@@ -8,24 +8,6 @@ import { fileURLToPath } from "url";
 const appName = "text-to-map";
 
 export interface OpenDataSyncOptions {
-  tmpDir?: string;
-  dataDir?: string;
-  dbFilePath?: string;
-  dbInitFilePath?: string;
-  addressPointsAtomUrl?: string;
-  addressPointsZipFileName?: string;
-  addressPointsCsvFolderName?: string;
-  streetsAtomUrl?: string;
-  streetZipFolderName?: string;
-  streetDbfFileName?: string;
-  schoolsXmlUrl?: string;
-  schoolsXmlFileName?: string;
-  regionsCsvUrl?: string;
-  regionsSchemaUrl?: string;
-  regionsCsvFileName?: string;
-}
-
-export interface OpenDataSyncOptionsNotEmpty {
   tmpDir: string;
   dataDir: string;
   dbFilePath: string;
@@ -34,7 +16,7 @@ export interface OpenDataSyncOptionsNotEmpty {
   addressPointsZipFileName: string;
   addressPointsCsvFolderName: string;
   streetsAtomUrl: string;
-  streetFolderName: string;
+  streetZipFolderName: string;
   streetDbfFileName: string;
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
@@ -42,6 +24,8 @@ export interface OpenDataSyncOptionsNotEmpty {
   regionsSchemaUrl: string;
   regionsCsvFileName: string;
 }
+
+export type OpenDataSyncOptionsPartial = Partial<OpenDataSyncOptions>;
 
 export const getAppDataDirPath = (): string =>
   join(
@@ -53,8 +37,8 @@ export const getAppDataDirPath = (): string =>
   );
 
 export const prepareOptions = (
-  options: OpenDataSyncOptions
-): OpenDataSyncOptionsNotEmpty => {
+  options: OpenDataSyncOptionsPartial
+): OpenDataSyncOptions => {
   const dataDir = options.dataDir ?? getAppDataDirPath();
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir);
@@ -68,38 +52,34 @@ export const prepareOptions = (
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
 
-  return {
-    tmpDir: options.tmpDir ?? tmpAppDir,
+  const defaults = {
+    tmpDir: tmpAppDir,
     dataDir: dataDir,
-    dbFilePath: options.dbFilePath ?? join(dataDir, "address_points.db"),
-    dbInitFilePath:
-      options.dbInitFilePath ?? join(__dirname, "..", "address_points_init.db"),
+    dbFilePath: join(dataDir, "address_points.db"),
+    dbInitFilePath: join(__dirname, "..", "address_points_init.db"),
     addressPointsAtomUrl:
-      options.addressPointsAtomUrl ??
       "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
-    addressPointsZipFileName:
-      options.addressPointsZipFileName ?? "ruian_csv.zip",
-    addressPointsCsvFolderName: options.addressPointsCsvFolderName ?? "CSV",
-    streetsAtomUrl:
-      options.streetsAtomUrl ??
-      "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
-    streetFolderName: options.streetZipFolderName ?? "streets",
-    streetDbfFileName: options.streetDbfFileName ?? "UL_L.dbf",
-    schoolsXmlUrl:
-      options.schoolsXmlUrl ??
-      "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
-    schoolsXmlFileName: options.schoolsXmlFileName ?? "school-register.xml",
+    addressPointsZipFileName: "ruian_csv.zip",
+    addressPointsCsvFolderName: "CSV",
+    streetsAtomUrl: "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
+    streetZipFolderName: "streets",
+    streetDbfFileName: "UL_L.dbf",
+    schoolsXmlUrl: "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
+    schoolsXmlFileName: "school-register.xml",
     regionsCsvUrl:
-      options.regionsCsvUrl ??
       "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
     regionsSchemaUrl:
-      options.regionsSchemaUrl ??
       "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr-metadata.json",
-    regionsCsvFileName: options.regionsCsvFileName ?? "struktura_uzemi_cr.csv",
+    regionsCsvFileName: "struktura_uzemi_cr.csv",
+  };
+
+  return {
+    ...defaults,
+    ...options,
   };
 };
 
-export const initDb = (options: OpenDataSyncOptionsNotEmpty): void => {
+export const initDb = (options: OpenDataSyncOptions): void => {
   setDbConfig({
     filePath: options.dbFilePath,
     initFilePath: options.dbInitFilePath,

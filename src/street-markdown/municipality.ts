@@ -1,5 +1,5 @@
-import { findFounder, findMunicipalityByNameAndType } from "../db/founders";
-import { Municipality, MunicipalityType } from "../db/types";
+import { findMunicipalityByNameAndType } from "../db/founders";
+import { MunicipalityType } from "../db/types";
 import { DbMunicipalityResult } from "./types";
 
 const municipalitySwitchPattern =

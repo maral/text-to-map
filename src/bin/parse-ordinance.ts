@@ -1,5 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
-import { parseOrdinanceToAddressPoints } from "../street-markdown/smd";
+import { getNewMunicipality, parseOrdinanceToAddressPoints } from "../street-markdown/smd";
+import { ErrorCallbackParams } from "../street-markdown/types";
+import { defaultBinOptions } from "./constants";
 
 // take first node argument as a file name
 if (process.argv.length < 3) {
@@ -11,7 +13,50 @@ const fileName = process.argv[2];
 const fileContent = readFileSync(fileName);
 const lines = fileContent.toString().split("\n");
 
-const addressPoints = parseOrdinanceToAddressPoints(lines);
+let errorCount = 0;
+const errorLines: string[] = [];
+let warningCount = 0;
+
+const reportErrors = ({
+  lineNumber,
+  line,
+  errors,
+}: ErrorCallbackParams): void => {
+  errors.forEach(console.error);
+  console.error(`Invalid street definition on line ${lineNumber}: ${line}`);
+  errorCount++;
+  errorLines.push(`line ${lineNumber}: ${line}`);
+};
+
+const reportWarnings = ({
+  lineNumber,
+  errors: warnings,
+}: ErrorCallbackParams): void => {
+  warnings.map((error) => {
+    console.error(`Line ${lineNumber}: ${error}`);
+  });
+  warningCount++;
+};
+
+console.time("downloadAndImportAllLatestAddressPoints");
+const addressPoints = parseOrdinanceToAddressPoints(
+  lines,
+  defaultBinOptions,
+  {
+    currentMunicipality: getNewMunicipality("Česká Lípa", defaultBinOptions),
+  },
+  reportErrors,
+  reportWarnings,
+);
+console.timeEnd("downloadAndImportAllLatestAddressPoints");
+
+console.log(
+  `Parsed ${lines.length} lines, ${errorCount} errors, ${warningCount} warnings.`
+);
+if (errorCount > 0) {
+  console.log("Errors:");
+  errorLines.forEach((line) => console.log(line));
+}
 
 if (process.argv.length >= 4) {
   const outputFileName = process.argv[3];

@@ -5,8 +5,8 @@ import fetch from "node-fetch";
 
 import { setDbConfig } from "../db/db";
 import {
+  OpenDataSyncOptionsPartial,
   OpenDataSyncOptions,
-  OpenDataSyncOptionsNotEmpty,
   prepareOptions,
 } from "../utils/helpers";
 import { pipeline } from "stream/promises";
@@ -15,7 +15,7 @@ import { insertSchools } from "../db/schools";
 import { insertFounders } from "../db/founders";
 
 const downloadXml = async (
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<void> => {
   if (existsSync(getXmlFilePath(options))) {
     return;
@@ -74,7 +74,7 @@ const getMunicipalityType = (founderType: string): MunicipalityType => {
 type SchoolAddress = { izo: string; address: string[]; isPrimary: boolean };
 
 const processSchoolRegisterXml = async (
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<{
   schools: School[];
   founders: Map<string, Founder>;
@@ -284,7 +284,7 @@ const processSchoolRegisterXml = async (
 };
 
 const importDataToDb = async (
-  options: OpenDataSyncOptionsNotEmpty,
+  options: OpenDataSyncOptions,
   saveFoundersToCsv: boolean = false,
   saveSchoolsWithoutRuianToCsv: boolean = false
 ) => {
@@ -343,21 +343,23 @@ const importDataToDb = async (
   insertFounders(Array.from(founders.values()));
 };
 
-const getXmlFilePath = (options: OpenDataSyncOptions): string => {
+const getXmlFilePath = (options: OpenDataSyncOptionsPartial): string => {
   return join(options.tmpDir, options.schoolsXmlFileName);
 };
 
 export const downloadAndImportSchools = async (
-  options: OpenDataSyncOptions
+  options: OpenDataSyncOptionsPartial,
+  saveFoundersToCsv: boolean = false,
+  saveSchoolsWithoutRuianToCsv: boolean = false,
 ) => {
   const runOptions = prepareOptions(options);
 
   await downloadXml(runOptions);
-  await importDataToDb(runOptions, false, true);
+  await importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
   deleteSchoolsXmlFile(runOptions);
 };
 
-export const deleteSchoolsXmlFile = (options: OpenDataSyncOptions = {}) => {
+export const deleteSchoolsXmlFile = (options: OpenDataSyncOptionsPartial = {}) => {
   const runOptions = prepareOptions(options);
 
   if (existsSync(getXmlFilePath(runOptions))) {

@@ -6,8 +6,8 @@ import AdmZip from "adm-zip";
 import parseDBF from "parsedbf";
 
 import {
+  OpenDataSyncOptionsPartial,
   OpenDataSyncOptions,
-  OpenDataSyncOptionsNotEmpty,
   prepareOptions,
   initDb,
 } from "../utils/helpers";
@@ -23,21 +23,21 @@ import {
   getLatestUrlFromAtomFeed,
 } from "../utils/atom";
 
-const prepareFolders = (options: OpenDataSyncOptionsNotEmpty) => {
+const prepareFolders = (options: OpenDataSyncOptions) => {
   const tempFolder = getTempFolder(options);
   if (!existsSync(tempFolder)) {
     mkdirSync(tempFolder);
   }
 };
 
-const getTempFolder = (options: OpenDataSyncOptionsNotEmpty) => {
-  return join(options.tmpDir, options.streetFolderName);
+const getTempFolder = (options: OpenDataSyncOptions) => {
+  return join(options.tmpDir, options.streetZipFolderName);
 };
 
 const downloadZipAndParseDbfFile = async (
   url: string,
   index: number,
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<DbfStreet[]> => {
   const response = await fetch(url);
   if (response.status !== 200) {
@@ -65,7 +65,7 @@ const importDataToDb = async (data: DbfStreet[]) => {
 };
 
 export const downloadAndImportStreets = async (
-  options: OpenDataSyncOptions
+  options: OpenDataSyncOptionsPartial
 ): Promise<void> => {
 
   console.log("Starting to download and import streets. This takes up to 1 hour.");

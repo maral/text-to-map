@@ -13,8 +13,8 @@ import { parse } from "csv-parse";
 import iconv from "iconv-lite";
 
 import {
+  OpenDataSyncOptionsPartial,
   OpenDataSyncOptions,
-  OpenDataSyncOptionsNotEmpty,
   prepareOptions,
   initDb,
 } from "../utils/helpers";
@@ -23,7 +23,7 @@ import { getLatestUrlFromAtomFeed } from "../utils/atom";
 
 const downloadAndUnzip = async (
   url: string,
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<void> => {
   const zipFilePath = join(options.tmpDir, options.addressPointsZipFileName);
 
@@ -47,7 +47,7 @@ const downloadAndUnzip = async (
   console.log("Removed the ZIP file.");
 };
 
-const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
+const importDataToDb = async (options: OpenDataSyncOptions) => {
   const extractionFolder = getExtractionFolder(options);
 
   const files = readdirSync(extractionFolder);
@@ -84,11 +84,11 @@ const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
   console.log(`Import completed. Total imported rows: ${total}`);
 };
 
-const getExtractionFolder = (options: OpenDataSyncOptionsNotEmpty) =>
+const getExtractionFolder = (options: OpenDataSyncOptions) =>
   join(options.tmpDir, options.addressPointsCsvFolderName);
 
 export const downloadAndImportAddressPoints = async (
-  options: OpenDataSyncOptions = {}
+  options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
   const completeOptions = prepareOptions(options);
   const datasetFeedLink = await getLatestUrlFromAtomFeed(
@@ -99,7 +99,7 @@ export const downloadAndImportAddressPoints = async (
   await importDataToDb(completeOptions);
 };
 
-export const deleteDb = (options: OpenDataSyncOptions = {}) => {
+export const deleteDb = (options: OpenDataSyncOptionsPartial = {}) => {
   const completeOptions = prepareOptions(options);
   if (existsSync(completeOptions.dbFilePath)) {
     rmSync(completeOptions.dbFilePath);

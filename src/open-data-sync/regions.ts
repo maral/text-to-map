@@ -4,15 +4,15 @@ import fetch from "node-fetch";
 import { pipeline } from "stream/promises";
 
 import {
+  OpenDataSyncOptionsPartial,
   OpenDataSyncOptions,
-  OpenDataSyncOptionsNotEmpty,
   initDb,
   prepareOptions,
 } from "../utils/helpers";
 import { RegionsTableSchema, insertRegionsAndOrps } from "../db/regions";
 
 const downloadAndImportDataToDb = async (
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ) => {
   console.log("Downloading regions and ORP data...");
   const response = await fetch(options.regionsCsvUrl);
@@ -53,7 +53,7 @@ const downloadAndImportDataToDb = async (
 };
 
 export const downloadAndImportRegions = async (
-  options: OpenDataSyncOptions = {}
+  options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
   const completeOptions = prepareOptions(options);
   await downloadAndImportDataToDb(completeOptions);

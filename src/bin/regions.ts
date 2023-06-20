@@ -1,6 +1,7 @@
 import { downloadAndImportRegions } from "../open-data-sync/regions";
+import { defaultBinOptions } from "./constants";
 
-downloadAndImportRegions({ dataDir: "./tmp/db" })
+downloadAndImportRegions(defaultBinOptions)
   .then(() => {
     console.log("Completed");
   })

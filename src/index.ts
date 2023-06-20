@@ -5,10 +5,10 @@ import {
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
-import { parseOrdinanceToAddressPoints } from "./street-markdown/smd";
-import { OpenDataSyncOptions } from "./utils/helpers";
+import { OpenDataSyncOptionsPartial } from "./utils/helpers";
 
 export * from "./street-markdown/types";
+export * from "./street-markdown/smd";
 
 /**
  * Download and import all open data to SQLite DB. The DB file will be located
@@ -22,7 +22,7 @@ export * from "./street-markdown/types";
  * ```
  */
 export async function downloadAndImportEverything(
-  options: OpenDataSyncOptions = {},
+  options: OpenDataSyncOptionsPartial = {},
   syncStreets: boolean = true
 ) {
   await downloadAndImportAddressPoints(options);
@@ -39,5 +39,4 @@ export {
   downloadAndImportSchools,
   downloadAndImportStreets,
   downloadAndImportRegions,
-  parseOrdinanceToAddressPoints,
 };
