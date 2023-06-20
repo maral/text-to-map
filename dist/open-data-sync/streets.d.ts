@@ -1,2 +1,2 @@
-import { OpenDataSyncOptions } from "../utils/helpers";
-export declare const downloadAndImportStreets: (options: OpenDataSyncOptions) => Promise<void>;
+import { OpenDataSyncOptionsPartial } from "../utils/helpers";
+export declare const downloadAndImportStreets: (options: OpenDataSyncOptionsPartial) => Promise<void>;

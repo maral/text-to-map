@@ -1,2 +1,3 @@
 import { downloadAndImportEverything } from "../index";
-downloadAndImportEverything({ dataDir: "./tmp/db" });
+import { defaultBinOptions } from "./constants";
+downloadAndImportEverything(defaultBinOptions);

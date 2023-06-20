@@ -61,11 +61,12 @@ export const insertFounders = (founders) => {
         }
         const founderId = insertAutoincrementRow([
             sanitizeMunicipalityName(founder.name),
+            sanitizeMunicipalityName(extractedMunicipalityName),
             founder.ico,
             String(founder.originalType),
             cityCode,
             cityDistrictCode,
-        ], "founder", ["name", "ico", "founder_type_code", "city_code", "city_district_code"]);
+        ], "founder", ["name", "short_name", "ico", "founder_type_code", "city_code", "city_district_code"]);
         // founder table has unique (name, ico) with on conflict ignore, so possibly
         // the row has not been inserted
         if (founderId !== null) {

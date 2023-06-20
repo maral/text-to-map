@@ -10,7 +10,7 @@ export const getAppDataDirPath = () => join(process.env.APPDATA ||
         ? process.env.HOME + "/Library/Preferences"
         : process.env.HOME + "/.local/share"), appName);
 export const prepareOptions = (options) => {
-    var _a, _b, _c, _d, _e, _f, _g, _h, _j, _k, _l, _m, _o, _p, _q;
+    var _a;
     const dataDir = (_a = options.dataDir) !== null && _a !== void 0 ? _a : getAppDataDirPath();
     if (!existsSync(dataDir)) {
         mkdirSync(dataDir);
@@ -21,23 +21,24 @@ export const prepareOptions = (options) => {
     }
     const __filename = fileURLToPath(import.meta.url);
     const __dirname = dirname(__filename);
-    return {
-        tmpDir: (_b = options.tmpDir) !== null && _b !== void 0 ? _b : tmpAppDir,
+    const defaults = {
+        tmpDir: tmpAppDir,
         dataDir: dataDir,
-        dbFilePath: (_c = options.dbFilePath) !== null && _c !== void 0 ? _c : join(dataDir, "address_points.db"),
-        dbInitFilePath: (_d = options.dbInitFilePath) !== null && _d !== void 0 ? _d : join(__dirname, "..", "address_points_init.db"),
-        addressPointsAtomUrl: (_e = options.addressPointsAtomUrl) !== null && _e !== void 0 ? _e : "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
-        addressPointsZipFileName: (_f = options.addressPointsZipFileName) !== null && _f !== void 0 ? _f : "ruian_csv.zip",
-        addressPointsCsvFolderName: (_g = options.addressPointsCsvFolderName) !== null && _g !== void 0 ? _g : "CSV",
-        streetsAtomUrl: (_h = options.streetsAtomUrl) !== null && _h !== void 0 ? _h : "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
-        streetFolderName: (_j = options.streetZipFolderName) !== null && _j !== void 0 ? _j : "streets",
-        streetDbfFileName: (_k = options.streetDbfFileName) !== null && _k !== void 0 ? _k : "UL_L.dbf",
-        schoolsXmlUrl: (_l = options.schoolsXmlUrl) !== null && _l !== void 0 ? _l : "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
-        schoolsXmlFileName: (_m = options.schoolsXmlFileName) !== null && _m !== void 0 ? _m : "school-register.xml",
-        regionsCsvUrl: (_o = options.regionsCsvUrl) !== null && _o !== void 0 ? _o : "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
-        regionsSchemaUrl: (_p = options.regionsSchemaUrl) !== null && _p !== void 0 ? _p : "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr-metadata.json",
-        regionsCsvFileName: (_q = options.regionsCsvFileName) !== null && _q !== void 0 ? _q : "struktura_uzemi_cr.csv",
+        dbFilePath: join(dataDir, "address_points.db"),
+        dbInitFilePath: join(__dirname, "..", "address_points_init.db"),
+        addressPointsAtomUrl: "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
+        addressPointsZipFileName: "ruian_csv.zip",
+        addressPointsCsvFolderName: "CSV",
+        streetsAtomUrl: "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
+        streetZipFolderName: "streets",
+        streetDbfFileName: "UL_L.dbf",
+        schoolsXmlUrl: "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
+        schoolsXmlFileName: "school-register.xml",
+        regionsCsvUrl: "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
+        regionsSchemaUrl: "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr-metadata.json",
+        regionsCsvFileName: "struktura_uzemi_cr.csv",
     };
+    return Object.assign(Object.assign({}, defaults), options);
 };
 export const initDb = (options) => {
     setDbConfig({

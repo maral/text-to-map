@@ -303,10 +303,10 @@ const importDataToDb = (options, saveFoundersToCsv = false, saveSchoolsWithoutRu
 const getXmlFilePath = (options) => {
     return join(options.tmpDir, options.schoolsXmlFileName);
 };
-export const downloadAndImportSchools = (options) => __awaiter(void 0, void 0, void 0, function* () {
+export const downloadAndImportSchools = (options, saveFoundersToCsv = false, saveSchoolsWithoutRuianToCsv = false) => __awaiter(void 0, void 0, void 0, function* () {
     const runOptions = prepareOptions(options);
     yield downloadXml(runOptions);
-    yield importDataToDb(runOptions, false, true);
+    yield importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
     deleteSchoolsXmlFile(runOptions);
 });
 export const deleteSchoolsXmlFile = (options = {}) => {

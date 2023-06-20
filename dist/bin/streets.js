@@ -1,6 +1,7 @@
 import { downloadAndImportStreets } from "../open-data-sync/streets";
+import { defaultBinOptions } from "./constants";
 console.time("downloadAndImportAllStreets");
-downloadAndImportStreets({ dataDir: "./tmp/db" })
+downloadAndImportStreets(defaultBinOptions)
     .then(() => {
     console.timeEnd("downloadAndImportAllStreets");
 })

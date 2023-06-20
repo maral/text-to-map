@@ -1,3 +1,3 @@
-import { OpenDataSyncOptions } from "../utils/helpers";
-export declare const downloadAndImportAddressPoints: (options?: OpenDataSyncOptions) => Promise<void>;
-export declare const deleteDb: (options?: OpenDataSyncOptions) => void;
+import { OpenDataSyncOptionsPartial } from "../utils/helpers";
+export declare const downloadAndImportAddressPoints: (options?: OpenDataSyncOptionsPartial) => Promise<void>;
+export declare const deleteDb: (options?: OpenDataSyncOptionsPartial) => void;

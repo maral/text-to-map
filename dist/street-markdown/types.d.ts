@@ -1,5 +1,5 @@
-import { Municipality as DbMunicipality } from "../db/types";
 import { AddressPoint as CzechAddressPoint } from "czech-address";
+import { Municipality as DbMunicipality, Founder } from "../db/types";
 export interface ProcessedSmdLines {
     smdLines: SmdLine[];
     errors: string[];
@@ -68,4 +68,27 @@ export interface Municipality {
 export interface DbMunicipalityResult {
     municipality: DbMunicipality;
     errors: string[];
+}
+export interface MunicipalityWithFounder extends Municipality {
+    founder: Founder | null;
+}
+export interface SmdState {
+    currentMunicipality: MunicipalityWithFounder;
+    currentFilterMunicipality: DbMunicipality;
+    currentSchool: School;
+    municipalities: Municipality[];
+}
+export interface ProcessLineCallbackParams {
+    lineNumber: number;
+    line: string;
+}
+export interface ErrorCallbackParams extends ProcessLineCallbackParams {
+    errors: string[];
+}
+export interface ProcessLineParams {
+    line: string;
+    state: SmdState;
+    lineNumber: number;
+    onError: (params: ErrorCallbackParams) => void;
+    onWarning: (params: ErrorCallbackParams) => void;
 }

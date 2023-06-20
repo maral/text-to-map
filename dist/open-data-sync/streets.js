@@ -23,7 +23,7 @@ const prepareFolders = (options) => {
     }
 };
 const getTempFolder = (options) => {
-    return join(options.tmpDir, options.streetFolderName);
+    return join(options.tmpDir, options.streetZipFolderName);
 };
 const downloadZipAndParseDbfFile = (url, index, options) => __awaiter(void 0, void 0, void 0, function* () {
     const response = yield fetch(url);

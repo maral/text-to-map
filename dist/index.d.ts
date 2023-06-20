@@ -2,9 +2,9 @@ import { downloadAndImportAddressPoints, deleteDb } from "./open-data-sync/addre
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
-import { parseOrdinanceToAddressPoints } from "./street-markdown/smd";
-import { OpenDataSyncOptions } from "./utils/helpers";
+import { OpenDataSyncOptionsPartial } from "./utils/helpers";
 export * from "./street-markdown/types";
+export * from "./street-markdown/smd";
 /**
  * Download and import all open data to SQLite DB. The DB file will be located
  * in the `dataDir` folder.
@@ -16,5 +16,5 @@ export * from "./street-markdown/types";
  * await downloadAndImportEverything({ tmpDir: "./tmp", dataDir: "./data" });
  * ```
  */
-export declare function downloadAndImportEverything(options?: OpenDataSyncOptions, syncStreets?: boolean): Promise<void>;
-export { downloadAndImportAddressPoints, deleteDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, parseOrdinanceToAddressPoints, };
+export declare function downloadAndImportEverything(options?: OpenDataSyncOptionsPartial, syncStreets?: boolean): Promise<void>;
+export { downloadAndImportAddressPoints, deleteDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };

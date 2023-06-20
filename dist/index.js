@@ -11,8 +11,8 @@ import { downloadAndImportAddressPoints, deleteDb, } from "./open-data-sync/addr
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
-import { parseOrdinanceToAddressPoints } from "./street-markdown/smd";
 export * from "./street-markdown/types";
+export * from "./street-markdown/smd";
 /**
  * Download and import all open data to SQLite DB. The DB file will be located
  * in the `dataDir` folder.
@@ -34,4 +34,4 @@ export function downloadAndImportEverything(options = {}, syncStreets = true) {
         }
     });
 }
-export { downloadAndImportAddressPoints, deleteDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, parseOrdinanceToAddressPoints, };
+export { downloadAndImportAddressPoints, deleteDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };
