@@ -1,4 +1,4 @@
-import { AddressPoint, FullStreetNumber, RangeSpec, SeriesType, SmdLine, WholeMunicipalitySmdLine } from "../street-markdown/types";
+import { AddressPoint, FullStreetNumber, RangeSpec, SeriesType, SmdError, SmdLine, WholeMunicipalitySmdLine } from "../street-markdown/types";
 import { Founder, Municipality } from "./types";
 export declare const Column: {
     admCode: number;
@@ -31,7 +31,7 @@ export declare const insertStreets: (buffer: string[][]) => number;
 export declare const getAddressPointById: (addressPointId: number) => AddressPoint | null;
 export declare const checkStreetExists: (streetName: string, founder: Founder) => {
     exists: boolean;
-    errors: string[];
+    errors: SmdError[];
 };
 export declare const findAddressPoints: (smdLine: SmdLine | WholeMunicipalitySmdLine, municipality: Municipality) => AddressPoint[];
 export declare const isInRange: (number: number | null, letter: string | null, range: RangeSpec) => boolean;

@@ -23,6 +23,8 @@ export const getDb = (config = {}) => {
         const dbSettings = options.verbose ? { verbose: console.log } : {};
         _db = new Database(options.filePath, dbSettings);
         _db.pragma("journal_mode = WAL");
+        // @ts-ignore
+        _db.filePath = options.filePath;
     }
     return _db;
 };

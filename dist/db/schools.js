@@ -1,3 +1,4 @@
+import { wholeLineError } from "../street-markdown/smd";
 import { findClosestString } from "../utils/helpers";
 import { getDb, insertMultipleRows } from "./db";
 export const insertSchools = (schools) => {
@@ -35,7 +36,10 @@ export const insertSchools = (schools) => {
 };
 export const findSchool = (name, schools) => {
     if (schools.length === 0) {
-        return { school: null, errors: ["No schools for this founder."] };
+        return {
+            school: null,
+            errors: [wholeLineError("Aktuální zřizovatel nemá žádné školy.", name)],
+        };
     }
     let school = null;
     const errors = [];
@@ -46,7 +50,7 @@ export const findSchool = (name, schools) => {
     const namesList = schools.map((school) => school.name);
     const bestMatch = findClosestString(name, namesList);
     school = schools.find((school) => bestMatch === school.name);
-    errors.push(`No exact match for school "${name}", using "${bestMatch}" instead.`);
+    errors.push(wholeLineError(`Škola s názvem '${name}' neexistuje, mysleli jste '${bestMatch}'?`, name));
     return { school, errors };
 };
 const filterOutDuplicates = (schools) => {

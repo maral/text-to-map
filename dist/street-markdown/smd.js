@@ -29,7 +29,7 @@ export const parseOrdinanceToAddressPoints = (lines, options = {}, initialState 
     }
     if (state.currentSchool != null) {
         if (state.currentMunicipality == null) {
-            state.currentMunicipality = getNewMunicipality("");
+            return [];
         }
         state.currentMunicipality.schools.push(mapSchoolForExport(state.currentSchool));
     }
@@ -78,7 +78,7 @@ const processOneLine = (params) => {
         processAddressPointLine(params);
     }
 };
-const processMunicipalityLine = ({ line, state }) => {
+const processMunicipalityLine = ({ line, state, onError }) => {
     if (state.currentSchool !== null) {
         state.currentMunicipality.schools.push(state.currentSchool);
         state.currentSchool = null;
@@ -86,7 +86,8 @@ const processMunicipalityLine = ({ line, state }) => {
     if (state.currentMunicipality !== null) {
         state.municipalities.push(convertMunicipality(state.currentMunicipality));
     }
-    state.currentMunicipality = getNewMunicipality(line.substring(1).trim());
+    const { municipality, errors } = getNewMunicipality(line);
+    state.currentMunicipality = municipality;
     state.currentFilterMunicipality = founderToMunicipality(state.currentMunicipality.founder);
     state.currentSchool = null;
 };
@@ -96,11 +97,18 @@ const processEmptyLine = ({ state }) => {
         state.currentSchool = null;
     }
 };
-const processSchoolLine = ({ line, lineNumber, state }) => {
+const processSchoolLine = ({ line, lineNumber, state, onError, }) => {
     if (state.currentMunicipality === null) {
-        throw new Error("No municipality defined on line " + lineNumber);
+        onError({
+            lineNumber,
+            line,
+            errors: [
+                wholeLineError("Definici školy musí předcházet definice zřizovatele (uvozená '#', např. '# Strakonice').", line),
+            ],
+        });
+        return;
     }
-    state.currentSchool = getNewSchool(line, state.currentMunicipality.founder);
+    state.currentSchool = getNewSchool(line, state.currentMunicipality.founder, lineNumber, onError);
     state.currentFilterMunicipality = founderToMunicipality(state.currentMunicipality.founder);
 };
 const processMunicipalitySwitchLine = ({ line, state, lineNumber, onError, }) => {
@@ -153,12 +161,15 @@ export const getNewMunicipality = (name, options) => {
         errors.forEach(console.error);
     }
     return {
-        municipalityName: founder ? founder.name : "Neznámá obec",
-        founder,
-        schools: [],
+        municipality: {
+            municipalityName: founder ? founder.name : "Neznámá obec",
+            founder,
+            schools: [],
+        },
+        errors,
     };
 };
-export const getNewSchool = (name, founder, options) => {
+export const getNewSchool = (name, founder, lineNumber, onError, options) => {
     if (options) {
         options = prepareOptions(options);
         setDbConfig({
@@ -167,14 +178,18 @@ export const getNewSchool = (name, founder, options) => {
         });
     }
     let exportSchool = {
-        name: name,
+        name,
         izo: "",
         addresses: [],
     };
     if (founder !== null) {
-        const { school } = findSchool(name, founder.schools);
+        const { school, errors } = findSchool(name, founder.schools);
+        if (errors.length > 0) {
+            onError({ lineNumber, line: name, errors });
+        }
         if (school) {
-            school.izo = school.izo || "";
+            exportSchool.name = school.name;
+            exportSchool.izo = school.izo || "";
             if (school.locations.length > 0) {
                 const position = getAddressPointById(school.locations[0].addressPointId);
                 if (position !== null) {
@@ -196,8 +211,13 @@ const mapSchoolForExport = (school) => ({
     name: school.name,
     izo: school.izo,
     addresses: school.addresses,
-    position: mapAddressPointForExport(school.position),
+    position: school.position ? mapAddressPointForExport(school.position) : null,
 });
 const cleanLine = (line) => {
     return line.trim().replace(/–/g, "-");
 };
+export const wholeLineError = (message, line) => ({
+    message,
+    startOffset: 0,
+    endOffset: line.length + 1,
+});

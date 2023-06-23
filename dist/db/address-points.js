@@ -153,7 +153,11 @@ export const checkStreetExists = (streetName, founder) => {
     }
     else {
         const closest = findClosestString(streetName, allStreets);
-        errors.push(`Street '${streetName}' does not exist, did you mean '${closest}'?`);
+        errors.push({
+            message: `Ulice '${streetName}' v této obci neexistuje, mysleli jste '${closest}'?`,
+            startOffset: 0,
+            endOffset: streetName.length + 1,
+        });
     }
     return { exists: false, errors };
 };

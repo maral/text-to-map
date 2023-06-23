@@ -2,7 +2,7 @@ import { AddressPoint as CzechAddressPoint } from "czech-address";
 import { Municipality as DbMunicipality, Founder } from "../db/types";
 export interface ProcessedSmdLines {
     smdLines: SmdLine[];
-    errors: string[];
+    errors: SmdError[];
 }
 export interface SmdLine {
     street: string;
@@ -67,7 +67,7 @@ export interface Municipality {
 }
 export interface DbMunicipalityResult {
     municipality: DbMunicipality;
-    errors: string[];
+    errors: SmdError[];
 }
 export interface MunicipalityWithFounder extends Municipality {
     founder: Founder | null;
@@ -83,7 +83,7 @@ export interface ProcessLineCallbackParams {
     line: string;
 }
 export interface ErrorCallbackParams extends ProcessLineCallbackParams {
-    errors: string[];
+    errors: SmdError[];
 }
 export interface ProcessLineParams {
     line: string;
@@ -91,4 +91,9 @@ export interface ProcessLineParams {
     lineNumber: number;
     onError: (params: ErrorCallbackParams) => void;
     onWarning: (params: ErrorCallbackParams) => void;
+}
+export interface SmdError {
+    startOffset: number;
+    endOffset: number;
+    message: string;
 }

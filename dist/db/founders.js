@@ -2,6 +2,7 @@ import { MunicipalityType, } from "./types";
 import { generatePlaceholders, getDb, insertAutoincrementRow, insertMultipleRows, } from "./db";
 import { extractMunicipalityName, findClosestString, sanitizeMunicipalityName, } from "../utils/helpers";
 import distance from "@turf/distance";
+import { wholeLineError } from "../street-markdown/smd";
 const cityTypeCode = 261;
 const cityDistrictTypeCode = 263;
 export const insertFounders = (founders) => {
@@ -178,9 +179,18 @@ const findMunicipalitiesAndPositionsByNameAndType = (name, type) => {
         lng: row.wgs84_longitude,
     }));
 };
-export const findFounder = (name) => {
+const extractFounderName = (line) => {
+    if (line[0] === "#") {
+        return line.substring(1).trim();
+    }
+    else {
+        return line.trim();
+    }
+};
+export const findFounder = (nameWithHashtag) => {
     const errors = [];
     const db = getDb();
+    const name = extractFounderName(nameWithHashtag);
     const exactMatchStatement = db.prepare(`SELECT f.id, f.name, f.ico, f.founder_type_code, f.city_code, f.city_district_code FROM founder f
     LEFT JOIN city c ON c.code = f.city_code
     LEFT JOIN city_district d ON d.code = f.city_district_code
@@ -197,7 +207,14 @@ export const findFounder = (name) => {
         const bestMatch = findClosestString(name, namesList);
         const bestMatchRow = allFounderNames.find((foundersNames) => foundersNames.founderName === bestMatch ||
             foundersNames.municipalityName === bestMatch);
-        errors.push(`No exact match for founder "${name}", using "${bestMatch}" instead.`);
+        if (!bestMatchRow) {
+            errors.push(wholeLineError(`Nenašli jsme žádné zřizovatele, nejspíš jste zapomněli inicializovat databázi.`, nameWithHashtag));
+            return {
+                founder: null,
+                errors,
+            };
+        }
+        errors.push(wholeLineError(`Zřizovatel '${name}' neexistuje, mysleli jste '${bestMatch}'?`, nameWithHashtag));
         const findByIdStatement = db.prepare(`SELECT f.id, f.name, f.ico, f.founder_type_code, f.city_code, f.city_district_code FROM founder f
       WHERE f.id = ?`);
         return {
@@ -282,7 +299,11 @@ export const findMunicipalityByNameAndType = (name, type) => {
         const namesList = allNames.map((row) => row.name);
         const bestMatch = findClosestString(name, namesList);
         const bestMatchRow = allNames.find((municipality) => municipality.name === bestMatch);
-        errors.push(`No exact match for municipality "${name}", using "${bestMatch}" instead.`);
+        errors.push({
+            message: `Obec ani městská část '${name}' neexistuje, mysleli jste '${bestMatch}'?`,
+            startOffset: 0,
+            endOffset: 0,
+        });
         return {
             municipality: { code: bestMatchRow.code, type },
             errors,
