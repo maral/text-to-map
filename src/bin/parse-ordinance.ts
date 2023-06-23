@@ -1,5 +1,8 @@
 import { readFileSync, writeFileSync } from "fs";
-import { getNewMunicipality, parseOrdinanceToAddressPoints } from "../street-markdown/smd";
+import {
+  getNewMunicipality,
+  parseOrdinanceToAddressPoints,
+} from "../street-markdown/smd";
 import { ErrorCallbackParams } from "../street-markdown/types";
 import { defaultBinOptions } from "./constants";
 
@@ -22,7 +25,7 @@ const reportErrors = ({
   line,
   errors,
 }: ErrorCallbackParams): void => {
-  errors.forEach(console.error);
+  errors.forEach((error) => console.error(error));
   console.error(`Invalid street definition on line ${lineNumber}: ${line}`);
   errorCount++;
   errorLines.push(`line ${lineNumber}: ${line}`);
@@ -32,21 +35,24 @@ const reportWarnings = ({
   lineNumber,
   errors: warnings,
 }: ErrorCallbackParams): void => {
-  warnings.map((error) => {
-    console.error(`Line ${lineNumber}: ${error}`);
+  warnings.forEach((error) => {
+    console.error(`Line ${lineNumber}: ${error.message}`);
   });
   warningCount++;
 };
 
 console.time("downloadAndImportAllLatestAddressPoints");
+
+const { municipality } = getNewMunicipality("Česká Lípa", defaultBinOptions);
+
 const addressPoints = parseOrdinanceToAddressPoints(
   lines,
   defaultBinOptions,
   {
-    currentMunicipality: getNewMunicipality("Česká Lípa", defaultBinOptions),
+    // currentMunicipality: municipality,
   },
   reportErrors,
-  reportWarnings,
+  reportWarnings
 );
 console.timeEnd("downloadAndImportAllLatestAddressPoints");
 

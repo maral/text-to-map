@@ -24,6 +24,7 @@ import {
   ProcessLineCallbackParams,
   ProcessLineParams,
   School,
+  SmdError,
   SmdState,
   isAddressPoint,
 } from "./types";
@@ -67,7 +68,7 @@ export const parseOrdinanceToAddressPoints = (
 
   if (state.currentSchool != null) {
     if (state.currentMunicipality == null) {
-      state.currentMunicipality = getNewMunicipality("");
+      return [];
     }
     state.currentMunicipality.schools.push(
       mapSchoolForExport(state.currentSchool)
@@ -134,7 +135,7 @@ const processOneLine = (params: ProcessLineParams) => {
   }
 };
 
-const processMunicipalityLine = ({ line, state }: ProcessLineParams) => {
+const processMunicipalityLine = ({ line, state, onError }: ProcessLineParams) => {
   if (state.currentSchool !== null) {
     state.currentMunicipality.schools.push(state.currentSchool);
     state.currentSchool = null;
@@ -144,7 +145,8 @@ const processMunicipalityLine = ({ line, state }: ProcessLineParams) => {
     state.municipalities.push(convertMunicipality(state.currentMunicipality));
   }
 
-  state.currentMunicipality = getNewMunicipality(line.substring(1).trim());
+  const { municipality, errors } = getNewMunicipality(line);
+  state.currentMunicipality = municipality;
   state.currentFilterMunicipality = founderToMunicipality(
     state.currentMunicipality.founder
   );
@@ -159,11 +161,31 @@ const processEmptyLine = ({ state }: ProcessLineParams) => {
   }
 };
 
-const processSchoolLine = ({ line, lineNumber, state }: ProcessLineParams) => {
+const processSchoolLine = ({
+  line,
+  lineNumber,
+  state,
+  onError,
+}: ProcessLineParams) => {
   if (state.currentMunicipality === null) {
-    throw new Error("No municipality defined on line " + lineNumber);
+    onError({
+      lineNumber,
+      line,
+      errors: [
+        wholeLineError(
+          "Definici školy musí předcházet definice zřizovatele (uvozená '#', např. '# Strakonice').",
+          line
+        ),
+      ],
+    });
+    return;
   }
-  state.currentSchool = getNewSchool(line, state.currentMunicipality.founder);
+  state.currentSchool = getNewSchool(
+    line,
+    state.currentMunicipality.founder,
+    lineNumber,
+    onError
+  );
   state.currentFilterMunicipality = founderToMunicipality(
     state.currentMunicipality.founder
   );
@@ -244,7 +266,7 @@ const processAddressPointLine = ({
 export const getNewMunicipality = (
   name: string,
   options?: OpenDataSyncOptionsPartial
-): MunicipalityWithFounder => {
+): { municipality: MunicipalityWithFounder; errors: SmdError[] } => {
   if (options) {
     options = prepareOptions(options);
     setDbConfig({
@@ -257,15 +279,20 @@ export const getNewMunicipality = (
     errors.forEach(console.error);
   }
   return {
-    municipalityName: founder ? founder.name : "Neznámá obec",
-    founder,
-    schools: [],
+    municipality: {
+      municipalityName: founder ? founder.name : "Neznámá obec",
+      founder,
+      schools: [],
+    },
+    errors,
   };
 };
 
 export const getNewSchool = (
   name: string,
   founder: Founder | null,
+  lineNumber: number,
+  onError: (params: ErrorCallbackParams) => void,
   options?: OpenDataSyncOptionsPartial
 ): School => {
   if (options) {
@@ -276,14 +303,18 @@ export const getNewSchool = (
     });
   }
   let exportSchool: School = {
-    name: name,
+    name,
     izo: "",
     addresses: [],
   };
   if (founder !== null) {
-    const { school } = findSchool(name, founder.schools);
+    const { school, errors } = findSchool(name, founder.schools);
+    if (errors.length > 0) {
+      onError({ lineNumber, line: name, errors });
+    }
     if (school) {
-      school.izo = school.izo || "";
+      exportSchool.name = school.name;
+      exportSchool.izo = school.izo || "";
       if (school.locations.length > 0) {
         const position = getAddressPointById(
           school.locations[0].addressPointId
@@ -311,9 +342,15 @@ const mapSchoolForExport = (school: School): School => ({
   name: school.name,
   izo: school.izo,
   addresses: school.addresses,
-  position: mapAddressPointForExport(school.position),
+  position: school.position ? mapAddressPointForExport(school.position) : null,
 });
 
 const cleanLine = (line: string) => {
   return line.trim().replace(/–/g, "-");
 };
+
+export const wholeLineError = (message: string, line: string): SmdError => ({
+  message,
+  startOffset: 0,
+  endOffset: line.length + 1,
+});

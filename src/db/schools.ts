@@ -1,12 +1,14 @@
+import { wholeLineError } from "../street-markdown/smd";
+import { SmdError } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
 import { getDb, insertMultipleRows } from "./db";
 import { School } from "./types";
 
 export const insertSchools = (schools: School[]): number => {
   const db = getDb();
-  
+
   const uniqueSchools = filterOutDuplicates(schools);
-  const existingIzo = db.prepare("SELECT izo FROM school").pluck(). all();
+  const existingIzo = db.prepare("SELECT izo FROM school").pluck().all();
 
   const toInsert = uniqueSchools.filter(
     (school) => !existingIzo.includes(school.izo)
@@ -16,9 +18,11 @@ export const insertSchools = (schools: School[]): number => {
   );
 
   toUpdate.forEach((school) => {
-    db.prepare(
-      "UPDATE school SET name = ?, capacity = ? WHERE izo = ?"
-    ).run(school.name, school.capacity, school.izo);
+    db.prepare("UPDATE school SET name = ?, capacity = ? WHERE izo = ?").run(
+      school.name,
+      school.capacity,
+      school.izo
+    );
   });
 
   const insertedSchools = insertMultipleRows(
@@ -63,13 +67,16 @@ export const insertSchools = (schools: School[]): number => {
 export const findSchool = (
   name: string,
   schools: School[]
-): { school: School | null; errors: string[] } => {
+): { school: School | null; errors: SmdError[] } => {
   if (schools.length === 0) {
-    return { school: null, errors: ["No schools for this founder."] };
+    return {
+      school: null,
+      errors: [wholeLineError("Aktuální zřizovatel nemá žádné školy.", name)],
+    };
   }
 
   let school: School | null = null;
-  const errors = [];
+  const errors: SmdError[] = [];
 
   school = schools.find((school) => school.name === name);
   if (school) {
@@ -81,7 +88,10 @@ export const findSchool = (
   school = schools.find((school) => bestMatch === school.name);
 
   errors.push(
-    `No exact match for school "${name}", using "${bestMatch}" instead.`
+    wholeLineError(
+      `Škola s názvem '${name}' neexistuje, mysleli jste '${bestMatch}'?`,
+      name
+    )
   );
 
   return { school, errors };

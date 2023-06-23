@@ -6,6 +6,7 @@ import {
   RangeSpec,
   SeriesSpec,
   SeriesType,
+  SmdError,
   SmdLine,
   WholeMunicipalitySmdLine,
   isNegativeSeriesSpec,
@@ -205,9 +206,9 @@ let allStreets: string[] = [];
 export const checkStreetExists = (
   streetName: string,
   founder: Founder
-): { exists: boolean; errors: string[] } => {
+): { exists: boolean; errors: SmdError[] } => {
   const db = getDb();
-  const errors = [];
+  const errors: SmdError[] = [];
 
   // we check the whole city
   const cityCode = getFounderCityCode(founder);
@@ -246,9 +247,11 @@ export const checkStreetExists = (
     exists = true;
   } else {
     const closest = findClosestString(streetName, allStreets);
-    errors.push(
-      `Street '${streetName}' does not exist, did you mean '${closest}'?`
-    );
+    errors.push({
+      message: `Ulice '${streetName}' v této obci neexistuje, mysleli jste '${closest}'?`,
+      startOffset: 0,
+      endOffset: streetName.length + 1,
+    });
   }
   return { exists: false, errors };
 };
