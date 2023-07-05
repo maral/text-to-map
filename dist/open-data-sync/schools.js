@@ -8,15 +8,15 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import { createReadStream, createWriteStream, existsSync, rmSync } from "fs";
+import fetch from "node-fetch";
 import { join } from "path";
 import sax from "sax";
-import fetch from "node-fetch";
-import { setDbConfig } from "../db/db";
-import { prepareOptions, } from "../utils/helpers";
 import { pipeline } from "stream/promises";
-import { MunicipalityType } from "../db/types";
-import { insertSchools } from "../db/schools";
+import { disconnectKnex } from "../db/db";
 import { insertFounders } from "../db/founders";
+import { insertSchools } from "../db/schools";
+import { MunicipalityType } from "../db/types";
+import { prepareOptions, } from "../utils/helpers";
 const downloadXml = (options) => __awaiter(void 0, void 0, void 0, function* () {
     if (existsSync(getXmlFilePath(options))) {
         return;
@@ -293,21 +293,25 @@ const importDataToDb = (options, saveFoundersToCsv = false, saveSchoolsWithoutRu
         });
         csv.end();
     }
-    setDbConfig({
-        filePath: options.dbFilePath,
-        initFilePath: options.dbInitFilePath,
-    });
-    insertSchools(schools);
-    insertFounders(Array.from(founders.values()));
+    yield insertSchools(schools);
+    yield insertFounders(Array.from(founders.values()));
 });
 const getXmlFilePath = (options) => {
     return join(options.tmpDir, options.schoolsXmlFileName);
 };
 export const downloadAndImportSchools = (options, saveFoundersToCsv = false, saveSchoolsWithoutRuianToCsv = false) => __awaiter(void 0, void 0, void 0, function* () {
-    const runOptions = prepareOptions(options);
-    yield downloadXml(runOptions);
-    yield importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
-    deleteSchoolsXmlFile(runOptions);
+    try {
+        const runOptions = prepareOptions(options);
+        yield downloadXml(runOptions);
+        yield importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
+        deleteSchoolsXmlFile(runOptions);
+    }
+    catch (error) {
+        console.error(error);
+    }
+    finally {
+        yield disconnectKnex();
+    }
 });
 export const deleteSchoolsXmlFile = (options = {}) => {
     const runOptions = prepareOptions(options);

@@ -1,51 +1,63 @@
-import { extractKeyValuesPairs, getDb, insertMultipleRows } from "./db";
-export const insertRegionsAndOrps = (data, schema) => {
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
+import { extractKeyValuesPairs, getKnexDb, insertMultipleRows } from "./db";
+export const insertRegionsAndOrps = (data, schema) => __awaiter(void 0, void 0, void 0, function* () {
     const columnIndex = getColumnIndexFromSchema(schema);
     let changes = 0;
-    changes += insertRegions(data, columnIndex);
-    changes += insertCounties(data, columnIndex);
-    changes += insertOrps(data, columnIndex);
+    changes += yield insertRegions(data, columnIndex);
+    changes += yield insertCounties(data, columnIndex);
+    changes += yield insertOrps(data, columnIndex);
     // cities are most likely already inserted, but in case they're not,
     // we need to insert them before updating them with region data
-    changes += insertCities(data, columnIndex);
-    const db = getDb();
-    const updateStatement = db.prepare(`UPDATE city SET
-      region_code = ?,
-      county_code = ?,
-      orp_code = ?
-    WHERE code = ?`);
-    data.forEach((data) => {
-        changes += updateStatement.run(data[columnIndex.regionRuianCode], data[columnIndex.countyRuianCode], data[columnIndex.orpRuianCode], data[columnIndex.cityCode]).changes;
-    });
+    changes += yield insertCities(data, columnIndex);
+    const knex = getKnexDb();
+    for (const row of data) {
+        yield knex
+            .from("city")
+            .update({
+            region_code: row[columnIndex.regionRuianCode],
+            county_code: row[columnIndex.countyRuianCode],
+            orp_code: row[columnIndex.orpRuianCode],
+        })
+            .where({ code: row[columnIndex.cityCode] });
+        changes++;
+    }
     return changes;
-};
-export const insertRegions = (buffer, columnIndex) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.regionRuianCode, [
+});
+export const insertRegions = (buffer, columnIndex) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.regionRuianCode, [
         columnIndex.regionName,
         columnIndex.regionShortName,
         columnIndex.regionCsuCode100,
         columnIndex.regionCsuCode108Nuts,
     ]), "region", ["code", "name", "short_name", "csu_code_100", "csu_code_108_nuts"]);
-};
-export const insertCounties = (buffer, columnIndex) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.countyRuianCode, [
+});
+export const insertCounties = (buffer, columnIndex) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.countyRuianCode, [
         columnIndex.countyName,
         columnIndex.countyCsuCode101Lau,
         columnIndex.countyCsuCode109Nuts,
         columnIndex.regionRuianCode,
     ]), "county", ["code", "name", "csu_code_101_lau", "csu_code_109_nuts", "region_code"]);
-};
-export const insertOrps = (buffer, columnIndex) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.orpRuianCode, [
+});
+export const insertOrps = (buffer, columnIndex) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.orpRuianCode, [
         columnIndex.orpName,
         columnIndex.orpCsuCode65,
         columnIndex.regionRuianCode,
         columnIndex.countyRuianCode,
     ]), "orp", ["code", "name", "csu_code_65", "region_code", "county_code"]);
-};
-export const insertCities = (buffer, columnIndex) => {
-    return insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.cityCode, [columnIndex.cityName]), "city", ["code", "name"]);
-};
+});
+export const insertCities = (buffer, columnIndex) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield insertMultipleRows(extractKeyValuesPairs(buffer, columnIndex.cityCode, [columnIndex.cityName]), "city", ["code", "name"]);
+});
 const getColumnIndexFromSchema = (schema) => {
     const names = schema.tableSchema.columns.map((column) => column.name);
     const columnIndex = {

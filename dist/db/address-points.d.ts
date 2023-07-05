@@ -21,19 +21,19 @@ export declare const Column: {
     xCoordinate: number;
     validFrom: number;
 };
-export declare const importParsedLine: (data: string[]) => number;
-export declare const commitAddressPoints: () => number;
-export declare const insertCities: (buffer: string[][]) => number;
-export declare const insertDistricts: (buffer: string[][]) => number;
-export declare const insertMunicipalityParts: (buffer: string[][]) => number;
-export declare const insertPragueDistricts: (buffer: string[][]) => number;
-export declare const insertStreets: (buffer: string[][]) => number;
-export declare const getAddressPointById: (addressPointId: number) => AddressPoint | null;
-export declare const checkStreetExists: (streetName: string, founder: Founder) => {
+export declare const commitAddressPoints: (buffer: string[][]) => Promise<number>;
+export declare const insertCities: (buffer: string[][]) => Promise<number>;
+export declare const insertDistricts: (buffer: string[][]) => Promise<number>;
+export declare const insertMunicipalityParts: (buffer: string[][]) => Promise<number>;
+export declare const insertPragueDistricts: (buffer: string[][]) => Promise<number>;
+export declare const insertStreets: (buffer: string[][]) => Promise<number>;
+export declare const areAddressPointsSynced: () => Promise<boolean>;
+export declare const getAddressPointById: (addressPointId: number) => Promise<AddressPoint | null>;
+export declare const checkStreetExists: (streetName: string, founder: Founder) => Promise<{
     exists: boolean;
     errors: SmdError[];
-};
-export declare const findAddressPoints: (smdLine: SmdLine | WholeMunicipalitySmdLine, municipality: Municipality) => AddressPoint[];
+}>;
+export declare const findAddressPoints: (smdLine: SmdLine | WholeMunicipalitySmdLine, municipality: Municipality) => Promise<AddressPoint[]>;
 export declare const isInRange: (number: number | null, letter: string | null, range: RangeSpec) => boolean;
 export declare const fitsType: (number: number | null, type: SeriesType) => boolean;
 export declare const equalsFullStreetNumber: (fullStreetNumber: FullStreetNumber, addressPoint: AddressPoint) => boolean;

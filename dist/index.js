@@ -7,7 +7,8 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { downloadAndImportAddressPoints, deleteDb, } from "./open-data-sync/address-points";
+import { clearDb, initDb } from "./db/db";
+import { downloadAndImportAddressPoints, } from "./open-data-sync/address-points";
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
@@ -26,6 +27,7 @@ export * from "./street-markdown/smd";
  */
 export function downloadAndImportEverything(options = {}, syncStreets = true) {
     return __awaiter(this, void 0, void 0, function* () {
+        yield initDb();
         yield downloadAndImportAddressPoints(options);
         yield downloadAndImportSchools(options);
         yield downloadAndImportRegions(options);
@@ -34,4 +36,4 @@ export function downloadAndImportEverything(options = {}, syncStreets = true) {
         }
     });
 }
-export { downloadAndImportAddressPoints, deleteDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };
+export { initDb, downloadAndImportAddressPoints, clearDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };

@@ -11,8 +11,9 @@ import { parse } from "csv-parse";
 import iconv from "iconv-lite";
 import fetch from "node-fetch";
 import { pipeline } from "stream/promises";
-import { initDb, prepareOptions, } from "../utils/helpers";
 import { insertRegionsAndOrps } from "../db/regions";
+import { prepareOptions } from "../utils/helpers";
+import { disconnectKnex } from "../db/db";
 const downloadAndImportDataToDb = (options) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("Downloading regions and ORP data...");
     const response = yield fetch(options.regionsCsvUrl);
@@ -32,11 +33,18 @@ const downloadAndImportDataToDb = (options) => __awaiter(void 0, void 0, void 0,
     // @ts-ignore
     const schema = yield schemaResponse.json();
     console.log("Parsing completed. Starting to import data to DB...");
-    initDb(options);
-    insertRegionsAndOrps(rows, schema);
+    yield insertRegionsAndOrps(rows, schema);
     console.log(`Import completed. Total imported rows: ${rows.length}`);
 });
 export const downloadAndImportRegions = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
-    const completeOptions = prepareOptions(options);
-    yield downloadAndImportDataToDb(completeOptions);
+    try {
+        const completeOptions = prepareOptions(options);
+        yield downloadAndImportDataToDb(completeOptions);
+    }
+    catch (error) {
+        console.log(error);
+    }
+    finally {
+        yield disconnectKnex();
+    }
 });

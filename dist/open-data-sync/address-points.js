@@ -7,16 +7,18 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import fetch from "node-fetch";
-import { createWriteStream, createReadStream, rmSync, readdirSync, existsSync, } from "fs";
-import { pipeline } from "stream/promises";
-import { join } from "path";
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse";
+import { createReadStream, createWriteStream, readdirSync, rmSync } from "fs";
 import iconv from "iconv-lite";
-import { prepareOptions, initDb, } from "../utils/helpers";
-import { commitAddressPoints, importParsedLine } from "../db/address-points";
+import fetch from "node-fetch";
+import { join } from "path";
+import { pipeline } from "stream/promises";
+import { commitAddressPoints } from "../db/address-points";
+import { disconnectKnex } from "../db/db";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
+import { prepareOptions, } from "../utils/helpers";
+const maxBufferSize = 1000;
 const downloadAndUnzip = (url, options) => __awaiter(void 0, void 0, void 0, function* () {
     const zipFilePath = join(options.tmpDir, options.addressPointsZipFileName);
     console.log("Downloading a large ZIP file with RUIAN data (~65 MB)...");
@@ -39,31 +41,39 @@ const importDataToDb = (options) => __awaiter(void 0, void 0, void 0, function* 
     let total = 0;
     let next = 0;
     console.log("Initiating import of RUIAN data to search DB (~3 million rows to be imported).");
-    initDb(options);
+    const buffer = [];
     for (const file of files) {
-        const parseStream = parse({ delimiter: ";", fromLine: 2 }).on("data", (data) => {
-            total += importParsedLine(data);
-            if (total - next >= 100000) {
-                next += 100000;
-                console.log(`Total imported rows: ${next}`);
+        const parseStream = parse({ delimiter: ";", fromLine: 2 }).on("data", (data) => __awaiter(void 0, void 0, void 0, function* () {
+            buffer.push(data);
+            if (buffer.length >= maxBufferSize) {
+                parseStream.pause();
+                total += yield commitAddressPoints(buffer);
+                if (total - next >= 100000) {
+                    next += 100000;
+                    console.log(`Total imported rows: ${next}`);
+                }
+                buffer.length = 0;
+                parseStream.resume();
             }
-        });
+        }));
         yield pipeline(createReadStream(join(extractionFolder, file)), iconv.decodeStream("win1250"), parseStream);
-        total += commitAddressPoints();
     }
+    total += yield commitAddressPoints(buffer);
     console.log(`Import completed. Total imported rows: ${total}`);
 });
 const getExtractionFolder = (options) => join(options.tmpDir, options.addressPointsCsvFolderName);
 export const downloadAndImportAddressPoints = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
-    const completeOptions = prepareOptions(options);
-    const datasetFeedLink = yield getLatestUrlFromAtomFeed(completeOptions.addressPointsAtomUrl);
-    const zipUrl = yield getLatestUrlFromAtomFeed(datasetFeedLink);
-    yield downloadAndUnzip(zipUrl, completeOptions);
-    yield importDataToDb(completeOptions);
-});
-export const deleteDb = (options = {}) => {
-    const completeOptions = prepareOptions(options);
-    if (existsSync(completeOptions.dbFilePath)) {
-        rmSync(completeOptions.dbFilePath);
+    try {
+        const completeOptions = prepareOptions(options);
+        const datasetFeedLink = yield getLatestUrlFromAtomFeed(completeOptions.addressPointsAtomUrl);
+        const zipUrl = yield getLatestUrlFromAtomFeed(datasetFeedLink);
+        // await downloadAndUnzip(zipUrl, completeOptions);
+        yield importDataToDb(completeOptions);
     }
-};
+    catch (error) {
+        console.error(error);
+    }
+    finally {
+        yield disconnectKnex();
+    }
+});

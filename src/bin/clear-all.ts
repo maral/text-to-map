@@ -1,5 +1,4 @@
-import { disconnectKnex } from "../db/db";
-import { clearDb } from "../open-data-sync/address-points";
+import { clearDb, disconnectKnex } from "../db/db";
 import { deleteSchoolsXmlFile } from "../open-data-sync/schools";
 import { defaultBinOptions } from "./constants";
 

@@ -1,9 +1,8 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
-import { MunicipalityType } from "../db/types";
-import { setDbConfig } from "../db/db";
 import { fileURLToPath } from "url";
+import { MunicipalityType } from "../db/types";
 const appName = "text-to-map";
 export const getAppDataDirPath = () => join(process.env.APPDATA ||
     (process.platform == "darwin"
@@ -39,12 +38,6 @@ export const prepareOptions = (options) => {
         regionsCsvFileName: "struktura_uzemi_cr.csv",
     };
     return Object.assign(Object.assign({}, defaults), options);
-};
-export const initDb = (options) => {
-    setDbConfig({
-        filePath: options.dbFilePath,
-        initFilePath: options.dbInitFilePath,
-    });
 };
 const cityPatterns = [
     /^[sS]tatutární město +(.*)$/,

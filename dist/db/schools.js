@@ -1,16 +1,28 @@
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 import { wholeLineError } from "../street-markdown/smd";
 import { findClosestString } from "../utils/helpers";
-import { getDb, insertMultipleRows } from "./db";
-export const insertSchools = (schools) => {
-    const db = getDb();
+import { getKnexDb, insertMultipleRows } from "./db";
+export const insertSchools = (schools) => __awaiter(void 0, void 0, void 0, function* () {
+    const knex = getKnexDb();
     const uniqueSchools = filterOutDuplicates(schools);
-    const existingIzo = db.prepare("SELECT izo FROM school").pluck().all();
+    const existingIzo = (yield knex.select("izo").from("school")).map((row) => row.izo);
     const toInsert = uniqueSchools.filter((school) => !existingIzo.includes(school.izo));
     const toUpdate = uniqueSchools.filter((school) => existingIzo.includes(school.izo));
-    toUpdate.forEach((school) => {
-        db.prepare("UPDATE school SET name = ?, capacity = ? WHERE izo = ?").run(school.name, school.capacity, school.izo);
-    });
-    const insertedSchools = insertMultipleRows(toInsert.map((school) => [
+    for (const school of toUpdate) {
+        yield knex.from("school").where("izo", school.izo).update({
+            name: school.name,
+            capacity: school.capacity,
+        });
+    }
+    const insertedSchools = yield insertMultipleRows(toInsert.map((school) => [
         school.izo,
         school.redizo,
         school.name,
@@ -24,16 +36,16 @@ export const insertSchools = (schools) => {
     ]);
     let insertedLocations = 0;
     // plus filter out duplicate locations (same address id + izo)
-    locations.forEach((location) => {
+    for (const location of locations) {
         try {
-            insertedLocations += insertMultipleRows([location], "school_location", ["school_izo", "address_point_id"], false);
+            insertedLocations += yield insertMultipleRows([location], "school_location", ["school_izo", "address_point_id"], false);
         }
         catch (error) {
             console.log(`Cannot add location with RUIAN code ${location[1]} (school IZO = ${location[0]}): code does not exist.`);
         }
-    });
+    }
     return insertedSchools + insertedLocations;
-};
+});
 export const findSchool = (name, schools) => {
     if (schools.length === 0) {
         return {

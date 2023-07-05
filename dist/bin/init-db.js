@@ -7,17 +7,12 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { clearDb, disconnectKnex } from "../db/db";
-import { deleteSchoolsXmlFile } from "../open-data-sync/schools";
-import { defaultBinOptions } from "./constants";
+import { disconnectKnex, initDb } from "../db/db";
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
-        console.log("Clearing all data...");
-        yield clearDb();
-        console.log("DB cleared. Now deleting schools XML file...");
-        deleteSchoolsXmlFile(defaultBinOptions);
+        yield initDb();
+        console.log("Database ready to use.");
         yield disconnectKnex();
-        console.log("Everything cleared, ready for a new sync.");
     });
 }
 main();

@@ -1,4 +1,5 @@
-import { downloadAndImportAddressPoints, deleteDb } from "./open-data-sync/address-points";
+import { clearDb, initDb } from "./db/db";
+import { downloadAndImportAddressPoints } from "./open-data-sync/address-points";
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
@@ -17,4 +18,4 @@ export * from "./street-markdown/smd";
  * ```
  */
 export declare function downloadAndImportEverything(options?: OpenDataSyncOptionsPartial, syncStreets?: boolean): Promise<void>;
-export { downloadAndImportAddressPoints, deleteDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };
+export { initDb, downloadAndImportAddressPoints, clearDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };

@@ -23,9 +23,9 @@ export interface RegionsTableSchema {
         }[];
     };
 }
-export declare const insertRegionsAndOrps: (data: string[][], schema: RegionsTableSchema) => number;
-export declare const insertRegions: (buffer: string[][], columnIndex: RegionsColumn) => number;
-export declare const insertCounties: (buffer: string[][], columnIndex: RegionsColumn) => number;
-export declare const insertOrps: (buffer: string[][], columnIndex: RegionsColumn) => number;
-export declare const insertCities: (buffer: string[][], columnIndex: RegionsColumn) => number;
+export declare const insertRegionsAndOrps: (data: string[][], schema: RegionsTableSchema) => Promise<number>;
+export declare const insertRegions: (buffer: string[][], columnIndex: RegionsColumn) => Promise<number>;
+export declare const insertCounties: (buffer: string[][], columnIndex: RegionsColumn) => Promise<number>;
+export declare const insertOrps: (buffer: string[][], columnIndex: RegionsColumn) => Promise<number>;
+export declare const insertCities: (buffer: string[][], columnIndex: RegionsColumn) => Promise<number>;
 export {};

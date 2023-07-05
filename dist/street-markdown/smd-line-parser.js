@@ -25,11 +25,14 @@ export const parseLine = (text, showDebug = false) => {
     smdParser.input = lexingResult.tokens;
     const smdLines = smdParser.street();
     if (smdParser.errors.length > 0) {
-        errors.push(...smdParser.errors.map((error) => ({
-            message: `Nesprávný zápis pravidla - nevynechali jste něco?`,
-            startOffset: error.token.startOffset,
-            endOffset: error.token.endOffset,
-        })));
+        errors.push(...smdParser.errors.map((error) => {
+            var _a;
+            return ({
+                message: `Nesprávný zápis pravidla - nevynechali jste něco?`,
+                startOffset: error.token.startOffset,
+                endOffset: (_a = error.token.endOffset) !== null && _a !== void 0 ? _a : text.length,
+            });
+        }));
         if (showDebug) {
             printLexingResultInfo(lexingResult);
         }

@@ -1,5 +1,5 @@
 import { DbfStreet } from "./types";
-export declare const setStreetAsSynced: (streetFeedUrl: string) => void;
-export declare const getAllSyncedStreets: () => Set<string>;
-export declare const deleteStreets: (streetUrls: string[]) => void;
-export declare const insertStreetsFromDbf: (data: DbfStreet[]) => number;
+export declare const setStreetAsSynced: (streetFeedUrl: string) => Promise<void>;
+export declare const getAllSyncedStreets: () => Promise<Set<string>>;
+export declare const deleteStreets: (streetUrls: string[]) => Promise<void>;
+export declare const insertStreetsFromDbf: (data: DbfStreet[]) => Promise<number>;

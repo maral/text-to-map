@@ -1,40 +1,36 @@
-import { MunicipalityType, } from "./types";
-import { generatePlaceholders, getDb, insertAutoincrementRow, insertMultipleRows, } from "./db";
-import { extractMunicipalityName, findClosestString, sanitizeMunicipalityName, } from "../utils/helpers";
+var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, generator) {
+    function adopt(value) { return value instanceof P ? value : new P(function (resolve) { resolve(value); }); }
+    return new (P || (P = Promise))(function (resolve, reject) {
+        function fulfilled(value) { try { step(generator.next(value)); } catch (e) { reject(e); } }
+        function rejected(value) { try { step(generator["throw"](value)); } catch (e) { reject(e); } }
+        function step(result) { result.done ? resolve(result.value) : adopt(result.value).then(fulfilled, rejected); }
+        step((generator = generator.apply(thisArg, _arguments || [])).next());
+    });
+};
 import distance from "@turf/distance";
 import { wholeLineError } from "../street-markdown/smd";
+import { extractMunicipalityName, findClosestString, sanitizeMunicipalityName, } from "../utils/helpers";
+import { getKnexDb, insertAutoincrementRow, insertMultipleRows } from "./db";
+import { MunicipalityType, } from "./types";
 const cityTypeCode = 261;
 const cityDistrictTypeCode = 263;
-export const insertFounders = (founders) => {
-    const db = getDb();
-    const selectCityStatement = db.prepare(`SELECT c.name, c.code FROM school s
-    JOIN school_location l ON s.izo = l.school_izo
-    JOIN address_point a ON l.address_point_id = a.id
-    JOIN city c ON a.city_code = c.code
-    WHERE s.izo = ?
-    LIMIT 1`);
-    const selectDistrictStatement = db.prepare(`SELECT d.name, d.code FROM school s
-    JOIN school_location l ON s.izo = l.school_izo
-    JOIN address_point a ON l.address_point_id = a.id
-    JOIN city_district d ON a.city_district_code = d.code
-    WHERE s.izo = ?
-    LIMIT 1`);
+export const insertFounders = (founders) => __awaiter(void 0, void 0, void 0, function* () {
+    var _a;
     let insertedFounders = 0;
     const schoolFounderConnectionData = [];
-    founders.forEach((founder) => {
-        var _a;
+    for (const founder of founders) {
         if (founder.municipalityType !== MunicipalityType.City &&
             founder.municipalityType !== MunicipalityType.District) {
-            return;
+            continue;
         }
         const extractedMunicipalityName = extractMunicipalityName(founder);
         // check if the extracted municipality name is the same as in all the schools' locations
         let differingSchools = [];
         let municipalityCode = -1;
-        founder.schools.forEach((school) => {
-            const result = (founder.municipalityType === MunicipalityType.City
-                ? selectCityStatement
-                : selectDistrictStatement).get(school.izo);
+        for (const school of founder.schools) {
+            const result = yield (founder.municipalityType === MunicipalityType.City
+                ? getCityOfSchool(school.izo)
+                : getDistrictOfSchool(school.izo));
             if (!result) {
                 console.log(`izo: ${school.izo}, extracted: ${extractedMunicipalityName}, RUIAN: UNDEFINED`);
                 differingSchools.push(school);
@@ -48,8 +44,8 @@ export const insertFounders = (founders) => {
                 // store municipalityCode even if the names don't match, we will use it later
                 municipalityCode = parseInt(code);
             }
-        });
-        municipalityCode = fixFounderProblems(founder, municipalityCode, differingSchools, extractedMunicipalityName);
+        }
+        municipalityCode = yield fixFounderProblems(founder, municipalityCode, differingSchools, extractedMunicipalityName);
         const cityDistrictCode = founder.municipalityType === MunicipalityType.District
             ? municipalityCode.toString()
             : null;
@@ -58,46 +54,80 @@ export const insertFounders = (founders) => {
             cityCode = (_a = municipalityCode === null || municipalityCode === void 0 ? void 0 : municipalityCode.toString()) !== null && _a !== void 0 ? _a : null;
         }
         else {
-            cityCode = getCityCodeByDistrictCode(municipalityCode).toString();
+            cityCode = yield getCityCodeByDistrictCode(municipalityCode);
         }
-        const founderId = insertAutoincrementRow([
-            sanitizeMunicipalityName(founder.name),
-            sanitizeMunicipalityName(extractedMunicipalityName),
-            founder.ico,
-            String(founder.originalType),
-            cityCode,
-            cityDistrictCode,
-        ], "founder", ["name", "short_name", "ico", "founder_type_code", "city_code", "city_district_code"]);
-        // founder table has unique (name, ico) with on conflict ignore, so possibly
-        // the row has not been inserted
-        if (founderId !== null) {
+        const existing = yield getKnexDb()
+            .select("*")
+            .from("founder")
+            .where({
+            name: sanitizeMunicipalityName(founder.name),
+            ico: founder.ico,
+        });
+        if (existing.length === 0) {
+            const founderId = yield insertAutoincrementRow([
+                sanitizeMunicipalityName(founder.name),
+                sanitizeMunicipalityName(extractedMunicipalityName),
+                founder.ico,
+                String(founder.originalType),
+                cityCode,
+                cityDistrictCode,
+            ], "founder", [
+                "name",
+                "short_name",
+                "ico",
+                "founder_type_code",
+                "city_code",
+                "city_district_code",
+            ]);
             insertedFounders++;
             founder.schools.forEach((school) => {
                 schoolFounderConnectionData.push([school.izo, founderId]);
             });
         }
-    });
-    const insertedConnections = insertMultipleRows(schoolFounderConnectionData, "school_founder", ["school_izo", "founder_id"]);
+    }
+    const insertedConnections = yield insertMultipleRows(schoolFounderConnectionData, "school_founder", ["school_izo", "founder_id"]);
     return insertedFounders + insertedConnections;
-};
-const fixFounderProblems = (founder, municipalityCode, differingSchools, extractedMunicipalityName) => {
+});
+const getCityOfSchool = (izo) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield getKnexDb()
+        .select("c.name", "c.code")
+        .from("school as s")
+        .join("school_location as l", "s.izo", "l.school_izo")
+        .join("address_point as a", "l.address_point_id", "a.id")
+        .join("city as c", "a.city_code", "c.code")
+        .where("s.izo", izo)
+        .limit(1)
+        .first();
+});
+const getDistrictOfSchool = (izo) => __awaiter(void 0, void 0, void 0, function* () {
+    return yield getKnexDb()
+        .select("d.name", "d.code")
+        .from("school as s")
+        .join("school_location as l", "s.izo", "l.school_izo")
+        .join("address_point as a", "l.address_point_id", "a.id")
+        .join("city_district as d", "a.city_district_code", "d.code")
+        .where("s.izo", izo)
+        .limit(1)
+        .first();
+});
+const fixFounderProblems = (founder, municipalityCode, differingSchools, extractedMunicipalityName) => __awaiter(void 0, void 0, void 0, function* () {
     if (differingSchools.length === 0 ||
         differingSchools.length < founder.schools.length) {
         return municipalityCode;
     }
     // either the school does not have a position (invalid RUIAN or missing building)
     // or the school is not in the same municipality as the founder
-    const db = getDb();
     // find all cities and their position with the same name as municipalityName
-    const municipalities = findMunicipalitiesAndPositionsByNameAndType(extractedMunicipalityName, founder.municipalityType);
+    const municipalities = yield findMunicipalitiesAndPositionsByNameAndType(extractedMunicipalityName, founder.municipalityType);
     // get one school position (if there are more schools, they should be close to each other)
-    const schoolPosition = db
-        .prepare(`SELECT a.wgs84_latitude, a.wgs84_longitude FROM school s
-        JOIN school_location l ON s.izo = l.school_izo
-        JOIN address_point a ON l.address_point_id = a.id
-        WHERE s.izo IN (${generatePlaceholders(differingSchools.length)})
-        LIMIT 1`)
-        .get(...differingSchools.map((school) => school.izo));
+    const schoolPosition = yield getKnexDb()
+        .select("address_point.wgs84_latitude", "address_point.wgs84_longitude")
+        .from("school")
+        .join("school_location", "school.izo", "school_location.school_izo")
+        .join("address_point", "school_location.address_point_id", "address_point.id")
+        .whereIn("school.izo", differingSchools.map((school) => school.izo))
+        .limit(1)
+        .first();
     if (schoolPosition) {
         if (municipalities.length === 0) {
             if (municipalityCode === -1) {
@@ -142,43 +172,38 @@ const fixFounderProblems = (founder, municipalityCode, differingSchools, extract
             return null;
         }
     }
-};
-const getCityCodeByDistrictCode = (districtCode) => {
-    const db = getDb();
-    const result = db
-        .prepare(`SELECT c.code FROM city_district d
-      JOIN city c ON d.city_code = c.code
-      WHERE d.code = ?
-      LIMIT 1`)
-        .get(districtCode);
-    if (result) {
-        return result.code;
-    }
-    else {
-        return null;
-    }
-};
-const findMunicipalitiesAndPositionsByNameAndType = (name, type) => {
-    const db = getDb();
+});
+const getCityCodeByDistrictCode = (districtCode) => __awaiter(void 0, void 0, void 0, function* () {
+    var _b;
+    const result = yield getKnexDb()
+        .first("city.code")
+        .from("city_district")
+        .join("city", "city_district.city_code", "city.code")
+        .where("city_district.code", districtCode)
+        .limit(1);
+    return (_b = result === null || result === void 0 ? void 0 : result.code) !== null && _b !== void 0 ? _b : null;
+});
+const findMunicipalitiesAndPositionsByNameAndType = (name, type) => __awaiter(void 0, void 0, void 0, function* () {
+    const knex = getKnexDb();
     return (type === MunicipalityType.City
-        ? db
-            .prepare(`SELECT c.name, c.code, a.wgs84_latitude, a.wgs84_longitude FROM city c
-            JOIN address_point a ON c.code = a.city_code
-            WHERE c.name = ?
-            GROUP BY c.code`)
-            .all(name)
-        : db
-            .prepare(`SELECT d.name, d.code, a.wgs84_latitude, a.wgs84_longitude FROM city_district d
-            JOIN address_point a ON d.code = a.city_district_code
-            WHERE d.name = ?
-            GROUP BY d.code`)
-            .all(name)).map((row) => ({
+        ? yield knex
+            .select("city.name", "city.code", "address_point.wgs84_latitude", "address_point.wgs84_longitude")
+            .from("city")
+            .join("address_point", "city.code", "address_point.city_code")
+            .where("city.name", name)
+            .groupBy("city.code")
+        : yield knex
+            .select("city_district.name", "city_district.code", "address_point.wgs84_latitude", "address_point.wgs84_longitude")
+            .from("city_district")
+            .join("address_point", "city_district.code", "address_point.city_district_code")
+            .where("city_district.name", name)
+            .groupBy("city_district.code")).map((row) => ({
         code: row.code,
         type,
         lat: row.wgs84_latitude,
         lng: row.wgs84_longitude,
     }));
-};
+});
 const extractFounderName = (line) => {
     if (line[0] === "#") {
         return line.substring(1).trim();
@@ -187,20 +212,23 @@ const extractFounderName = (line) => {
         return line.trim();
     }
 };
-export const findFounder = (nameWithHashtag) => {
+export const findFounder = (nameWithHashtag) => __awaiter(void 0, void 0, void 0, function* () {
     const errors = [];
-    const db = getDb();
     const name = extractFounderName(nameWithHashtag);
-    const exactMatchStatement = db.prepare(`SELECT f.id, f.name, f.ico, f.founder_type_code, f.city_code, f.city_district_code FROM founder f
-    LEFT JOIN city c ON c.code = f.city_code
-    LEFT JOIN city_district d ON d.code = f.city_district_code
-    WHERE f.name = ? OR c.name = ? OR d.name = ?`);
-    const result = exactMatchStatement.get(name, name, name);
+    const result = yield getKnexDb()
+        .select("f.id", "f.name", "f.ico", "f.founder_type_code", "f.city_code", "f.city_district_code")
+        .from("founder as f")
+        .leftJoin("city as c", "c.code", "f.city_code")
+        .leftJoin("city_district as d", "d.code", "f.city_district_code")
+        .where("f.name", name)
+        .orWhere("c.name", name)
+        .orWhere("d.name", name)
+        .first();
     if (result) {
-        return { founder: resultToFounder(result), errors };
+        return { founder: yield resultToFounder(result), errors };
     }
     else {
-        const allFounderNames = getAllFounderNames();
+        const allFounderNames = yield getAllFounderNames();
         const namesList = allFounderNames
             .map((row) => row.founderName)
             .concat(allFounderNames.map((row) => row.municipalityName));
@@ -215,34 +243,36 @@ export const findFounder = (nameWithHashtag) => {
             };
         }
         errors.push(wholeLineError(`Zřizovatel '${name}' neexistuje, mysleli jste '${bestMatch}'?`, nameWithHashtag));
-        const findByIdStatement = db.prepare(`SELECT f.id, f.name, f.ico, f.founder_type_code, f.city_code, f.city_district_code FROM founder f
-      WHERE f.id = ?`);
+        const founder = yield getKnexDb()
+            .select("id", "name", "ico", "founder_type_code", "city_code", "city_district_code")
+            .from("founder")
+            .where("id", bestMatchRow.id)
+            .first();
         return {
-            founder: resultToFounder(findByIdStatement.get(bestMatchRow.id)),
+            founder: yield resultToFounder(founder),
             errors,
         };
     }
-};
+});
 let cachedCityCode = null;
 let cityCodeFounder = null;
-export const getFounderCityCode = (founder) => {
-    const db = getDb();
+export const getFounderCityCode = (founder) => __awaiter(void 0, void 0, void 0, function* () {
     if (founder.municipalityType === MunicipalityType.District) {
         if (cityCodeFounder !== founder) {
-            const founderStatement = db.prepare(`
-        SELECT city_code
-        FROM city_district
-        WHERE code = ?
-      `);
-            cachedCityCode = founderStatement.get(founder.cityOrDistrictCode).city_code;
+            cityCodeFounder = founder;
+            cachedCityCode = yield getKnexDb()
+                .pluck("city_code")
+                .from("city_district")
+                .where("code", founder.cityOrDistrictCode)
+                .first();
         }
         return cachedCityCode;
     }
     else {
         return founder.cityOrDistrictCode;
     }
-};
-const resultToFounder = (result) => {
+});
+const resultToFounder = (result) => __awaiter(void 0, void 0, void 0, function* () {
     return {
         name: result.name,
         ico: result.ico,
@@ -253,16 +283,17 @@ const resultToFounder = (result) => {
         cityOrDistrictCode: result.founder_type_code === cityTypeCode
             ? result.city_code
             : result.city_district_code,
-        schools: getSchoolsByFounderId(parseInt(result.id)),
+        schools: yield getSchoolsByFounderId(parseInt(result.id)),
     };
-};
-const getSchoolsByFounderId = (founderId) => {
-    const db = getDb();
-    const statement = db.prepare(`SELECT s.izo, s.redizo, s.name, s.capacity, sl.address_point_id FROM school s
-    JOIN school_founder sf ON s.izo = sf.school_izo
-    JOIN school_location sl ON s.izo = sl.school_izo
-    WHERE sf.founder_id = ?`);
-    return statement.all(founderId).map((row) => ({
+});
+const getSchoolsByFounderId = (founderId) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield getKnexDb()
+        .select("s.izo", "s.redizo", "s.name", "s.capacity", "sl.address_point_id")
+        .from("school as s")
+        .join("school_founder as sf", "s.izo", "sf.school_izo")
+        .join("school_location as sl", "s.izo", "sl.school_izo")
+        .where("sf.founder_id", founderId);
+    return result.map((row) => ({
         izo: String(row.izo),
         redizo: String(row.redizo),
         name: String(row.name),
@@ -273,29 +304,30 @@ const getSchoolsByFounderId = (founderId) => {
             },
         ],
     }));
-};
-const getAllFounderNames = () => {
-    const db = getDb();
-    const statement = db.prepare(`SELECT f.id, f.name AS founder_name, c.name AS city_name, d.name AS city_district_name FROM founder f
-    LEFT JOIN city c ON c.code = f.city_code
-    LEFT JOIN city_district d ON d.code = f.city_district_code`);
-    const result = statement.all();
+});
+const getAllFounderNames = () => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield getKnexDb()
+        .select("f.id", "f.name as founder_name", "c.name as city_name", "d.name as city_district_name")
+        .from("founder as f")
+        .leftJoin("city as c", "c.code", "f.city_code")
+        .leftJoin("city_district as d", "d.code", "f.city_district_code");
     return result.map((row) => ({
         id: parseInt(row.id),
         founderName: String(row.founder_name),
         municipalityName: String(row.city_name ? row.city_name : row.city_district_name),
     }));
-};
-export const findMunicipalityByNameAndType = (name, type) => {
+});
+export const findMunicipalityByNameAndType = (name, type) => __awaiter(void 0, void 0, void 0, function* () {
     const errors = [];
-    const db = getDb();
-    const exactMatchStatement = db.prepare(`SELECT code FROM ${type === MunicipalityType.City ? "city" : "city_district"} WHERE name = ?`);
-    const result = exactMatchStatement.get(name);
+    const result = yield getKnexDb()
+        .first("code")
+        .from(type === MunicipalityType.City ? "city" : "city_district")
+        .where("name", name);
     if (result) {
         return { municipality: { code: result.code, type }, errors };
     }
     else {
-        const allNames = getAllMunicipalityNames(type);
+        const allNames = yield getAllMunicipalityNames(type);
         const namesList = allNames.map((row) => row.name);
         const bestMatch = findClosestString(name, namesList);
         const bestMatchRow = allNames.find((municipality) => municipality.name === bestMatch);
@@ -309,13 +341,12 @@ export const findMunicipalityByNameAndType = (name, type) => {
             errors,
         };
     }
-};
-const getAllMunicipalityNames = (type) => {
-    const db = getDb();
-    const statement = db.prepare(`SELECT name, code FROM ${type === MunicipalityType.City ? "city" : "city_district"}`);
-    const result = statement.all();
-    return result.map((row) => ({
+});
+const getAllMunicipalityNames = (type) => __awaiter(void 0, void 0, void 0, function* () {
+    return (yield getKnexDb()
+        .select("name", "code")
+        .from(type === MunicipalityType.City ? "city" : "city_district")).map((row) => ({
         name: row.name,
         code: row.code,
     }));
-};
+});
