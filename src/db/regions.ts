@@ -1,4 +1,8 @@
-import { extractKeyValuesPairs, getDb, insertMultipleRows } from "./db";
+import {
+  extractKeyValuesPairs,
+  getKnexDb,
+  insertMultipleRows
+} from "./db";
 
 interface RegionsColumn {
   cityName: number;
@@ -27,48 +31,43 @@ export interface RegionsTableSchema {
   };
 }
 
-export const insertRegionsAndOrps = (
+export const insertRegionsAndOrps = async (
   data: string[][],
   schema: RegionsTableSchema
-): number => {
+): Promise<number> => {
   const columnIndex = getColumnIndexFromSchema(schema);
 
   let changes = 0;
-  changes += insertRegions(data, columnIndex);
-  changes += insertCounties(data, columnIndex);
-  changes += insertOrps(data, columnIndex);
+  changes += await insertRegions(data, columnIndex);
+  changes += await insertCounties(data, columnIndex);
+  changes += await insertOrps(data, columnIndex);
 
   // cities are most likely already inserted, but in case they're not,
   // we need to insert them before updating them with region data
-  changes += insertCities(data, columnIndex);
+  changes += await insertCities(data, columnIndex);
 
-  const db = getDb();
+  const knex = getKnexDb();
 
-  const updateStatement = db.prepare(
-    `UPDATE city SET
-      region_code = ?,
-      county_code = ?,
-      orp_code = ?
-    WHERE code = ?`
-  );
-
-  data.forEach((data) => {
-    changes += updateStatement.run(
-      data[columnIndex.regionRuianCode],
-      data[columnIndex.countyRuianCode],
-      data[columnIndex.orpRuianCode],
-      data[columnIndex.cityCode]
-    ).changes;
-  });
+  for (const row of data) {
+    await knex
+      .from("city")
+      .update({
+        region_code: row[columnIndex.regionRuianCode],
+        county_code: row[columnIndex.countyRuianCode],
+        orp_code: row[columnIndex.orpRuianCode],
+      })
+      .where({ code: row[columnIndex.cityCode] });
+    changes++;
+  }
 
   return changes;
 };
 
-export const insertRegions = (
+export const insertRegions = async (
   buffer: string[][],
   columnIndex: RegionsColumn
-): number => {
-  return insertMultipleRows(
+): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, columnIndex.regionRuianCode, [
       columnIndex.regionName,
       columnIndex.regionShortName,
@@ -80,11 +79,11 @@ export const insertRegions = (
   );
 };
 
-export const insertCounties = (
+export const insertCounties = async (
   buffer: string[][],
   columnIndex: RegionsColumn
-): number => {
-  return insertMultipleRows(
+): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, columnIndex.countyRuianCode, [
       columnIndex.countyName,
       columnIndex.countyCsuCode101Lau,
@@ -96,11 +95,11 @@ export const insertCounties = (
   );
 };
 
-export const insertOrps = (
+export const insertOrps = async (
   buffer: string[][],
   columnIndex: RegionsColumn
-): number => {
-  return insertMultipleRows(
+): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, columnIndex.orpRuianCode, [
       columnIndex.orpName,
       columnIndex.orpCsuCode65,
@@ -112,11 +111,11 @@ export const insertOrps = (
   );
 };
 
-export const insertCities = (
+export const insertCities = async (
   buffer: string[][],
   columnIndex: RegionsColumn
-): number => {
-  return insertMultipleRows(
+): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, columnIndex.cityCode, [columnIndex.cityName]),
     "city",
     ["code", "name"]

@@ -1,70 +1,43 @@
-import {
-  Founder,
-  Municipality,
-  MunicipalityType,
-  MunicipalityWithPosition,
-  Position,
-  School,
-} from "./types";
-import {
-  generatePlaceholders,
-  getDb,
-  insertAutoincrementRow,
-  insertMultipleRows,
-} from "./db";
+import distance from "@turf/distance";
+import { wholeLineError } from "../street-markdown/smd";
+import { DbMunicipalityResult, SmdError } from "../street-markdown/types";
 import {
   extractMunicipalityName,
   findClosestString,
   sanitizeMunicipalityName,
 } from "../utils/helpers";
-import { DbMunicipalityResult, SmdError } from "../street-markdown/types";
-import distance from "@turf/distance";
-import { wholeLineError } from "../street-markdown/smd";
+import { getKnexDb, insertAutoincrementRow, insertMultipleRows } from "./db";
+import {
+  Founder,
+  MunicipalityType,
+  MunicipalityWithPosition,
+  School,
+} from "./types";
 
 const cityTypeCode = 261;
 const cityDistrictTypeCode = 263;
 
-export const insertFounders = (founders: Founder[]): number => {
-  const db = getDb();
-  const selectCityStatement = db.prepare(
-    `SELECT c.name, c.code FROM school s
-    JOIN school_location l ON s.izo = l.school_izo
-    JOIN address_point a ON l.address_point_id = a.id
-    JOIN city c ON a.city_code = c.code
-    WHERE s.izo = ?
-    LIMIT 1`
-  );
-
-  const selectDistrictStatement = db.prepare(
-    `SELECT d.name, d.code FROM school s
-    JOIN school_location l ON s.izo = l.school_izo
-    JOIN address_point a ON l.address_point_id = a.id
-    JOIN city_district d ON a.city_district_code = d.code
-    WHERE s.izo = ?
-    LIMIT 1`
-  );
-
+export const insertFounders = async (founders: Founder[]): Promise<number> => {
   let insertedFounders = 0;
   const schoolFounderConnectionData = [];
 
-  founders.forEach((founder) => {
+  for (const founder of founders) {
     if (
       founder.municipalityType !== MunicipalityType.City &&
       founder.municipalityType !== MunicipalityType.District
     ) {
-      return;
+      continue;
     }
     const extractedMunicipalityName = extractMunicipalityName(founder);
 
     // check if the extracted municipality name is the same as in all the schools' locations
     let differingSchools = [];
     let municipalityCode = -1;
-    founder.schools.forEach((school) => {
-      const result = (
-        founder.municipalityType === MunicipalityType.City
-          ? selectCityStatement
-          : selectDistrictStatement
-      ).get(school.izo);
+
+    for (const school of founder.schools) {
+      const result = await (founder.municipalityType === MunicipalityType.City
+        ? getCityOfSchool(school.izo)
+        : getDistrictOfSchool(school.izo));
       if (!result) {
         console.log(
           `izo: ${school.izo}, extracted: ${extractedMunicipalityName}, RUIAN: UNDEFINED`
@@ -81,9 +54,9 @@ export const insertFounders = (founders: Founder[]): number => {
         // store municipalityCode even if the names don't match, we will use it later
         municipalityCode = parseInt(code);
       }
-    });
+    }
 
-    municipalityCode = fixFounderProblems(
+    municipalityCode = await fixFounderProblems(
       founder,
       municipalityCode,
       differingSchools,
@@ -98,32 +71,46 @@ export const insertFounders = (founders: Founder[]): number => {
     if (founder.municipalityType === MunicipalityType.City) {
       cityCode = municipalityCode?.toString() ?? null;
     } else {
-      cityCode = getCityCodeByDistrictCode(municipalityCode).toString();
+      cityCode = await getCityCodeByDistrictCode(municipalityCode);
     }
 
-    const founderId = insertAutoincrementRow(
-      [
-        sanitizeMunicipalityName(founder.name),
-        sanitizeMunicipalityName(extractedMunicipalityName),
-        founder.ico,
-        String(founder.originalType),
-        cityCode,
-        cityDistrictCode,
-      ],
-      "founder",
-      ["name", "short_name", "ico", "founder_type_code", "city_code", "city_district_code"]
-    );
-    // founder table has unique (name, ico) with on conflict ignore, so possibly
-    // the row has not been inserted
-    if (founderId !== null) {
+    const existing = await getKnexDb()
+      .select("*")
+      .from("founder")
+      .where({
+        name: sanitizeMunicipalityName(founder.name),
+        ico: founder.ico,
+      });
+
+    if (existing.length === 0) {
+      const founderId = await insertAutoincrementRow(
+        [
+          sanitizeMunicipalityName(founder.name),
+          sanitizeMunicipalityName(extractedMunicipalityName),
+          founder.ico,
+          String(founder.originalType),
+          cityCode,
+          cityDistrictCode,
+        ],
+        "founder",
+        [
+          "name",
+          "short_name",
+          "ico",
+          "founder_type_code",
+          "city_code",
+          "city_district_code",
+        ]
+      );
       insertedFounders++;
+
       founder.schools.forEach((school) => {
         schoolFounderConnectionData.push([school.izo, founderId]);
       });
     }
-  });
+  }
 
-  const insertedConnections = insertMultipleRows(
+  const insertedConnections = await insertMultipleRows(
     schoolFounderConnectionData,
     "school_founder",
     ["school_izo", "founder_id"]
@@ -132,12 +119,36 @@ export const insertFounders = (founders: Founder[]): number => {
   return insertedFounders + insertedConnections;
 };
 
-const fixFounderProblems = (
+const getCityOfSchool = async (izo: string): Promise<any> => {
+  return await getKnexDb()
+    .select("c.name", "c.code")
+    .from("school as s")
+    .join("school_location as l", "s.izo", "l.school_izo")
+    .join("address_point as a", "l.address_point_id", "a.id")
+    .join("city as c", "a.city_code", "c.code")
+    .where("s.izo", izo)
+    .limit(1)
+    .first();
+};
+
+const getDistrictOfSchool = async (izo: string): Promise<any> => {
+  return await getKnexDb()
+    .select("d.name", "d.code")
+    .from("school as s")
+    .join("school_location as l", "s.izo", "l.school_izo")
+    .join("address_point as a", "l.address_point_id", "a.id")
+    .join("city_district as d", "a.city_district_code", "d.code")
+    .where("s.izo", izo)
+    .limit(1)
+    .first();
+};
+
+const fixFounderProblems = async (
   founder: Founder,
   municipalityCode: number,
   differingSchools: School[],
   extractedMunicipalityName: string
-): number | null => {
+): Promise<number | null> => {
   if (
     differingSchools.length === 0 ||
     differingSchools.length < founder.schools.length
@@ -148,10 +159,8 @@ const fixFounderProblems = (
   // either the school does not have a position (invalid RUIAN or missing building)
   // or the school is not in the same municipality as the founder
 
-  const db = getDb();
-
   // find all cities and their position with the same name as municipalityName
-  const municipalities = findMunicipalitiesAndPositionsByNameAndType(
+  const municipalities = await findMunicipalitiesAndPositionsByNameAndType(
     extractedMunicipalityName,
     founder.municipalityType
   );
@@ -159,15 +168,21 @@ const fixFounderProblems = (
   // get one school position (if there are more schools, they should be close to each other)
   const schoolPosition:
     | { wgs84_latitude: number; wgs84_longitude: number }
-    | undefined = db
-    .prepare(
-      `SELECT a.wgs84_latitude, a.wgs84_longitude FROM school s
-        JOIN school_location l ON s.izo = l.school_izo
-        JOIN address_point a ON l.address_point_id = a.id
-        WHERE s.izo IN (${generatePlaceholders(differingSchools.length)})
-        LIMIT 1`
+    | undefined = await getKnexDb()
+    .select("address_point.wgs84_latitude", "address_point.wgs84_longitude")
+    .from("school")
+    .join("school_location", "school.izo", "school_location.school_izo")
+    .join(
+      "address_point",
+      "school_location.address_point_id",
+      "address_point.id"
     )
-    .get(...differingSchools.map((school) => school.izo));
+    .whereIn(
+      "school.izo",
+      differingSchools.map((school) => school.izo)
+    )
+    .limit(1)
+    .first();
 
   if (schoolPosition) {
     if (municipalities.length === 0) {
@@ -224,46 +239,51 @@ const fixFounderProblems = (
   }
 };
 
-const getCityCodeByDistrictCode = (districtCode: number): number | null => {
-  const db = getDb();
-  const result = db
-    .prepare(
-      `SELECT c.code FROM city_district d
-      JOIN city c ON d.city_code = c.code
-      WHERE d.code = ?
-      LIMIT 1`
-    )
-    .get(districtCode);
-  if (result) {
-    return result.code;
-  } else {
-    return null;
-  }
+const getCityCodeByDistrictCode = async (
+  districtCode: number
+): Promise<number | null> => {
+  const result = await getKnexDb()
+    .first("city.code")
+    .from("city_district")
+    .join("city", "city_district.city_code", "city.code")
+    .where("city_district.code", districtCode)
+    .limit(1);
+  return result?.code ?? null;
 };
 
-const findMunicipalitiesAndPositionsByNameAndType = (
+const findMunicipalitiesAndPositionsByNameAndType = async (
   name: string,
   type: MunicipalityType
-): MunicipalityWithPosition[] => {
-  const db = getDb();
+): Promise<MunicipalityWithPosition[]> => {
+  const knex = getKnexDb();
   return (
     type === MunicipalityType.City
-      ? db
-          .prepare(
-            `SELECT c.name, c.code, a.wgs84_latitude, a.wgs84_longitude FROM city c
-            JOIN address_point a ON c.code = a.city_code
-            WHERE c.name = ?
-            GROUP BY c.code`
+      ? await knex
+          .select(
+            "city.name",
+            "city.code",
+            "address_point.wgs84_latitude",
+            "address_point.wgs84_longitude"
           )
-          .all(name)
-      : db
-          .prepare(
-            `SELECT d.name, d.code, a.wgs84_latitude, a.wgs84_longitude FROM city_district d
-            JOIN address_point a ON d.code = a.city_district_code
-            WHERE d.name = ?
-            GROUP BY d.code`
+          .from("city")
+          .join("address_point", "city.code", "address_point.city_code")
+          .where("city.name", name)
+          .groupBy("city.code")
+      : await knex
+          .select(
+            "city_district.name",
+            "city_district.code",
+            "address_point.wgs84_latitude",
+            "address_point.wgs84_longitude"
           )
-          .all(name)
+          .from("city_district")
+          .join(
+            "address_point",
+            "city_district.code",
+            "address_point.city_district_code"
+          )
+          .where("city_district.name", name)
+          .groupBy("city_district.code")
   ).map((row) => ({
     code: row.code,
     type,
@@ -280,23 +300,32 @@ const extractFounderName = (line: string): string => {
   }
 };
 
-export const findFounder = (
+export const findFounder = async (
   nameWithHashtag: string
-): { founder: Founder; errors: SmdError[] } => {
+): Promise<{ founder: Founder; errors: SmdError[] }> => {
   const errors: SmdError[] = [];
-  const db = getDb();
   const name = extractFounderName(nameWithHashtag);
-  const exactMatchStatement = db.prepare(
-    `SELECT f.id, f.name, f.ico, f.founder_type_code, f.city_code, f.city_district_code FROM founder f
-    LEFT JOIN city c ON c.code = f.city_code
-    LEFT JOIN city_district d ON d.code = f.city_district_code
-    WHERE f.name = ? OR c.name = ? OR d.name = ?`
-  );
-  const result = exactMatchStatement.get(name, name, name);
+
+  const result = await getKnexDb()
+    .select(
+      "f.id",
+      "f.name",
+      "f.ico",
+      "f.founder_type_code",
+      "f.city_code",
+      "f.city_district_code"
+    )
+    .from("founder as f")
+    .leftJoin("city as c", "c.code", "f.city_code")
+    .leftJoin("city_district as d", "d.code", "f.city_district_code")
+    .where("f.name", name)
+    .orWhere("c.name", name)
+    .orWhere("d.name", name)
+    .first();
   if (result) {
-    return { founder: resultToFounder(result), errors };
+    return { founder: await resultToFounder(result), errors };
   } else {
-    const allFounderNames = getAllFounderNames();
+    const allFounderNames = await getAllFounderNames();
     const namesList = allFounderNames
       .map((row) => row.founderName)
       .concat(allFounderNames.map((row) => row.municipalityName));
@@ -308,21 +337,39 @@ export const findFounder = (
     );
 
     if (!bestMatchRow) {
-      errors.push(wholeLineError(`Nenašli jsme žádné zřizovatele, nejspíš jste zapomněli inicializovat databázi.`, nameWithHashtag));
+      errors.push(
+        wholeLineError(
+          `Nenašli jsme žádné zřizovatele, nejspíš jste zapomněli inicializovat databázi.`,
+          nameWithHashtag
+        )
+      );
       return {
         founder: null,
         errors,
       };
     }
 
-    errors.push(wholeLineError(`Zřizovatel '${name}' neexistuje, mysleli jste '${bestMatch}'?`, nameWithHashtag));
-
-    const findByIdStatement = db.prepare(
-      `SELECT f.id, f.name, f.ico, f.founder_type_code, f.city_code, f.city_district_code FROM founder f
-      WHERE f.id = ?`
+    errors.push(
+      wholeLineError(
+        `Zřizovatel '${name}' neexistuje, mysleli jste '${bestMatch}'?`,
+        nameWithHashtag
+      )
     );
+
+    const founder = await getKnexDb()
+      .select(
+        "id",
+        "name",
+        "ico",
+        "founder_type_code",
+        "city_code",
+        "city_district_code"
+      )
+      .from("founder")
+      .where("id", bestMatchRow.id)
+      .first();
     return {
-      founder: resultToFounder(findByIdStatement.get(bestMatchRow.id)),
+      founder: await resultToFounder(founder),
       errors,
     };
   }
@@ -330,18 +377,15 @@ export const findFounder = (
 
 let cachedCityCode: number = null;
 let cityCodeFounder: Founder = null;
-export const getFounderCityCode = (founder: Founder): number => {
-  const db = getDb();
+export const getFounderCityCode = async (founder: Founder): Promise<number> => {
   if (founder.municipalityType === MunicipalityType.District) {
     if (cityCodeFounder !== founder) {
-      const founderStatement = db.prepare(`
-        SELECT city_code
-        FROM city_district
-        WHERE code = ?
-      `);
-      cachedCityCode = founderStatement.get(
-        founder.cityOrDistrictCode
-      ).city_code;
+      cityCodeFounder = founder;
+      cachedCityCode = await getKnexDb()
+        .pluck("city_code")
+        .from("city_district")
+        .where("code", founder.cityOrDistrictCode)
+        .first();
     }
     return cachedCityCode;
   } else {
@@ -355,7 +399,7 @@ interface FounderNames {
   municipalityName: string;
 }
 
-const resultToFounder = (result: any): Founder => {
+const resultToFounder = async (result: any): Promise<Founder> => {
   return {
     name: result.name,
     ico: result.ico,
@@ -368,20 +412,19 @@ const resultToFounder = (result: any): Founder => {
       result.founder_type_code === cityTypeCode
         ? result.city_code
         : result.city_district_code,
-    schools: getSchoolsByFounderId(parseInt(result.id)),
+    schools: await getSchoolsByFounderId(parseInt(result.id)),
   };
 };
 
-const getSchoolsByFounderId = (founderId: number): School[] => {
-  const db = getDb();
-  const statement = db.prepare(
-    `SELECT s.izo, s.redizo, s.name, s.capacity, sl.address_point_id FROM school s
-    JOIN school_founder sf ON s.izo = sf.school_izo
-    JOIN school_location sl ON s.izo = sl.school_izo
-    WHERE sf.founder_id = ?`
-  );
+const getSchoolsByFounderId = async (founderId: number): Promise<School[]> => {
+  const result = await getKnexDb()
+    .select("s.izo", "s.redizo", "s.name", "s.capacity", "sl.address_point_id")
+    .from("school as s")
+    .join("school_founder as sf", "s.izo", "sf.school_izo")
+    .join("school_location as sl", "s.izo", "sl.school_izo")
+    .where("sf.founder_id", founderId);
 
-  return statement.all(founderId).map((row) => ({
+  return result.map((row) => ({
     izo: String(row.izo),
     redizo: String(row.redizo),
     name: String(row.name),
@@ -394,14 +437,17 @@ const getSchoolsByFounderId = (founderId: number): School[] => {
   }));
 };
 
-const getAllFounderNames = (): FounderNames[] => {
-  const db = getDb();
-  const statement = db.prepare(
-    `SELECT f.id, f.name AS founder_name, c.name AS city_name, d.name AS city_district_name FROM founder f
-    LEFT JOIN city c ON c.code = f.city_code
-    LEFT JOIN city_district d ON d.code = f.city_district_code`
-  );
-  const result = statement.all();
+const getAllFounderNames = async (): Promise<FounderNames[]> => {
+  const result = await getKnexDb()
+    .select(
+      "f.id",
+      "f.name as founder_name",
+      "c.name as city_name",
+      "d.name as city_district_name"
+    )
+    .from("founder as f")
+    .leftJoin("city as c", "c.code", "f.city_code")
+    .leftJoin("city_district as d", "d.code", "f.city_district_code");
   return result.map((row) => ({
     id: parseInt(row.id),
     founderName: String(row.founder_name),
@@ -411,23 +457,21 @@ const getAllFounderNames = (): FounderNames[] => {
   }));
 };
 
-export const findMunicipalityByNameAndType = (
+export const findMunicipalityByNameAndType = async (
   name: string,
   type: MunicipalityType
-): DbMunicipalityResult => {
+): Promise<DbMunicipalityResult> => {
   const errors: SmdError[] = [];
-  const db = getDb();
 
-  const exactMatchStatement = db.prepare(
-    `SELECT code FROM ${
-      type === MunicipalityType.City ? "city" : "city_district"
-    } WHERE name = ?`
-  );
-  const result = exactMatchStatement.get(name);
+  const result = await getKnexDb()
+    .first("code")
+    .from(type === MunicipalityType.City ? "city" : "city_district")
+    .where("name", name);
+
   if (result) {
     return { municipality: { code: result.code, type }, errors };
   } else {
-    const allNames = getAllMunicipalityNames(type);
+    const allNames = await getAllMunicipalityNames(type);
     const namesList = allNames.map((row) => row.name);
     const bestMatch = findClosestString(name, namesList);
     const bestMatchRow = allNames.find(
@@ -447,17 +491,14 @@ export const findMunicipalityByNameAndType = (
   }
 };
 
-const getAllMunicipalityNames = (
+const getAllMunicipalityNames = async (
   type: MunicipalityType
-): { name: string; code: number }[] => {
-  const db = getDb();
-  const statement = db.prepare(
-    `SELECT name, code FROM ${
-      type === MunicipalityType.City ? "city" : "city_district"
-    }`
-  );
-  const result = statement.all();
-  return result.map((row) => ({
+): Promise<{ name: string; code: number }[]> => {
+  return (
+    await getKnexDb()
+      .select("name", "code")
+      .from(type === MunicipalityType.City ? "city" : "city_district")
+  ).map((row) => ({
     name: row.name,
     code: row.code,
   }));

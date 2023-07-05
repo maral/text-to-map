@@ -3,13 +3,13 @@ import iconv from "iconv-lite";
 import fetch from "node-fetch";
 import { pipeline } from "stream/promises";
 
-import {
-  OpenDataSyncOptionsPartial,
-  OpenDataSyncOptions,
-  initDb,
-  prepareOptions,
-} from "../utils/helpers";
 import { RegionsTableSchema, insertRegionsAndOrps } from "../db/regions";
+import {
+  OpenDataSyncOptions,
+  OpenDataSyncOptionsPartial,
+  prepareOptions
+} from "../utils/helpers";
+import { disconnectKnex } from "../db/db";
 
 const downloadAndImportDataToDb = async (
   options: OpenDataSyncOptions
@@ -46,8 +46,7 @@ const downloadAndImportDataToDb = async (
 
   console.log("Parsing completed. Starting to import data to DB...");
 
-  initDb(options);
-  insertRegionsAndOrps(rows, schema);
+  await insertRegionsAndOrps(rows, schema);
 
   console.log(`Import completed. Total imported rows: ${rows.length}`);
 };
@@ -55,6 +54,12 @@ const downloadAndImportDataToDb = async (
 export const downloadAndImportRegions = async (
   options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
-  const completeOptions = prepareOptions(options);
-  await downloadAndImportDataToDb(completeOptions);
+  try {
+    const completeOptions = prepareOptions(options);
+    await downloadAndImportDataToDb(completeOptions);
+  } catch (error) {
+    console.log(error);
+  } finally {
+    await disconnectKnex();
+  }
 };

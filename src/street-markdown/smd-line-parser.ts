@@ -50,7 +50,7 @@ export const parseLine = (
       ...smdParser.errors.map((error) => ({
         message: `Nesprávný zápis pravidla - nevynechali jste něco?`,
         startOffset: error.token.startOffset,
-        endOffset: error.token.endOffset,
+        endOffset: error.token.endOffset ?? text.length,
       }))
     );
     if (showDebug) {

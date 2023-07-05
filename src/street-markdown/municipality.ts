@@ -16,7 +16,9 @@ export const isMunicipalitySwitch = (line: string): boolean => {
   return municipalitySwitchStartPattern.test(line);
 };
 
-export const getSwitchMunicipality = (line: string): DbMunicipalityResult => {
+export const getSwitchMunicipality = async (
+  line: string
+): Promise<DbMunicipalityResult> => {
   const match = municipalitySwitchPattern.exec(line);
   if (match === null) {
     return {
@@ -32,14 +34,16 @@ export const getSwitchMunicipality = (line: string): DbMunicipalityResult => {
     };
   }
   const { type, name } = match.groups;
-  return getMunicipalityResult(type, name, line);
+  return await getMunicipalityResult(type, name, line);
 };
 
 export const isWholeMunicipality = (line: string): boolean => {
   return wholeMunicipalityStartPattern.test(line);
 };
 
-export const getWholeMunicipality = (line: string): DbMunicipalityResult => {
+export const getWholeMunicipality = async (
+  line: string
+): Promise<DbMunicipalityResult> => {
   const match = wholeMunicipalityPattern.exec(line);
   if (match === null) {
     return {
@@ -55,16 +59,16 @@ export const getWholeMunicipality = (line: string): DbMunicipalityResult => {
     };
   }
   const { type, name } = match.groups;
-  return getMunicipalityResult(type, name, line);
+  return await getMunicipalityResult(type, name, line);
 };
 
-const getMunicipalityResult = (
+const getMunicipalityResult = async (
   type: string,
   name: string,
   line: string
-): DbMunicipalityResult => {
+): Promise<DbMunicipalityResult> => {
   const typeValue = getMunicipalityType(type);
-  const { municipality, errors } = findMunicipalityByNameAndType(
+  const { municipality, errors } = await findMunicipalityByNameAndType(
     name,
     typeValue
   );

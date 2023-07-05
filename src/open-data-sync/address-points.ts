@@ -1,25 +1,21 @@
-import fetch from "node-fetch";
-import {
-  createWriteStream,
-  createReadStream,
-  rmSync,
-  readdirSync,
-  existsSync,
-} from "fs";
-import { pipeline } from "stream/promises";
-import { join } from "path";
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse";
+import { createReadStream, createWriteStream, readdirSync, rmSync } from "fs";
 import iconv from "iconv-lite";
+import fetch from "node-fetch";
+import { join } from "path";
+import { pipeline } from "stream/promises";
 
-import {
-  OpenDataSyncOptionsPartial,
-  OpenDataSyncOptions,
-  prepareOptions,
-  initDb,
-} from "../utils/helpers";
-import { commitAddressPoints, importParsedLine } from "../db/address-points";
+import { commitAddressPoints } from "../db/address-points";
+import { disconnectKnex } from "../db/db";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
+import {
+  OpenDataSyncOptions,
+  OpenDataSyncOptionsPartial,
+  prepareOptions,
+} from "../utils/helpers";
+
+const maxBufferSize = 1000;
 
 const downloadAndUnzip = async (
   url: string,
@@ -59,16 +55,21 @@ const importDataToDb = async (options: OpenDataSyncOptions) => {
     "Initiating import of RUIAN data to search DB (~3 million rows to be imported)."
   );
 
-  initDb(options);
-
+  const buffer: string[][] = [];
   for (const file of files) {
     const parseStream = parse({ delimiter: ";", fromLine: 2 }).on(
       "data",
-      (data) => {
-        total += importParsedLine(data);
-        if (total - next >= 100000) {
-          next += 100000;
-          console.log(`Total imported rows: ${next}`);
+      async (data) => {
+        buffer.push(data);
+        if (buffer.length >= maxBufferSize) {
+          parseStream.pause();
+          total += await commitAddressPoints(buffer);
+          if (total - next >= 100000) {
+            next += 100000;
+            console.log(`Total imported rows: ${next}`);
+          }
+          buffer.length = 0;
+          parseStream.resume();
         }
       }
     );
@@ -78,8 +79,8 @@ const importDataToDb = async (options: OpenDataSyncOptions) => {
       iconv.decodeStream("win1250"),
       parseStream
     );
-    total += commitAddressPoints();
   }
+  total += await commitAddressPoints(buffer);
 
   console.log(`Import completed. Total imported rows: ${total}`);
 };
@@ -90,18 +91,17 @@ const getExtractionFolder = (options: OpenDataSyncOptions) =>
 export const downloadAndImportAddressPoints = async (
   options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
-  const completeOptions = prepareOptions(options);
-  const datasetFeedLink = await getLatestUrlFromAtomFeed(
-    completeOptions.addressPointsAtomUrl
-  );
-  const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
-  await downloadAndUnzip(zipUrl, completeOptions);
-  await importDataToDb(completeOptions);
-};
-
-export const deleteDb = (options: OpenDataSyncOptionsPartial = {}) => {
-  const completeOptions = prepareOptions(options);
-  if (existsSync(completeOptions.dbFilePath)) {
-    rmSync(completeOptions.dbFilePath);
+  try {
+    const completeOptions = prepareOptions(options);
+    const datasetFeedLink = await getLatestUrlFromAtomFeed(
+      completeOptions.addressPointsAtomUrl
+    );
+    const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
+    // await downloadAndUnzip(zipUrl, completeOptions);
+    await importDataToDb(completeOptions);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await disconnectKnex();
   }
 };

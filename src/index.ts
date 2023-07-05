@@ -1,6 +1,6 @@
+import { clearDb, initDb } from "./db/db";
 import {
   downloadAndImportAddressPoints,
-  deleteDb,
 } from "./open-data-sync/address-points";
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
@@ -25,6 +25,7 @@ export async function downloadAndImportEverything(
   options: OpenDataSyncOptionsPartial = {},
   syncStreets: boolean = true
 ) {
+  await initDb();
   await downloadAndImportAddressPoints(options);
   await downloadAndImportSchools(options);
   await downloadAndImportRegions(options);
@@ -34,8 +35,9 @@ export async function downloadAndImportEverything(
 }
 
 export {
+  initDb,
   downloadAndImportAddressPoints,
-  deleteDb,
+  clearDb,
   downloadAndImportSchools,
   downloadAndImportStreets,
   downloadAndImportRegions,

@@ -1,14 +1,19 @@
 import { wholeLineError } from "../street-markdown/smd";
 import { SmdError } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
-import { getDb, insertMultipleRows } from "./db";
+import {
+  getKnexDb,
+  insertMultipleRows
+} from "./db";
 import { School } from "./types";
 
-export const insertSchools = (schools: School[]): number => {
-  const db = getDb();
+export const insertSchools = async (schools: School[]): Promise<number> => {
+  const knex = getKnexDb();
 
   const uniqueSchools = filterOutDuplicates(schools);
-  const existingIzo = db.prepare("SELECT izo FROM school").pluck().all();
+  const existingIzo = (await knex.select("izo").from("school")).map(
+    (row) => row.izo
+  );
 
   const toInsert = uniqueSchools.filter(
     (school) => !existingIzo.includes(school.izo)
@@ -17,15 +22,14 @@ export const insertSchools = (schools: School[]): number => {
     existingIzo.includes(school.izo)
   );
 
-  toUpdate.forEach((school) => {
-    db.prepare("UPDATE school SET name = ?, capacity = ? WHERE izo = ?").run(
-      school.name,
-      school.capacity,
-      school.izo
-    );
-  });
+  for (const school of toUpdate) {
+    await knex.from("school").where("izo", school.izo).update({
+      name: school.name,
+      capacity: school.capacity,
+    });
+  }
 
-  const insertedSchools = insertMultipleRows(
+  const insertedSchools = await insertMultipleRows(
     toInsert.map((school) => [
       school.izo,
       school.redizo,
@@ -46,9 +50,9 @@ export const insertSchools = (schools: School[]): number => {
   let insertedLocations = 0;
 
   // plus filter out duplicate locations (same address id + izo)
-  locations.forEach((location) => {
+  for (const location of locations) {
     try {
-      insertedLocations += insertMultipleRows(
+      insertedLocations += await insertMultipleRows(
         [location],
         "school_location",
         ["school_izo", "address_point_id"],
@@ -59,7 +63,7 @@ export const insertSchools = (schools: School[]): number => {
         `Cannot add location with RUIAN code ${location[1]} (school IZO = ${location[0]}): code does not exist.`
       );
     }
-  });
+  }
 
   return insertedSchools + insertedLocations;
 };

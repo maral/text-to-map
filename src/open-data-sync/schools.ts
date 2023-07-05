@@ -1,18 +1,18 @@
 import { createReadStream, createWriteStream, existsSync, rmSync } from "fs";
+import fetch from "node-fetch";
 import { join } from "path";
 import sax, { Tag } from "sax";
-import fetch from "node-fetch";
 
-import { setDbConfig } from "../db/db";
+import { pipeline } from "stream/promises";
+import { disconnectKnex } from "../db/db";
+import { insertFounders } from "../db/founders";
+import { insertSchools } from "../db/schools";
+import { Founder, MunicipalityType, School, SchoolLocation } from "../db/types";
 import {
-  OpenDataSyncOptionsPartial,
   OpenDataSyncOptions,
+  OpenDataSyncOptionsPartial,
   prepareOptions,
 } from "../utils/helpers";
-import { pipeline } from "stream/promises";
-import { Founder, MunicipalityType, School, SchoolLocation } from "../db/types";
-import { insertSchools } from "../db/schools";
-import { insertFounders } from "../db/founders";
 
 const downloadXml = async (
   options: OpenDataSyncOptions
@@ -333,14 +333,9 @@ const importDataToDb = async (
     csv.end();
   }
 
-  setDbConfig({
-    filePath: options.dbFilePath,
-    initFilePath: options.dbInitFilePath,
-  });
+  await insertSchools(schools);
 
-  insertSchools(schools);
-
-  insertFounders(Array.from(founders.values()));
+  await insertFounders(Array.from(founders.values()));
 };
 
 const getXmlFilePath = (options: OpenDataSyncOptionsPartial): string => {
@@ -352,11 +347,17 @@ export const downloadAndImportSchools = async (
   saveFoundersToCsv: boolean = false,
   saveSchoolsWithoutRuianToCsv: boolean = false,
 ) => {
-  const runOptions = prepareOptions(options);
+  try {
+    const runOptions = prepareOptions(options);
 
-  await downloadXml(runOptions);
-  await importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
-  deleteSchoolsXmlFile(runOptions);
+    await downloadXml(runOptions);
+    await importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
+    deleteSchoolsXmlFile(runOptions);
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await disconnectKnex();
+  }
 };
 
 export const deleteSchoolsXmlFile = (options: OpenDataSyncOptionsPartial = {}) => {

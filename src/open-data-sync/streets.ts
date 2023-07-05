@@ -1,16 +1,10 @@
-import fetch from "node-fetch";
-import { createWriteStream, rmSync, existsSync, mkdirSync } from "fs";
-import { pipeline } from "stream/promises";
-import { join } from "path";
 import AdmZip from "adm-zip";
+import { createWriteStream, existsSync, mkdirSync, rmSync } from "fs";
+import fetch from "node-fetch";
 import parseDBF from "parsedbf";
+import { join } from "path";
+import { pipeline } from "stream/promises";
 
-import {
-  OpenDataSyncOptionsPartial,
-  OpenDataSyncOptions,
-  prepareOptions,
-  initDb,
-} from "../utils/helpers";
 import {
   deleteStreets,
   getAllSyncedStreets,
@@ -22,6 +16,13 @@ import {
   getAllUrlsFromAtomFeed,
   getLatestUrlFromAtomFeed,
 } from "../utils/atom";
+import {
+  OpenDataSyncOptions,
+  OpenDataSyncOptionsPartial,
+  prepareOptions,
+} from "../utils/helpers";
+import { disconnectKnex } from "../db/db";
+import { areAddressPointsSynced } from "../db/address-points";
 
 const prepareFolders = (options: OpenDataSyncOptions) => {
   const tempFolder = getTempFolder(options);
@@ -61,57 +62,71 @@ const importDataToDb = async (data: DbfStreet[]) => {
   if (data.length === 0) {
     return;
   }
-  insertStreetsFromDbf(data);
+  await insertStreetsFromDbf(data);
 };
 
 export const downloadAndImportStreets = async (
   options: OpenDataSyncOptionsPartial
 ): Promise<void> => {
-
-  console.log("Starting to download and import streets. This takes up to 1 hour.");
-
-  const completeOptions = prepareOptions(options);
-  initDb(completeOptions);
-  prepareFolders(completeOptions);
-
-  const allDatasetFeedLinks = await getAllUrlsFromAtomFeed(
-    completeOptions.streetsAtomUrl
-  );
-
-  console.log(`Total of ${allDatasetFeedLinks.length} links to ZIP files.`);
-
-  const syncedStreetLinks = getAllSyncedStreets();
-
-  const toDelete: string[] = [];
-  // remove all deprecated links (not in the new list)
-  syncedStreetLinks.forEach((link) => {
-    if (!allDatasetFeedLinks.includes(link)) {
-      toDelete.push(link);
-      delete syncedStreetLinks[link];
+  try {
+    // first check if address points are already synced
+    if (!(await areAddressPointsSynced())) {
+      throw new Error(
+        "Address points are not synced yet. First run 'npm run address-points' and then try again."
+      );
     }
-  });
-  deleteStreets(toDelete);
 
-  let done = syncedStreetLinks.size;
-  console.log(`Total of ${done} links to ZIP files already stored.`);
-
-  // get all links not yet stored
-  const newLinks = allDatasetFeedLinks.filter(
-    (link) => !syncedStreetLinks.has(link)
-  );
-
-  console.log(`Loading ${newLinks.length} new links to ZIP files.`);
-  for (const link of newLinks) {
-    const zipLink = await getLatestUrlFromAtomFeed(link);
-    const dbfObject = await downloadZipAndParseDbfFile(
-      zipLink,
-      done,
-      completeOptions
+    console.log(
+      "Starting to download and import streets. This takes up to 1 hour."
     );
-    await importDataToDb(dbfObject);
-    setStreetAsSynced(link);
 
-    done++;
-    console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
+    const completeOptions = prepareOptions(options);
+    prepareFolders(completeOptions);
+
+    const allDatasetFeedLinks = await getAllUrlsFromAtomFeed(
+      completeOptions.streetsAtomUrl
+    );
+
+    console.log(`Total of ${allDatasetFeedLinks.length} links to ZIP files.`);
+
+    const syncedStreetLinks = await getAllSyncedStreets();
+
+    const toDelete: string[] = [];
+    // remove all deprecated links (not in the new list)
+    syncedStreetLinks.forEach((link) => {
+      if (!allDatasetFeedLinks.includes(link)) {
+        toDelete.push(link);
+        delete syncedStreetLinks[link];
+      }
+    });
+
+    await deleteStreets(toDelete);
+
+    let done = syncedStreetLinks.size;
+    console.log(`Total of ${done} links to ZIP files already stored.`);
+
+    // get all links not yet stored
+    const newLinks = allDatasetFeedLinks.filter(
+      (link) => !syncedStreetLinks.has(link)
+    );
+
+    console.log(`Loading ${newLinks.length} new links to ZIP files.`);
+    for (const link of newLinks) {
+      const zipLink = await getLatestUrlFromAtomFeed(link);
+      const dbfObject = await downloadZipAndParseDbfFile(
+        zipLink,
+        done,
+        completeOptions
+      );
+      await importDataToDb(dbfObject);
+      await setStreetAsSynced(link);
+
+      done++;
+      console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
+    }
+  } catch (error) {
+    console.log(error);
+  } finally {
+    await disconnectKnex();
   }
 };

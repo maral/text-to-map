@@ -3,11 +3,10 @@ import {
   findAddressPoints,
   getAddressPointById,
 } from "../db/address-points";
-import { setDbConfig } from "../db/db";
+import { disconnectKnex } from "../db/db";
 import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
 import { Founder, founderToMunicipality } from "../db/types";
-import { OpenDataSyncOptionsPartial, prepareOptions } from "../utils/helpers";
 import {
   getSwitchMunicipality,
   getWholeMunicipality,
@@ -29,57 +28,56 @@ import {
   isAddressPoint,
 } from "./types";
 
-export const parseOrdinanceToAddressPoints = (
+export const parseOrdinanceToAddressPoints = async (
   lines: string[],
-  options: OpenDataSyncOptionsPartial = {},
   initialState: Partial<SmdState> = {},
   onError: (params: ErrorCallbackParams) => void = () => {},
   onWarning: (params: ErrorCallbackParams) => void = () => {},
   onProcessedLine: (params: ProcessLineCallbackParams) => void = () => {}
 ) => {
-  const readyOptions = prepareOptions(options);
-  setDbConfig({
-    filePath: readyOptions.dbFilePath,
-    initFilePath: readyOptions.dbInitFilePath,
-  });
+  try {
+    const state: SmdState = {
+      currentMunicipality: null,
+      currentFilterMunicipality: null,
+      currentSchool: null,
+      municipalities: [],
+      ...initialState,
+    };
 
-  const state: SmdState = {
-    currentMunicipality: null,
-    currentFilterMunicipality: null,
-    currentSchool: null,
-    municipalities: [],
-    ...initialState,
-  };
+    let lineNumber = 1;
 
-  let lineNumber = 1;
-
-  for (const rawLine of lines) {
-    const line = cleanLine(rawLine);
-    processOneLine({
-      line,
-      state,
-      lineNumber,
-      onError,
-      onWarning,
-    });
-    onProcessedLine({ lineNumber, line });
-    lineNumber++;
-  }
-
-  if (state.currentSchool != null) {
-    if (state.currentMunicipality == null) {
-      return [];
+    for (const rawLine of lines) {
+      const line = cleanLine(rawLine);
+      await processOneLine({
+        line,
+        state,
+        lineNumber,
+        onError,
+        onWarning,
+      });
+      onProcessedLine({ lineNumber, line });
+      lineNumber++;
     }
-    state.currentMunicipality.schools.push(
-      mapSchoolForExport(state.currentSchool)
-    );
-  }
 
-  if (state.currentMunicipality != null) {
-    state.municipalities.push(convertMunicipality(state.currentMunicipality));
-  }
+    if (state.currentSchool != null) {
+      if (state.currentMunicipality == null) {
+        return [];
+      }
+      state.currentMunicipality.schools.push(
+        mapSchoolForExport(state.currentSchool)
+      );
+    }
 
-  return state.municipalities;
+    if (state.currentMunicipality != null) {
+      state.municipalities.push(convertMunicipality(state.currentMunicipality));
+    }
+
+    return state.municipalities;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await disconnectKnex();
+  }
 };
 
 const filterOutSchoolAddressPoint = (
@@ -103,11 +101,11 @@ export const convertMunicipality = (
   };
 };
 
-const processOneLine = (params: ProcessLineParams) => {
+const processOneLine = async (params: ProcessLineParams) => {
   const { line, state } = params;
 
   if (line[0] === "#") {
-    processMunicipalityLine(params);
+    await processMunicipalityLine(params);
     return;
   }
 
@@ -122,20 +120,24 @@ const processOneLine = (params: ProcessLineParams) => {
   }
 
   if (state.currentSchool === null) {
-    processSchoolLine(params);
+    await processSchoolLine(params);
     return;
   }
 
   if (isMunicipalitySwitch(line)) {
     processMunicipalitySwitchLine(params);
   } else if (isWholeMunicipality(line)) {
-    processWholeMunicipalityLine(params);
+    await processWholeMunicipalityLine(params);
   } else {
-    processAddressPointLine(params);
+    await processAddressPointLine(params);
   }
 };
 
-const processMunicipalityLine = ({ line, state, onError }: ProcessLineParams) => {
+const processMunicipalityLine = async ({
+  line,
+  state,
+  onError,
+}: ProcessLineParams) => {
   if (state.currentSchool !== null) {
     state.currentMunicipality.schools.push(state.currentSchool);
     state.currentSchool = null;
@@ -145,7 +147,7 @@ const processMunicipalityLine = ({ line, state, onError }: ProcessLineParams) =>
     state.municipalities.push(convertMunicipality(state.currentMunicipality));
   }
 
-  const { municipality, errors } = getNewMunicipality(line);
+  const { municipality, errors } = await getNewMunicipality(line);
   state.currentMunicipality = municipality;
   state.currentFilterMunicipality = founderToMunicipality(
     state.currentMunicipality.founder
@@ -161,7 +163,7 @@ const processEmptyLine = ({ state }: ProcessLineParams) => {
   }
 };
 
-const processSchoolLine = ({
+const processSchoolLine = async ({
   line,
   lineNumber,
   state,
@@ -180,7 +182,7 @@ const processSchoolLine = ({
     });
     return;
   }
-  state.currentSchool = getNewSchool(
+  state.currentSchool = await getNewSchool(
     line,
     state.currentMunicipality.founder,
     lineNumber,
@@ -191,13 +193,13 @@ const processSchoolLine = ({
   );
 };
 
-const processMunicipalitySwitchLine = ({
+const processMunicipalitySwitchLine = async ({
   line,
   state,
   lineNumber,
   onError,
 }: ProcessLineParams) => {
-  const { municipality, errors } = getSwitchMunicipality(line);
+  const { municipality, errors } = await getSwitchMunicipality(line);
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
@@ -205,17 +207,17 @@ const processMunicipalitySwitchLine = ({
   }
 };
 
-const processWholeMunicipalityLine = ({
+const processWholeMunicipalityLine = async ({
   line,
   state,
   lineNumber,
   onError,
 }: ProcessLineParams) => {
-  const { municipality, errors } = getWholeMunicipality(line);
+  const { municipality, errors } = await getWholeMunicipality(line);
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
-    const addressPoints = findAddressPoints(
+    const addressPoints = await findAddressPoints(
       { wholeMunicipality: true, street: "", numberSpec: [] },
       municipality
     );
@@ -227,7 +229,7 @@ const processWholeMunicipalityLine = ({
   }
 };
 
-const processAddressPointLine = ({
+const processAddressPointLine = async ({
   line,
   state,
   lineNumber,
@@ -238,8 +240,8 @@ const processAddressPointLine = ({
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
-    smdLines.forEach((smdLine) => {
-      const { exists, errors } = checkStreetExists(
+    for (const smdLine of smdLines) {
+      const { exists, errors } = await checkStreetExists(
         smdLine.street,
         state.currentMunicipality.founder
       );
@@ -247,7 +249,7 @@ const processAddressPointLine = ({
         onWarning({ lineNumber, line, errors });
       }
       if (exists) {
-        let addressPoints = findAddressPoints(
+        let addressPoints = await findAddressPoints(
           smdLine,
           state.currentFilterMunicipality
         );
@@ -259,25 +261,14 @@ const processAddressPointLine = ({
           ).map(mapAddressPointForExport)
         );
       }
-    });
+    }
   }
 };
 
-export const getNewMunicipality = (
-  name: string,
-  options?: OpenDataSyncOptionsPartial
-): { municipality: MunicipalityWithFounder; errors: SmdError[] } => {
-  if (options) {
-    options = prepareOptions(options);
-    setDbConfig({
-      filePath: options.dbFilePath,
-      initFilePath: options.dbInitFilePath,
-    });
-  }
-  const { founder, errors } = findFounder(name);
-  if (errors.length > 0) {
-    errors.forEach(console.error);
-  }
+export const getNewMunicipality = async (
+  name: string
+): Promise<{ municipality: MunicipalityWithFounder; errors: SmdError[] }> => {
+  const { founder, errors } = await findFounder(name);
   return {
     municipality: {
       municipalityName: founder ? founder.name : "Neznámá obec",
@@ -288,20 +279,12 @@ export const getNewMunicipality = (
   };
 };
 
-export const getNewSchool = (
+export const getNewSchool = async (
   name: string,
   founder: Founder | null,
   lineNumber: number,
-  onError: (params: ErrorCallbackParams) => void,
-  options?: OpenDataSyncOptionsPartial
-): School => {
-  if (options) {
-    options = prepareOptions(options);
-    setDbConfig({
-      filePath: options.dbFilePath,
-      initFilePath: options.dbInitFilePath,
-    });
-  }
+  onError: (params: ErrorCallbackParams) => void
+): Promise<School> => {
   let exportSchool: School = {
     name,
     izo: "",
@@ -316,7 +299,7 @@ export const getNewSchool = (
       exportSchool.name = school.name;
       exportSchool.izo = school.izo || "";
       if (school.locations.length > 0) {
-        const position = getAddressPointById(
+        const position = await getAddressPointById(
           school.locations[0].addressPointId
         );
         if (position !== null) {

@@ -1,6 +1,6 @@
-import { Database } from "better-sqlite3";
 import { rmSync } from "fs";
-import { disconnect, getDb } from "../../src/db/db";
+import { Knex } from "knex";
+import { SupportedDbType, disconnectKnex, initDb } from "../../src/db/db";
 import { Founder, MunicipalityType, School } from "../../src/db/types";
 
 const testDbPath = "test-db.db";
@@ -128,17 +128,15 @@ export const testFounders: Founder[] = [
   },
 ];
 
-let _db: Database;
-
-export const setupDb = (dbFileNamePrefix?: string): Database => {
-  if (!_db) {
-    _db = getDb({ filePath: getFullDbPath(dbFileNamePrefix), verbose: false });
-  }
-  return _db;
+export const setupDb = async (dbFileNamePrefix?: string): Promise<Knex> => {
+  return await initDb({
+    dbType: SupportedDbType.sqlite,
+    filePath: getFullDbPath(dbFileNamePrefix),
+  });
 };
 
-export const closeDb = (dbFileNamePrefix?: string) => {
-  disconnect();
+export const closeDb = async (dbFileNamePrefix?: string) => {
+  await disconnectKnex();
   rmSync(getFullDbPath(dbFileNamePrefix));
 };
 

@@ -1,45 +1,126 @@
-import Database from "better-sqlite3";
-import { existsSync, copyFileSync } from "fs";
+import { configDotenv } from "dotenv";
+import knex, { Knex } from "knex";
 import { dirname, join } from "path";
 import { fileURLToPath } from "url";
 
-let _db: Database.Database;
-
 interface DbConfig {
-  initFilePath?: string;
+  dbType: SupportedDbType;
+  pgConnectionString?: string;
+  initFilePath: string;
   filePath?: string;
-  verbose?: boolean;
+  verbose: boolean;
 }
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = dirname(__filename);
 
-const defaults = {
+export enum SupportedDbType {
+  sqlite = "sqlite",
+  postgres = "postgres",
+}
+
+const defaults: DbConfig = {
+  dbType: SupportedDbType.sqlite,
   filePath: "address_points.db",
   initFilePath: join(__dirname, "..", "address_points_init.db"),
   verbose: false,
 };
 
-export const setDbConfig = (config: DbConfig): void => {
-  _db = undefined;
-  getDb(config);
-};
+let _knexDb: Knex = undefined;
+let _knexDbConfig: DbConfig = undefined;
 
-export const getDb = (config: DbConfig = {}): Database.Database => {
-  const options = { ...defaults, ...config };
-  if (typeof _db === "undefined") {
-    if (!existsSync(options.filePath)) {
-      copyFileSync(options.initFilePath, options.filePath);
+export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
+  if (_knexDb === undefined) {
+    _knexDbConfig = { ...defaults, ...getEnvConfig(), ...config };
+
+    if (_knexDbConfig.dbType === SupportedDbType.sqlite) {
+      _knexDb = knex({
+        client: "better-sqlite3",
+        connection: {
+          filename: _knexDbConfig.filePath,
+        },
+        useNullAsDefault: true,
+        debug: _knexDbConfig.verbose,
+      });
+    } else if (_knexDbConfig.dbType === SupportedDbType.postgres) {
+      _knexDb = knex({
+        client: "pg",
+        connection: _knexDbConfig.pgConnectionString,
+        useNullAsDefault: true,
+      });
+    } else {
+      throw new Error(`Unsupported DB type: ${_knexDbConfig.dbType}`);
     }
-
-    const dbSettings = options.verbose ? { verbose: console.log } : {};
-    _db = new Database(options.filePath, dbSettings);
-    _db.pragma("journal_mode = WAL");
-    // @ts-ignore
-    _db.filePath = options.filePath;
   }
 
-  return _db;
+  return _knexDb;
+};
+
+export const isPostgres = (): boolean => {
+  return isDbType(SupportedDbType.postgres);
+}
+
+export const isSqlite = (): boolean => {
+  return isDbType(SupportedDbType.sqlite);
+}
+
+const isDbType = (type: SupportedDbType): boolean => {
+  if (_knexDbConfig === undefined) {
+    throw new Error("DB not initialized");
+  }
+  return _knexDbConfig.dbType === type;
+};
+
+const getMigrationConfig = (): Knex.MigratorConfig => {
+  return { directory: join(__dirname, "migrations") };
+};
+
+export const initDb = async (config: Partial<DbConfig> = {}): Promise<Knex> => {
+  const knex = getKnexDb(config);
+  await knex.migrate.latest(getMigrationConfig());
+  return knex;
+};
+
+export const clearDb = async (
+  config: Partial<DbConfig> = {}
+): Promise<Knex> => {
+  const knex = getKnexDb(config);
+  await knex.migrate.rollback(getMigrationConfig(), true);
+  await knex.migrate.latest(getMigrationConfig());
+  return knex;
+};
+
+export const disconnectKnex = async (): Promise<void> => {
+  if (_knexDb) {
+    await _knexDb.destroy();
+    _knexDb = undefined;
+  }
+};
+
+const getEnvConfig = (): Partial<DbConfig> => {
+  configDotenv({ path: ".env.local" });
+  const envConfig: Partial<DbConfig> = {};
+  if (
+    process.env.TEXTTOMAP_DB_TYPE &&
+    Object.values(SupportedDbType).includes(
+      process.env.TEXTTOMAP_DB_TYPE as SupportedDbType
+    )
+  ) {
+    envConfig.dbType = process.env.TEXTTOMAP_DB_TYPE as SupportedDbType;
+    if (envConfig.dbType === SupportedDbType.postgres) {
+      if (!process.env.TEXTTOMAP_PG_CONNECTION_STRING) {
+        throw new Error(
+          "Environmental variable 'TEXTTOMAP_PG_CONNECTION_STRING' must be set for PostgreSQL."
+        );
+      }
+      envConfig.pgConnectionString = process.env.TEXTTOMAP_PG_CONNECTION_STRING;
+    } else if (envConfig.dbType === SupportedDbType.sqlite) {
+      if (process.env.TEXTTOMAP_SQLITE_PATH) {
+        envConfig.filePath = process.env.TEXTTOMAP_SQLITE_PATH;
+      }
+    }
+  }
+  return envConfig;
 };
 
 export const nonEmptyOrNull = (value: string): string | null => {
@@ -50,99 +131,84 @@ export const nonEmptyOrNull = (value: string): string | null => {
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
  */
-export const insertMultipleRows = (
+export const insertMultipleRows = async (
   rows: string[][],
   table: string,
   columnNames: string[],
   preventDuplicatesByFirstColumn: boolean = true
-): number => {
-  const db = getDb();
-
+): Promise<number> => {
   if (rows.length === 0) {
     return 0;
   }
 
-  if (preventDuplicatesByFirstColumn) {
-    rows = clearDuplicates(rows, table, columnNames);
-    if (rows.length === 0) {
-      return 0;
-    }
-  }
+  // if (preventDuplicatesByFirstColumn) {
+  //   rows = await clearDuplicates(rows, table, columnNames);
+  //   if (rows.length === 0) {
+  //     return 0;
+  //   }
+  // }
 
-  const insertPlaceholders = generateRepetitiveString(
-    `(${generatePlaceholders(columnNames.length)})`,
-    ",",
+  const insertPlaceholders = generate2DPlaceholders(
+    columnNames.length,
     rows.length
   );
 
-  const insertStatement = db.prepare(
+  const onConfict = preventDuplicatesByFirstColumn ? `ON CONFLICT (${columnNames[0]}) DO NOTHING` : '';
+
+  await getKnexDb().raw(
     `INSERT INTO ${table} (${columnNames.join(
       ","
-    )}) VALUES ${insertPlaceholders}`
+    )}) VALUES ${insertPlaceholders} ${onConfict}`,
+    rows.flat()
   );
 
-  return insertStatement.run(rows.flat()).changes;
+  return rows.length;
 };
 
 /**
  * Insert a single row and return the autoincremented ID.
  */
-export const insertAutoincrementRow = (
+export const insertAutoincrementRow = async (
   row: string[],
   table: string,
   columnNames: string[]
-): number | null => {
-  const db = getDb();
+): Promise<number | null> => {
+  const data = columnNames.reduce((obj, columnName, index) => {
+    obj[columnName] = row[index];
+    return obj;
+  }, {});
 
-  const insertStatement = db.prepare(
-    `INSERT INTO ${table} (${columnNames.join(
-      ","
-    )}) VALUES (${generatePlaceholders(columnNames.length)})`
-  );
-  
-  const result = insertStatement.run(row);
-  return result.changes === 1 ? Number(result.lastInsertRowid) : null;
+  const result = await getKnexDb().insert(data).into(table);
+
+  return result ? Number(result) : null;
 };
 
-export const deleteMultipleRows = (
+export const deleteMultipleRowsKnex = async (
   keys: string[],
   table: string,
   keyColumnName: string
-): void => {
-  const db = getDb();
-
+): Promise<void> => {
   if (keys.length === 0) {
     return;
   }
-  db.prepare(
-    `DELETE FROM ${table} WHERE ${keyColumnName} IN (${generatePlaceholders(
-      keys.length
-    )})`
-  ).run(keys);
+  await getKnexDb().from(table).whereIn(keyColumnName, keys).del();
 };
 
-export const clearDuplicates = (
+export const clearDuplicates = async (
   rows: string[][],
   table: string,
   columnNames: string[]
-): string[][] => {
-  const db = getDb();
+): Promise<string[][]> => {
+  const existing = await getKnexDb()
+    .select(columnNames[0])
+    .from(table)
+    .whereIn(
+      columnNames[0],
+      rows.map((row) => row[0])
+    );
+  const keys = existing.map((row) => row[columnNames[0]].toString());
 
-  const selectPlaceholders = generatePlaceholders(rows.length);
-
-  const selectStatement = db.prepare(
-    `SELECT ${columnNames[0]} FROM ${table} WHERE ${columnNames[0]} IN (${selectPlaceholders})`
-  );
-
-  const existing = selectStatement
-    .pluck()
-    .all(rows.map((row) => row[0]))
-    .map((key) => key.toString());
-  return rows.filter((row) => !existing.includes(row[0]));
-};
-
-export const disconnect = (): void => {
-  getDb().close();
+  return rows.filter((row) => !keys.includes(row[0]));
 };
 
 const generateRepetitiveString = (
@@ -157,8 +223,15 @@ export const generatePlaceholders = (n: number): string => {
   return generateRepetitiveString("?", ",", n);
 };
 
-export const generate2DPlaceholders = (inner: number, outer: number): string => {
-  return generateRepetitiveString(`(${generatePlaceholders(inner)})`, ",", outer);
+export const generate2DPlaceholders = (
+  inner: number,
+  outer: number
+): string => {
+  return generateRepetitiveString(
+    `(${generatePlaceholders(inner)})`,
+    ",",
+    outer
+  );
 };
 
 export const extractKeyValuesPairs = (

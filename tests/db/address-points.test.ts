@@ -1,7 +1,6 @@
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
 import { closeDb, setupDb, testFounders, testRows } from "./db-setup";
 import {
-  importParsedLine,
   commitAddressPoints,
   insertCities,
   insertDistricts,
@@ -17,21 +16,24 @@ import { founderToMunicipality } from "../../src/db/types";
 import { AddressPointType, createSingleLineAddress } from "czech-address";
 import jtsk2wgs84 from "../../src/utils/jtsk2wgs84";
 
-// let testRowsLarge: string[][] = [];
+let testRowsLarge: string[][] = [];
+const doTestLarge = true;
 const prefix = "address-points";
-beforeAll(() => {
-  setupDb(prefix);
+beforeAll(async () => {
+  await setupDb(prefix);
 
-  // let id = 1;
-  // for (let i = 0; i < 10000; i++) {
-  //   testRowsLarge = testRowsLarge.concat(
-  //     testRows.map((row) => [(id++).toString(), ...row.slice(1)])
-  //   );
-  // }
+  if (doTestLarge) {
+    let id = 1;
+    for (let i = 0; i < 10000; i++) {
+      testRowsLarge = testRowsLarge.concat(
+        testRows.map((row) => [(id++).toString(), ...row.slice(1)])
+      );
+    }
+  }
 });
 
-afterAll(() => {
-  closeDb(prefix);
+afterAll(async () => {
+  await closeDb(prefix);
 });
 
 describe("search db - address points", () => {
@@ -45,48 +47,28 @@ describe("search db - address points", () => {
     expect(Math.abs(lon - lonExpected)).toBeLessThan(0.00001);
   });
 
-  test("insert cities", () => {
-    expect(insertCities(testRows)).toBe(1); // only 1 city in test data
-    expect(insertCities(testRows)).toBe(0); // second try same values should be ignored, 0 new rows should be inserted
+  test("insert cities", async () => {
+    expect(await insertCities(testRows)).toBe(1); // only 1 city in test data
+    expect(await insertCities(testRows)).toBe(0); // second try same values should be ignored, 0 new rows should be inserted
   });
 
-  test("insert districts", () => {
-    expect(insertDistricts(testRows)).toBe(0); // no district was filled, should be empty
+  test("insert districts", async () => {
+    expect(await insertDistricts(testRows)).toBe(0); // no district was filled, should be empty
   });
 
-  test("insert municipality parts", () => {
-    expect(insertMunicipalityParts(testRows)).toBe(1); // 1 municipality in test data
-    expect(insertMunicipalityParts(testRows)).toBe(0);
+  test("insert municipality parts", async () => {
+    expect(await insertMunicipalityParts(testRows)).toBe(1); // 1 municipality in test data
+    expect(await insertMunicipalityParts(testRows)).toBe(0);
   });
 
-  test("insert streets", () => {
-    expect(insertStreets(testRows)).toBe(2); // 2 streets in test data
-    expect(insertStreets(testRows)).toBe(0);
+  test("insert streets", async () => {
+    expect(await insertStreets(testRows)).toBe(2); // 2 streets in test data
+    expect(await insertStreets(testRows)).toBe(0);
   });
 
-  test("insert whole rows", () => {
-    testRows.forEach((data) => {
-      importParsedLine(data);
-    });
-    expect(commitAddressPoints()).toBe(testRows.length);
+  test("insert whole rows", async () => {
+    expect(await commitAddressPoints(testRows)).toBe(testRows.length);
   });
-
-  // test("insert whole rows with buffer overflow", () => {
-  //   let total = 0;
-  //   testRowsLarge.forEach((data, i) => {
-  //     total += importParsedLine(data);
-  //   });
-  //   const commitCount = commitAddressPoints();
-  //   expect(total + commitCount).toBe(testRowsLarge.length);
-  //   expect(commitCount).toBeLessThan(testRowsLarge.length);
-  // });
-
-  // test("check db", () => {
-  //   const db = setupDb(prefix);
-  //   const stmt = db.prepare("SELECT * FROM address_point");
-  //   const result = stmt.all();
-  //   expect(result["COUNT(*)"]).toBe(1);
-  // });
 });
 
 describe("find address points", () => {
@@ -231,9 +213,9 @@ describe("find address points", () => {
     ).toBe(false);
   });
 
-  test("find address points", () => {
+  test("find address points", async () => {
     expect(
-      findAddressPoints(
+      await findAddressPoints(
         {
           street: "Lysá",
           numberSpec: [],
@@ -243,7 +225,7 @@ describe("find address points", () => {
     ).toEqual(testAddressPoints);
 
     expect(
-      findAddressPoints(
+      await findAddressPoints(
         {
           street: "Lysá",
           numberSpec: [
@@ -258,7 +240,7 @@ describe("find address points", () => {
     ).toEqual(testAddressPoints);
 
     expect(
-      findAddressPoints(
+      await findAddressPoints(
         {
           street: "Lysá",
           numberSpec: [
@@ -273,9 +255,9 @@ describe("find address points", () => {
     ).toEqual(testAddressPoints);
   });
 
-  test("find address points", () => {
+  test("find address points", async () => {
     expect(
-      findAddressPoints(
+      await findAddressPoints(
         {
           street: "Lysá",
           numberSpec: { negative: true, ranges: [], type: SeriesType.Even },
@@ -285,7 +267,7 @@ describe("find address points", () => {
     ).toEqual([]);
 
     expect(
-      findAddressPoints(
+      await findAddressPoints(
         {
           street: "Lysá",
           numberSpec: {
@@ -299,7 +281,7 @@ describe("find address points", () => {
     ).toEqual([]);
 
     expect(
-      findAddressPoints(
+      await findAddressPoints(
         {
           street: "Lysá",
           numberSpec: {
@@ -312,4 +294,23 @@ describe("find address points", () => {
       )
     ).toEqual(testAddressPoints);
   });
+});
+
+describe("insert multiple address points", () => {
+  if (doTestLarge) {
+    test("insert whole rows with buffer overflow", async () => {
+      let total = 0;
+
+      const buffer: string[][] = [];
+      for (const data of testRowsLarge) {
+        buffer.push(data);
+        if (buffer.length > 1000) {
+          total += await commitAddressPoints(buffer);
+          buffer.length = 0;
+        }
+      }
+      total += await commitAddressPoints(buffer);
+      expect(total).toBe(testRowsLarge.length);
+    });
+  }
 });

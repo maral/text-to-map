@@ -1,9 +1,8 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
 import { dirname, join } from "path";
-import { Founder, MunicipalityType } from "../db/types";
-import { setDbConfig } from "../db/db";
 import { fileURLToPath } from "url";
+import { Founder, MunicipalityType } from "../db/types";
 
 const appName = "text-to-map";
 
@@ -77,13 +76,6 @@ export const prepareOptions = (
     ...defaults,
     ...options,
   };
-};
-
-export const initDb = (options: OpenDataSyncOptions): void => {
-  setDbConfig({
-    filePath: options.dbFilePath,
-    initFilePath: options.dbInitFilePath,
-  });
 };
 
 const cityPatterns = [
