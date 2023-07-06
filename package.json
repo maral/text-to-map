@@ -46,7 +46,7 @@
     "clean": "rimraf dist",
     "copyfiles": "copyfiles -u 1 src/address_points_init.db dist",
     "build": "npm-run-all clean -p copyfiles build:*",
-    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist",
+    "build:types": "tsc --declaration --emitDeclarationOnly --outDir dist -p tsconfig.declarations.json",
     "build:js": "tsc --outDir dist",
     "prepare": "npm run build"
   },
