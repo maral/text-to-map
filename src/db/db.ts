@@ -19,6 +19,11 @@ export enum SupportedDbType {
   postgres = "postgres",
 }
 
+const DbClient = {
+  [SupportedDbType.sqlite]: "better-sqlite3",
+  [SupportedDbType.postgres]: "pg",
+};
+
 const defaults: DbConfig = {
   dbType: SupportedDbType.sqlite,
   filePath: "address_points.db",
@@ -35,7 +40,7 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
 
     if (_knexDbConfig.dbType === SupportedDbType.sqlite) {
       _knexDb = knex({
-        client: "better-sqlite3",
+        client: DbClient[SupportedDbType.sqlite],
         connection: {
           filename: _knexDbConfig.filePath,
         },
@@ -44,7 +49,7 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
       });
     } else if (_knexDbConfig.dbType === SupportedDbType.postgres) {
       _knexDb = knex({
-        client: "pg",
+        client: DbClient[SupportedDbType.postgres],
         connection: _knexDbConfig.pgConnectionString,
         useNullAsDefault: true,
       });
@@ -56,19 +61,12 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
   return _knexDb;
 };
 
-export const isPostgres = (): boolean => {
-  return isDbType(SupportedDbType.postgres);
-}
+export const isPostgres = (knex: Knex): boolean => {
+  return knex.client.config.client === DbClient[SupportedDbType.postgres];
+};
 
-export const isSqlite = (): boolean => {
-  return isDbType(SupportedDbType.sqlite);
-}
-
-const isDbType = (type: SupportedDbType): boolean => {
-  if (_knexDbConfig === undefined) {
-    throw new Error("DB not initialized");
-  }
-  return _knexDbConfig.dbType === type;
+export const isSqlite = (knex: Knex): boolean => {
+  return knex.client.config.client === DbClient[SupportedDbType.sqlite];
 };
 
 const getMigrationConfig = (): Knex.MigratorConfig => {
@@ -153,7 +151,9 @@ export const insertMultipleRows = async (
     rows.length
   );
 
-  const onConfict = preventDuplicatesByFirstColumn ? `ON CONFLICT (${columnNames[0]}) DO NOTHING` : '';
+  const onConfict = preventDuplicatesByFirstColumn
+    ? `ON CONFLICT (${columnNames[0]}) DO NOTHING`
+    : "";
 
   await getKnexDb().raw(
     `INSERT INTO ${table} (${columnNames.join(

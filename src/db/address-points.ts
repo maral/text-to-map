@@ -234,7 +234,7 @@ export const checkStreetExists = async (
   const rowList = await knex.raw(
     `SELECT name AS street_name
     FROM street
-    WHERE city_code = ? AND name = ?  ${isSqlite() ? "COLLATE NOCASE" : ""}`,
+    WHERE city_code = ? AND name = ?  ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`,
     [cityCode, streetName]
   );
 
@@ -298,7 +298,7 @@ export const findAddressPoints = async (
   const streetJoinCondition = isWholeMunicipalitySmdLine(smdLine)
     ? "LEFT JOIN street s ON a.street_code = s.code"
     : `JOIN street s ON a.street_code = s.code AND s.name = ? ${
-        isSqlite() ? "COLLATE NOCASE" : ""
+        isSqlite(knex) ? "COLLATE NOCASE" : ""
       }`;
 
   const queryResult = await knex.raw(

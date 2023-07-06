@@ -221,14 +221,14 @@ export async function up(knex: Knex): Promise<void> {
   );
   await knex.schema.raw(
     `CREATE INDEX street_name ON street (name${
-      isSqlite() ? " COLLATE NOCASE" : ""
+      isSqlite(knex) ? " COLLATE NOCASE" : ""
     });`
   );
   await knex.schema.raw(
     "CREATE INDEX street_sync_feed_url ON street_sync (feed_url);"
   );
 
-  if (isPostgres()) {
+  if (isPostgres(knex)) {
     await knex.schema.raw("CREATE EXTENSION IF NOT EXISTS CITEXT");
     await knex.schema.alterTable("street", (t) => {
       t.specificType("name", "CITEXT").notNullable().alter();
