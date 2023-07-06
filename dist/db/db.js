@@ -18,6 +18,10 @@ export var SupportedDbType;
     SupportedDbType["sqlite"] = "sqlite";
     SupportedDbType["postgres"] = "postgres";
 })(SupportedDbType || (SupportedDbType = {}));
+const DbClient = {
+    [SupportedDbType.sqlite]: "better-sqlite3",
+    [SupportedDbType.postgres]: "pg",
+};
 const defaults = {
     dbType: SupportedDbType.sqlite,
     filePath: "address_points.db",
@@ -31,7 +35,7 @@ export const getKnexDb = (config = {}) => {
         _knexDbConfig = Object.assign(Object.assign(Object.assign({}, defaults), getEnvConfig()), config);
         if (_knexDbConfig.dbType === SupportedDbType.sqlite) {
             _knexDb = knex({
-                client: "better-sqlite3",
+                client: DbClient[SupportedDbType.sqlite],
                 connection: {
                     filename: _knexDbConfig.filePath,
                 },
@@ -41,7 +45,7 @@ export const getKnexDb = (config = {}) => {
         }
         else if (_knexDbConfig.dbType === SupportedDbType.postgres) {
             _knexDb = knex({
-                client: "pg",
+                client: DbClient[SupportedDbType.postgres],
                 connection: _knexDbConfig.pgConnectionString,
                 useNullAsDefault: true,
             });
@@ -52,17 +56,11 @@ export const getKnexDb = (config = {}) => {
     }
     return _knexDb;
 };
-export const isPostgres = () => {
-    return isDbType(SupportedDbType.postgres);
+export const isPostgres = (knex) => {
+    return knex.client.config.client === DbClient[SupportedDbType.postgres];
 };
-export const isSqlite = () => {
-    return isDbType(SupportedDbType.sqlite);
-};
-const isDbType = (type) => {
-    if (_knexDbConfig === undefined) {
-        throw new Error("DB not initialized");
-    }
-    return _knexDbConfig.dbType === type;
+export const isSqlite = (knex) => {
+    return knex.client.config.client === DbClient[SupportedDbType.sqlite];
 };
 const getMigrationConfig = () => {
     return { directory: join(__dirname, "migrations") };
@@ -122,7 +120,9 @@ export const insertMultipleRows = (rows, table, columnNames, preventDuplicatesBy
     //   }
     // }
     const insertPlaceholders = generate2DPlaceholders(columnNames.length, rows.length);
-    const onConfict = preventDuplicatesByFirstColumn ? `ON CONFLICT (${columnNames[0]}) DO NOTHING` : '';
+    const onConfict = preventDuplicatesByFirstColumn
+        ? `ON CONFLICT (${columnNames[0]}) DO NOTHING`
+        : "";
     yield getKnexDb().raw(`INSERT INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
     return rows.length;
 });

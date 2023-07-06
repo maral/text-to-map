@@ -218,9 +218,9 @@ export function up(knex) {
         yield knex.schema.raw("CREATE INDEX municipality_part_code ON address_point (municipality_part_code);");
         yield knex.schema.raw("CREATE INDEX object_type_id ON address_point (object_type_id);");
         yield knex.schema.raw("CREATE INDEX street_code ON address_point (street_code);");
-        yield knex.schema.raw(`CREATE INDEX street_name ON street (name${isSqlite() ? " COLLATE NOCASE" : ""});`);
+        yield knex.schema.raw(`CREATE INDEX street_name ON street (name${isSqlite(knex) ? " COLLATE NOCASE" : ""});`);
         yield knex.schema.raw("CREATE INDEX street_sync_feed_url ON street_sync (feed_url);");
-        if (isPostgres()) {
+        if (isPostgres(knex)) {
             yield knex.schema.raw("CREATE EXTENSION IF NOT EXISTS CITEXT");
             yield knex.schema.alterTable("street", (t) => {
                 t.specificType("name", "CITEXT").notNullable().alter();

@@ -11,8 +11,8 @@ export declare enum SupportedDbType {
     postgres = "postgres"
 }
 export declare const getKnexDb: (config?: Partial<DbConfig>) => Knex;
-export declare const isPostgres: () => boolean;
-export declare const isSqlite: () => boolean;
+export declare const isPostgres: (knex: Knex) => boolean;
+export declare const isSqlite: (knex: Knex) => boolean;
 export declare const initDb: (config?: Partial<DbConfig>) => Promise<Knex>;
 export declare const clearDb: (config?: Partial<DbConfig>) => Promise<Knex>;
 export declare const disconnectKnex: () => Promise<void>;

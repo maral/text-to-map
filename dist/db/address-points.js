@@ -141,7 +141,7 @@ export const checkStreetExists = (streetName, founder) => __awaiter(void 0, void
     const cityCode = yield getFounderCityCode(founder);
     const rowList = yield knex.raw(`SELECT name AS street_name
     FROM street
-    WHERE city_code = ? AND name = ?  ${isSqlite() ? "COLLATE NOCASE" : ""}`, [cityCode, streetName]);
+    WHERE city_code = ? AND name = ?  ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`, [cityCode, streetName]);
     if (rowList.length > 0) {
         const row = rowList[0];
         if (row.street_name !== streetName) {
@@ -190,7 +190,7 @@ export const findAddressPoints = (smdLine, municipality) => __awaiter(void 0, vo
         : [smdLine.street, municipality.code];
     const streetJoinCondition = isWholeMunicipalitySmdLine(smdLine)
         ? "LEFT JOIN street s ON a.street_code = s.code"
-        : `JOIN street s ON a.street_code = s.code AND s.name = ? ${isSqlite() ? "COLLATE NOCASE" : ""}`;
+        : `JOIN street s ON a.street_code = s.code AND s.name = ? ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`;
     const queryResult = yield knex.raw(`SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
       a.orientational_number, a.orientational_number_letter, c.name AS city_name,
       d.name AS district_name, m.name AS municipality_part_name, p.name AS prague_district_name,
