@@ -46,7 +46,7 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
         },
         pool: {
           afterCreate: (db: any, done: Function) => {
-            db.pragma('journal_mode = WAL;');
+            db.pragma("journal_mode = WAL;");
             done(false, done);
           },
         },
@@ -146,18 +146,11 @@ export const insertMultipleRows = async (
     return 0;
   }
 
-  // if (preventDuplicatesByFirstColumn) {
-  //   rows = await clearDuplicates(rows, table, columnNames);
-  //   if (rows.length === 0) {
-  //     return 0;
-  //   }
-  // }
-
   const insertPlaceholders = generate2DPlaceholders(
     columnNames.length,
     rows.length
   );
-  
+
   if (preventDuplicates && keyColumns.length === 0) {
     keyColumns = [columnNames[0]];
   }
@@ -203,23 +196,6 @@ export const deleteMultipleRowsKnex = async (
     return;
   }
   await getKnexDb().from(table).whereIn(keyColumnName, keys).del();
-};
-
-export const clearDuplicates = async (
-  rows: string[][],
-  table: string,
-  columnNames: string[]
-): Promise<string[][]> => {
-  const existing = await getKnexDb()
-    .select(columnNames[0])
-    .from(table)
-    .whereIn(
-      columnNames[0],
-      rows.map((row) => row[0])
-    );
-  const keys = existing.map((row) => row[columnNames[0]].toString());
-
-  return rows.filter((row) => !keys.includes(row[0]));
 };
 
 const generateRepetitiveString = (

@@ -82,8 +82,10 @@ export const insertFounders = async (founders: Founder[]): Promise<number> => {
         ico: founder.ico,
       });
 
+    let founderId = existing[0]?.id ?? null;
+
     if (existing.length === 0) {
-      const founderId = await insertAutoincrementRow(
+      founderId = await insertAutoincrementRow(
         [
           sanitizeMunicipalityName(founder.name),
           sanitizeMunicipalityName(extractedMunicipalityName),
@@ -103,11 +105,11 @@ export const insertFounders = async (founders: Founder[]): Promise<number> => {
         ]
       );
       insertedFounders++;
-
-      founder.schools.forEach((school) => {
-        schoolFounderConnectionData.push([school.izo, founderId]);
-      });
     }
+
+    founder.schools.forEach((school) => {
+      schoolFounderConnectionData.push([school.izo, founderId]);
+    });
   }
 
   const insertedConnections = await insertMultipleRows(

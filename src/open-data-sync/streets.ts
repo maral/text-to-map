@@ -65,7 +65,7 @@ const importDataToDb = async (data: DbfStreet[]) => {
 };
 
 export const downloadAndImportStreets = async (
-  options: OpenDataSyncOptionsPartial
+  options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
   await runSyncPart(SyncPart.Streets, [SyncPart.AddressPoints], async () => {
     console.log(

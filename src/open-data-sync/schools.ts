@@ -344,7 +344,7 @@ const getXmlFilePath = (options: OpenDataSyncOptionsPartial): string => {
 };
 
 export const downloadAndImportSchools = async (
-  options: OpenDataSyncOptionsPartial,
+  options: OpenDataSyncOptionsPartial = {},
   saveFoundersToCsv: boolean = false,
   saveSchoolsWithoutRuianToCsv: boolean = false,
 ) => {
