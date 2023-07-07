@@ -11,7 +11,7 @@ import { AddressPointType, createSingleLineAddress } from "czech-address";
 import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, isWholeMunicipalitySmdLine, } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
-import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isSqlite, nonEmptyOrNull } from "./db";
+import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isSqlite, nonEmptyOrNull, } from "./db";
 import { getFounderCityCode } from "./founders";
 import { MunicipalityType } from "./types";
 const DescriptiveType = "č.p.";
@@ -108,7 +108,10 @@ export const insertStreets = (buffer) => __awaiter(void 0, void 0, void 0, funct
     ]), "street", ["code", "city_code", "name"]);
 });
 export const areAddressPointsSynced = () => __awaiter(void 0, void 0, void 0, function* () {
-    const result = yield getKnexDb().count("*", { as: "countAll" }).from("address_point").first();
+    const result = yield getKnexDb()
+        .count("*", { as: "countAll" })
+        .from("address_point")
+        .first();
     return Number(result.countAll) >= 2900000; // total is almost 3 million
 });
 const addressPointSelect = `
@@ -178,10 +181,7 @@ export const checkStreetExists = (streetName, founder) => __awaiter(void 0, void
 });
 const getAllStreets = (cityCode) => __awaiter(void 0, void 0, void 0, function* () {
     const knex = getKnexDb();
-    return yield knex
-        .pluck("name")
-        .from("street")
-        .where("city_code", cityCode);
+    return yield knex.pluck("name").from("street").where("city_code", cityCode);
 });
 export const findAddressPoints = (smdLine, municipality) => __awaiter(void 0, void 0, void 0, function* () {
     const knex = getKnexDb();

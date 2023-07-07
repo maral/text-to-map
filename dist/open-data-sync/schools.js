@@ -12,11 +12,11 @@ import fetch from "node-fetch";
 import { join } from "path";
 import sax from "sax";
 import { pipeline } from "stream/promises";
-import { disconnectKnex } from "../db/db";
 import { insertFounders } from "../db/founders";
 import { insertSchools } from "../db/schools";
-import { MunicipalityType } from "../db/types";
+import { MunicipalityType, SyncPart } from "../db/types";
 import { prepareOptions, } from "../utils/helpers";
+import { runSyncPart } from "./common";
 const downloadXml = (options) => __awaiter(void 0, void 0, void 0, function* () {
     if (existsSync(getXmlFilePath(options))) {
         return;
@@ -300,18 +300,12 @@ const getXmlFilePath = (options) => {
     return join(options.tmpDir, options.schoolsXmlFileName);
 };
 export const downloadAndImportSchools = (options, saveFoundersToCsv = false, saveSchoolsWithoutRuianToCsv = false) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
+    yield runSyncPart(SyncPart.Schools, [SyncPart.AddressPoints], () => __awaiter(void 0, void 0, void 0, function* () {
         const runOptions = prepareOptions(options);
         yield downloadXml(runOptions);
         yield importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
         deleteSchoolsXmlFile(runOptions);
-    }
-    catch (error) {
-        console.error(error);
-    }
-    finally {
-        yield disconnectKnex();
-    }
+    }));
 });
 export const deleteSchoolsXmlFile = (options = {}) => {
     const runOptions = prepareOptions(options);

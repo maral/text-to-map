@@ -15,9 +15,10 @@ import fetch from "node-fetch";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import { commitAddressPoints } from "../db/address-points";
-import { disconnectKnex } from "../db/db";
+import { SyncPart } from "../db/types";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
 import { prepareOptions, } from "../utils/helpers";
+import { runSyncPart } from "./common";
 const maxBufferSize = 1000;
 const downloadAndUnzip = (url, options) => __awaiter(void 0, void 0, void 0, function* () {
     const zipFilePath = join(options.tmpDir, options.addressPointsZipFileName);
@@ -63,17 +64,11 @@ const importDataToDb = (options) => __awaiter(void 0, void 0, void 0, function* 
 });
 const getExtractionFolder = (options) => join(options.tmpDir, options.addressPointsCsvFolderName);
 export const downloadAndImportAddressPoints = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
+    yield runSyncPart(SyncPart.AddressPoints, [], () => __awaiter(void 0, void 0, void 0, function* () {
         const completeOptions = prepareOptions(options);
         const datasetFeedLink = yield getLatestUrlFromAtomFeed(completeOptions.addressPointsAtomUrl);
         const zipUrl = yield getLatestUrlFromAtomFeed(datasetFeedLink);
-        // await downloadAndUnzip(zipUrl, completeOptions);
+        yield downloadAndUnzip(zipUrl, completeOptions);
         yield importDataToDb(completeOptions);
-    }
-    catch (error) {
-        console.error(error);
-    }
-    finally {
-        yield disconnectKnex();
-    }
+    }));
 });

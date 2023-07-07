@@ -25,7 +25,7 @@ export declare const insertMultipleRows: (rows: string[][], table: string, colum
 /**
  * Insert a single row and return the autoincremented ID.
  */
-export declare const insertAutoincrementRow: (row: string[], table: string, columnNames: string[]) => Promise<number | null>;
+export declare const insertAutoincrementRow: (row: any[], table: string, columnNames: string[]) => Promise<number | null>;
 export declare const deleteMultipleRowsKnex: (keys: string[], table: string, keyColumnName: string) => Promise<void>;
 export declare const clearDuplicates: (rows: string[][], table: string, columnNames: string[]) => Promise<string[][]>;
 export declare const generatePlaceholders: (n: number) => string;

@@ -38,3 +38,9 @@ export interface DbfStreet {
     NAZEV: string;
     OBEC_KOD: string;
 }
+export declare enum SyncPart {
+    AddressPoints = "address-points",
+    Schools = "schools",
+    Regions = "regions",
+    Streets = "streets"
+}

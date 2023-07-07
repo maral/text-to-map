@@ -14,10 +14,10 @@ import parseDBF from "parsedbf";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import { deleteStreets, getAllSyncedStreets, insertStreetsFromDbf, setStreetAsSynced, } from "../db/street-sync";
+import { SyncPart } from "../db/types";
 import { getAllUrlsFromAtomFeed, getLatestUrlFromAtomFeed, } from "../utils/atom";
 import { prepareOptions, } from "../utils/helpers";
-import { disconnectKnex } from "../db/db";
-import { areAddressPointsSynced } from "../db/address-points";
+import { runSyncPart } from "./common";
 const prepareFolders = (options) => {
     const tempFolder = getTempFolder(options);
     if (!existsSync(tempFolder)) {
@@ -48,11 +48,7 @@ const importDataToDb = (data) => __awaiter(void 0, void 0, void 0, function* () 
     yield insertStreetsFromDbf(data);
 });
 export const downloadAndImportStreets = (options) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
-        // first check if address points are already synced
-        if (!(yield areAddressPointsSynced())) {
-            throw new Error("Address points are not synced yet. First run 'npm run address-points' and then try again.");
-        }
+    yield runSyncPart(SyncPart.Streets, [SyncPart.AddressPoints], () => __awaiter(void 0, void 0, void 0, function* () {
         console.log("Starting to download and import streets. This takes up to 1 hour.");
         const completeOptions = prepareOptions(options);
         prepareFolders(completeOptions);
@@ -81,11 +77,5 @@ export const downloadAndImportStreets = (options) => __awaiter(void 0, void 0, v
             done++;
             console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
         }
-    }
-    catch (error) {
-        console.log(error);
-    }
-    finally {
-        yield disconnectKnex();
-    }
+    }));
 });

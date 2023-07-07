@@ -10,3 +10,10 @@ export const founderToMunicipality = (founder) => {
         code: founder.cityOrDistrictCode,
     };
 };
+export var SyncPart;
+(function (SyncPart) {
+    SyncPart["AddressPoints"] = "address-points";
+    SyncPart["Schools"] = "schools";
+    SyncPart["Regions"] = "regions";
+    SyncPart["Streets"] = "streets";
+})(SyncPart || (SyncPart = {}));

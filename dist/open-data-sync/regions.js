@@ -12,8 +12,9 @@ import iconv from "iconv-lite";
 import fetch from "node-fetch";
 import { pipeline } from "stream/promises";
 import { insertRegionsAndOrps } from "../db/regions";
+import { SyncPart } from "../db/types";
 import { prepareOptions } from "../utils/helpers";
-import { disconnectKnex } from "../db/db";
+import { runSyncPart } from "./common";
 const downloadAndImportDataToDb = (options) => __awaiter(void 0, void 0, void 0, function* () {
     console.log("Downloading regions and ORP data...");
     const response = yield fetch(options.regionsCsvUrl);
@@ -37,14 +38,8 @@ const downloadAndImportDataToDb = (options) => __awaiter(void 0, void 0, void 0,
     console.log(`Import completed. Total imported rows: ${rows.length}`);
 });
 export const downloadAndImportRegions = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
-    try {
+    yield runSyncPart(SyncPart.Regions, [], () => __awaiter(void 0, void 0, void 0, function* () {
         const completeOptions = prepareOptions(options);
         yield downloadAndImportDataToDb(completeOptions);
-    }
-    catch (error) {
-        console.log(error);
-    }
-    finally {
-        yield disconnectKnex();
-    }
+    }));
 });

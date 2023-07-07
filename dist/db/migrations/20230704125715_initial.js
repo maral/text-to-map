@@ -172,6 +172,13 @@ export function up(knex) {
                 .onDelete("CASCADE");
             table_14.unique(["school_izo", "address_point_id"]);
         });
+        yield knex.schema.createTable("sync_log", function (table_15) {
+            table_15.increments("id");
+            table_15.text("part").notNullable();
+            table_15.dateTime("started_at").notNullable();
+            table_15.dateTime("finished_at");
+            table_15.boolean("completed").defaultTo(false);
+        });
         yield knex("founder_type").insert([
             { code: 0, name: "Zatím neurčeno" },
             { code: 101, name: "Fyzická osoba" },
@@ -218,16 +225,28 @@ export function up(knex) {
         yield knex.schema.raw("CREATE INDEX municipality_part_code ON address_point (municipality_part_code);");
         yield knex.schema.raw("CREATE INDEX object_type_id ON address_point (object_type_id);");
         yield knex.schema.raw("CREATE INDEX street_code ON address_point (street_code);");
-        yield knex.schema.raw(`CREATE INDEX street_name ON street (name${isSqlite(knex) ? " COLLATE NOCASE" : ""});`);
         yield knex.schema.raw("CREATE INDEX street_sync_feed_url ON street_sync (feed_url);");
         if (isPostgres(knex)) {
             yield knex.schema.raw("CREATE EXTENSION IF NOT EXISTS CITEXT");
-            yield knex.schema.alterTable("street", (t) => {
-                t.specificType("name", "CITEXT").notNullable().alter();
-            });
         }
+        // case insensitive indexes
+        createCaseInsensitiveIndex(knex, "street", "name");
+        createCaseInsensitiveIndex(knex, "city", "name");
+        createCaseInsensitiveIndex(knex, "founder", "name");
+        createCaseInsensitiveIndex(knex, "founder", "short_name");
+        createCaseInsensitiveIndex(knex, "region", "name");
+        createCaseInsensitiveIndex(knex, "county", "name");
+        createCaseInsensitiveIndex(knex, "orp", "name");
     });
 }
+const createCaseInsensitiveIndex = (knex, table, column) => __awaiter(void 0, void 0, void 0, function* () {
+    if (isPostgres(knex)) {
+        yield knex.schema.alterTable(table, (t) => {
+            t.specificType(column, "CITEXT").notNullable().alter();
+        });
+    }
+    yield knex.schema.raw(`CREATE INDEX ${table}_${column} ON ${table} (${column}${isSqlite(knex) ? " COLLATE NOCASE" : ""});`);
+});
 export function down(knex) {
     return __awaiter(this, void 0, void 0, function* () {
         yield knex.schema.dropTableIfExists("school_location");
@@ -247,5 +266,6 @@ export function down(knex) {
         yield knex.schema.dropTableIfExists("prague_district");
         yield knex.schema.dropTableIfExists("school");
         yield knex.schema.dropTableIfExists("street_sync");
+        yield knex.schema.dropTableIfExists("sync_log");
     });
 }
