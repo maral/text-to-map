@@ -113,6 +113,8 @@ export const insertFounders = async (founders: Founder[]): Promise<number> => {
   const insertedConnections = await insertMultipleRows(
     schoolFounderConnectionData,
     "school_founder",
+    ["school_izo", "founder_id"],
+    true,
     ["school_izo", "founder_id"]
   );
 

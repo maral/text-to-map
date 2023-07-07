@@ -1,10 +1,7 @@
 import { wholeLineError } from "../street-markdown/smd";
 import { SmdError } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
-import {
-  getKnexDb,
-  insertMultipleRows
-} from "./db";
+import { getKnexDb, insertMultipleRows } from "./db";
 import { School } from "./types";
 
 export const insertSchools = async (schools: School[]): Promise<number> => {
@@ -56,7 +53,8 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
         [location],
         "school_location",
         ["school_izo", "address_point_id"],
-        false
+        true,
+        ["school_izo", "address_point_id"]
       );
     } catch (error) {
       console.log(

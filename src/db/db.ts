@@ -44,6 +44,12 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
         connection: {
           filename: _knexDbConfig.filePath,
         },
+        pool: {
+          afterCreate: (db: any, done: Function) => {
+            db.pragma('journal_mode = WAL;');
+            done(false, done);
+          },
+        },
         useNullAsDefault: true,
         debug: _knexDbConfig.verbose,
       });
@@ -133,7 +139,8 @@ export const insertMultipleRows = async (
   rows: string[][],
   table: string,
   columnNames: string[],
-  preventDuplicatesByFirstColumn: boolean = true
+  preventDuplicates: boolean = true,
+  keyColumns: string[] = []
 ): Promise<number> => {
   if (rows.length === 0) {
     return 0;
@@ -150,9 +157,13 @@ export const insertMultipleRows = async (
     columnNames.length,
     rows.length
   );
+  
+  if (preventDuplicates && keyColumns.length === 0) {
+    keyColumns = [columnNames[0]];
+  }
 
-  const onConfict = preventDuplicatesByFirstColumn
-    ? `ON CONFLICT (${columnNames[0]}) DO NOTHING`
+  const onConfict = preventDuplicates
+    ? `ON CONFLICT (${keyColumns.join(", ")}) DO NOTHING`
     : "";
 
   await getKnexDb().raw(

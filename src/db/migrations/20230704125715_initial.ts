@@ -118,6 +118,7 @@ export async function up(knex: Knex): Promise<void> {
       .references("id")
       .inTable("founder")
       .notNullable();
+    table_13.unique(["school_izo", "founder_id"]);
   });
   await knex.schema.createTable("address_point", function (table) {
     table.increments("id");
