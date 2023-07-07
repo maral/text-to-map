@@ -126,6 +126,7 @@ export function up(knex) {
                 .references("id")
                 .inTable("founder")
                 .notNullable();
+            table_13.unique(["school_izo", "founder_id"]);
         });
         yield knex.schema.createTable("address_point", function (table) {
             table.increments("id");

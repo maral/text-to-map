@@ -39,6 +39,12 @@ export const getKnexDb = (config = {}) => {
                 connection: {
                     filename: _knexDbConfig.filePath,
                 },
+                pool: {
+                    afterCreate: (db, done) => {
+                        db.pragma('journal_mode = WAL;');
+                        done(false, done);
+                    },
+                },
                 useNullAsDefault: true,
                 debug: _knexDbConfig.verbose,
             });
@@ -109,7 +115,7 @@ export const nonEmptyOrNull = (value) => {
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
  */
-export const insertMultipleRows = (rows, table, columnNames, preventDuplicatesByFirstColumn = true) => __awaiter(void 0, void 0, void 0, function* () {
+export const insertMultipleRows = (rows, table, columnNames, preventDuplicates = true, keyColumns = []) => __awaiter(void 0, void 0, void 0, function* () {
     if (rows.length === 0) {
         return 0;
     }
@@ -120,8 +126,11 @@ export const insertMultipleRows = (rows, table, columnNames, preventDuplicatesBy
     //   }
     // }
     const insertPlaceholders = generate2DPlaceholders(columnNames.length, rows.length);
-    const onConfict = preventDuplicatesByFirstColumn
-        ? `ON CONFLICT (${columnNames[0]}) DO NOTHING`
+    if (preventDuplicates && keyColumns.length === 0) {
+        keyColumns = [columnNames[0]];
+    }
+    const onConfict = preventDuplicates
+        ? `ON CONFLICT (${keyColumns.join(", ")}) DO NOTHING`
         : "";
     yield getKnexDb().raw(`INSERT INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
     return rows.length;

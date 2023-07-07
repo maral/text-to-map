@@ -85,7 +85,7 @@ export const insertFounders = (founders) => __awaiter(void 0, void 0, void 0, fu
             });
         }
     }
-    const insertedConnections = yield insertMultipleRows(schoolFounderConnectionData, "school_founder", ["school_izo", "founder_id"]);
+    const insertedConnections = yield insertMultipleRows(schoolFounderConnectionData, "school_founder", ["school_izo", "founder_id"], true, ["school_izo", "founder_id"]);
     return insertedFounders + insertedConnections;
 });
 const getCityOfSchool = (izo) => __awaiter(void 0, void 0, void 0, function* () {

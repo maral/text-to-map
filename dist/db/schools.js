@@ -38,7 +38,7 @@ export const insertSchools = (schools) => __awaiter(void 0, void 0, void 0, func
     // plus filter out duplicate locations (same address id + izo)
     for (const location of locations) {
         try {
-            insertedLocations += yield insertMultipleRows([location], "school_location", ["school_izo", "address_point_id"], false);
+            insertedLocations += yield insertMultipleRows([location], "school_location", ["school_izo", "address_point_id"], true, ["school_izo", "address_point_id"]);
         }
         catch (error) {
             console.log(`Cannot add location with RUIAN code ${location[1]} (school IZO = ${location[0]}): code does not exist.`);
