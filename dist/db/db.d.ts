@@ -27,7 +27,6 @@ export declare const insertMultipleRows: (rows: string[][], table: string, colum
  */
 export declare const insertAutoincrementRow: (row: any[], table: string, columnNames: string[]) => Promise<number | null>;
 export declare const deleteMultipleRowsKnex: (keys: string[], table: string, keyColumnName: string) => Promise<void>;
-export declare const clearDuplicates: (rows: string[][], table: string, columnNames: string[]) => Promise<string[][]>;
 export declare const generatePlaceholders: (n: number) => string;
 export declare const generate2DPlaceholders: (inner: number, outer: number) => string;
 export declare const extractKeyValuesPairs: (array: string[][], keyIndex: number, valuesIndices: number[]) => string[][];

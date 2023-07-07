@@ -47,7 +47,7 @@ const importDataToDb = (data) => __awaiter(void 0, void 0, void 0, function* () 
     }
     yield insertStreetsFromDbf(data);
 });
-export const downloadAndImportStreets = (options) => __awaiter(void 0, void 0, void 0, function* () {
+export const downloadAndImportStreets = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
     yield runSyncPart(SyncPart.Streets, [SyncPart.AddressPoints], () => __awaiter(void 0, void 0, void 0, function* () {
         console.log("Starting to download and import streets. This takes up to 1 hour.");
         const completeOptions = prepareOptions(options);

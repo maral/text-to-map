@@ -15,7 +15,7 @@ import { MunicipalityType, } from "./types";
 const cityTypeCode = 261;
 const cityDistrictTypeCode = 263;
 export const insertFounders = (founders) => __awaiter(void 0, void 0, void 0, function* () {
-    var _a;
+    var _a, _b, _c;
     let insertedFounders = 0;
     const schoolFounderConnectionData = [];
     for (const founder of founders) {
@@ -63,8 +63,9 @@ export const insertFounders = (founders) => __awaiter(void 0, void 0, void 0, fu
             name: sanitizeMunicipalityName(founder.name),
             ico: founder.ico,
         });
+        let founderId = (_c = (_b = existing[0]) === null || _b === void 0 ? void 0 : _b.id) !== null && _c !== void 0 ? _c : null;
         if (existing.length === 0) {
-            const founderId = yield insertAutoincrementRow([
+            founderId = yield insertAutoincrementRow([
                 sanitizeMunicipalityName(founder.name),
                 sanitizeMunicipalityName(extractedMunicipalityName),
                 founder.ico,
@@ -80,10 +81,10 @@ export const insertFounders = (founders) => __awaiter(void 0, void 0, void 0, fu
                 "city_district_code",
             ]);
             insertedFounders++;
-            founder.schools.forEach((school) => {
-                schoolFounderConnectionData.push([school.izo, founderId]);
-            });
         }
+        founder.schools.forEach((school) => {
+            schoolFounderConnectionData.push([school.izo, founderId]);
+        });
     }
     const insertedConnections = yield insertMultipleRows(schoolFounderConnectionData, "school_founder", ["school_izo", "founder_id"], true, ["school_izo", "founder_id"]);
     return insertedFounders + insertedConnections;
@@ -174,14 +175,14 @@ const fixFounderProblems = (founder, municipalityCode, differingSchools, extract
     }
 });
 const getCityCodeByDistrictCode = (districtCode) => __awaiter(void 0, void 0, void 0, function* () {
-    var _b;
+    var _d;
     const result = yield getKnexDb()
         .first("city.code")
         .from("city_district")
         .join("city", "city_district.city_code", "city.code")
         .where("city_district.code", districtCode)
         .limit(1);
-    return (_b = result === null || result === void 0 ? void 0 : result.code) !== null && _b !== void 0 ? _b : null;
+    return (_d = result === null || result === void 0 ? void 0 : result.code) !== null && _d !== void 0 ? _d : null;
 });
 const findMunicipalitiesAndPositionsByNameAndType = (name, type) => __awaiter(void 0, void 0, void 0, function* () {
     const knex = getKnexDb();

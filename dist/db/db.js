@@ -41,7 +41,7 @@ export const getKnexDb = (config = {}) => {
                 },
                 pool: {
                     afterCreate: (db, done) => {
-                        db.pragma('journal_mode = WAL;');
+                        db.pragma("journal_mode = WAL;");
                         done(false, done);
                     },
                 },
@@ -119,12 +119,6 @@ export const insertMultipleRows = (rows, table, columnNames, preventDuplicates =
     if (rows.length === 0) {
         return 0;
     }
-    // if (preventDuplicatesByFirstColumn) {
-    //   rows = await clearDuplicates(rows, table, columnNames);
-    //   if (rows.length === 0) {
-    //     return 0;
-    //   }
-    // }
     const insertPlaceholders = generate2DPlaceholders(columnNames.length, rows.length);
     if (preventDuplicates && keyColumns.length === 0) {
         keyColumns = [columnNames[0]];
@@ -151,14 +145,6 @@ export const deleteMultipleRowsKnex = (keys, table, keyColumnName) => __awaiter(
         return;
     }
     yield getKnexDb().from(table).whereIn(keyColumnName, keys).del();
-});
-export const clearDuplicates = (rows, table, columnNames) => __awaiter(void 0, void 0, void 0, function* () {
-    const existing = yield getKnexDb()
-        .select(columnNames[0])
-        .from(table)
-        .whereIn(columnNames[0], rows.map((row) => row[0]));
-    const keys = existing.map((row) => row[columnNames[0]].toString());
-    return rows.filter((row) => !keys.includes(row[0]));
 });
 const generateRepetitiveString = (value, glue, n) => {
     return new Array(n).fill(value).join(glue);
