@@ -4,12 +4,13 @@ import fetch from "node-fetch";
 import { pipeline } from "stream/promises";
 
 import { RegionsTableSchema, insertRegionsAndOrps } from "../db/regions";
+import { SyncPart } from "../db/types";
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsPartial,
   prepareOptions
 } from "../utils/helpers";
-import { disconnectKnex } from "../db/db";
+import { runSyncPart } from "./common";
 
 const downloadAndImportDataToDb = async (
   options: OpenDataSyncOptions
@@ -54,12 +55,8 @@ const downloadAndImportDataToDb = async (
 export const downloadAndImportRegions = async (
   options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
-  try {
+  await runSyncPart(SyncPart.Regions, [], async () => {
     const completeOptions = prepareOptions(options);
     await downloadAndImportDataToDb(completeOptions);
-  } catch (error) {
-    console.log(error);
-  } finally {
-    await disconnectKnex();
-  }
+  });
 };

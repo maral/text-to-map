@@ -169,7 +169,7 @@ export const insertMultipleRows = async (
  * Insert a single row and return the autoincremented ID.
  */
 export const insertAutoincrementRow = async (
-  row: string[],
+  row: any[],
   table: string,
   columnNames: string[]
 ): Promise<number | null> => {

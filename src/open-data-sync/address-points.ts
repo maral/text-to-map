@@ -7,13 +7,14 @@ import { join } from "path";
 import { pipeline } from "stream/promises";
 
 import { commitAddressPoints } from "../db/address-points";
-import { disconnectKnex } from "../db/db";
+import { SyncPart } from "../db/types";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsPartial,
   prepareOptions,
 } from "../utils/helpers";
+import { runSyncPart } from "./common";
 
 const maxBufferSize = 1000;
 
@@ -91,17 +92,13 @@ const getExtractionFolder = (options: OpenDataSyncOptions) =>
 export const downloadAndImportAddressPoints = async (
   options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
-  try {
+  await runSyncPart(SyncPart.AddressPoints, [], async () => {
     const completeOptions = prepareOptions(options);
     const datasetFeedLink = await getLatestUrlFromAtomFeed(
       completeOptions.addressPointsAtomUrl
     );
     const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
-    // await downloadAndUnzip(zipUrl, completeOptions);
+    await downloadAndUnzip(zipUrl, completeOptions);
     await importDataToDb(completeOptions);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    await disconnectKnex();
-  }
+  });
 };

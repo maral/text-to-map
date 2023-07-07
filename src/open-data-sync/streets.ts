@@ -11,7 +11,7 @@ import {
   insertStreetsFromDbf,
   setStreetAsSynced,
 } from "../db/street-sync";
-import { DbfStreet } from "../db/types";
+import { DbfStreet, SyncPart } from "../db/types";
 import {
   getAllUrlsFromAtomFeed,
   getLatestUrlFromAtomFeed,
@@ -21,8 +21,7 @@ import {
   OpenDataSyncOptionsPartial,
   prepareOptions,
 } from "../utils/helpers";
-import { disconnectKnex } from "../db/db";
-import { areAddressPointsSynced } from "../db/address-points";
+import { runSyncPart } from "./common";
 
 const prepareFolders = (options: OpenDataSyncOptions) => {
   const tempFolder = getTempFolder(options);
@@ -68,14 +67,7 @@ const importDataToDb = async (data: DbfStreet[]) => {
 export const downloadAndImportStreets = async (
   options: OpenDataSyncOptionsPartial
 ): Promise<void> => {
-  try {
-    // first check if address points are already synced
-    if (!(await areAddressPointsSynced())) {
-      throw new Error(
-        "Address points are not synced yet. First run 'npm run address-points' and then try again."
-      );
-    }
-
+  await runSyncPart(SyncPart.Streets, [SyncPart.AddressPoints], async () => {
     console.log(
       "Starting to download and import streets. This takes up to 1 hour."
     );
@@ -124,9 +116,5 @@ export const downloadAndImportStreets = async (
       done++;
       console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
     }
-  } catch (error) {
-    console.log(error);
-  } finally {
-    await disconnectKnex();
-  }
+  });
 };

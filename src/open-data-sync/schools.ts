@@ -7,12 +7,13 @@ import { pipeline } from "stream/promises";
 import { disconnectKnex } from "../db/db";
 import { insertFounders } from "../db/founders";
 import { insertSchools } from "../db/schools";
-import { Founder, MunicipalityType, School, SchoolLocation } from "../db/types";
+import { Founder, MunicipalityType, School, SchoolLocation, SyncPart } from "../db/types";
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsPartial,
   prepareOptions,
 } from "../utils/helpers";
+import { runSyncPart } from "./common";
 
 const downloadXml = async (
   options: OpenDataSyncOptions
@@ -347,17 +348,13 @@ export const downloadAndImportSchools = async (
   saveFoundersToCsv: boolean = false,
   saveSchoolsWithoutRuianToCsv: boolean = false,
 ) => {
-  try {
+  await runSyncPart(SyncPart.Schools, [SyncPart.AddressPoints], async () => {
     const runOptions = prepareOptions(options);
 
     await downloadXml(runOptions);
     await importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
     deleteSchoolsXmlFile(runOptions);
-  } catch (error) {
-    console.error(error);
-  } finally {
-    await disconnectKnex();
-  }
+  });
 };
 
 export const deleteSchoolsXmlFile = (options: OpenDataSyncOptionsPartial = {}) => {

@@ -4,7 +4,6 @@ import {
   parseOrdinanceToAddressPoints,
 } from "../street-markdown/smd";
 import { ErrorCallbackParams } from "../street-markdown/types";
-import { defaultBinOptions } from "./constants";
 
 async function main() {
   // take first node argument as a file name

@@ -165,6 +165,14 @@ export async function up(knex: Knex): Promise<void> {
     table_14.unique(["school_izo", "address_point_id"]);
   });
 
+  await knex.schema.createTable("sync_log", function (table_15) {
+    table_15.increments("id");
+    table_15.text("part").notNullable();
+    table_15.dateTime("started_at").notNullable();
+    table_15.dateTime("finished_at");
+    table_15.boolean("completed").defaultTo(false);
+  });
+
   await knex("founder_type").insert([
     { code: 0, name: "Zatím neurčeno" },
     { code: 101, name: "Fyzická osoba" },
@@ -220,21 +228,39 @@ export async function up(knex: Knex): Promise<void> {
     "CREATE INDEX street_code ON address_point (street_code);"
   );
   await knex.schema.raw(
-    `CREATE INDEX street_name ON street (name${
-      isSqlite(knex) ? " COLLATE NOCASE" : ""
-    });`
-  );
-  await knex.schema.raw(
     "CREATE INDEX street_sync_feed_url ON street_sync (feed_url);"
   );
 
   if (isPostgres(knex)) {
     await knex.schema.raw("CREATE EXTENSION IF NOT EXISTS CITEXT");
-    await knex.schema.alterTable("street", (t) => {
-      t.specificType("name", "CITEXT").notNullable().alter();
+  }
+
+  // case insensitive indexes
+  createCaseInsensitiveIndex(knex, "street", "name");
+  createCaseInsensitiveIndex(knex, "city", "name");
+  createCaseInsensitiveIndex(knex, "founder", "name");
+  createCaseInsensitiveIndex(knex, "founder", "short_name");
+  createCaseInsensitiveIndex(knex, "region", "name");
+  createCaseInsensitiveIndex(knex, "county", "name");
+  createCaseInsensitiveIndex(knex, "orp", "name");
+}
+
+const createCaseInsensitiveIndex = async (
+  knex: Knex,
+  table: string,
+  column: string
+) => {
+  if (isPostgres(knex)) {
+    await knex.schema.alterTable(table, (t) => {
+      t.specificType(column, "CITEXT").notNullable().alter();
     });
   }
-}
+  await knex.schema.raw(
+    `CREATE INDEX ${table}_${column} ON ${table} (${column}${
+      isSqlite(knex) ? " COLLATE NOCASE" : ""
+    });`
+  );
+};
 
 export async function down(knex: Knex) {
   await knex.schema.dropTableIfExists("school_location");
@@ -254,4 +280,5 @@ export async function down(knex: Knex) {
   await knex.schema.dropTableIfExists("prague_district");
   await knex.schema.dropTableIfExists("school");
   await knex.schema.dropTableIfExists("street_sync");
+  await knex.schema.dropTableIfExists("sync_log");
 }

@@ -21,7 +21,7 @@ import {
   getKnexDb,
   insertMultipleRows,
   isSqlite,
-  nonEmptyOrNull
+  nonEmptyOrNull,
 } from "./db";
 import { getFounderCityCode } from "./founders";
 import { Founder, Municipality, MunicipalityType } from "./types";
@@ -187,7 +187,10 @@ export const insertStreets = async (buffer: string[][]): Promise<number> => {
 };
 
 export const areAddressPointsSynced = async (): Promise<boolean> => {
-  const result = await getKnexDb().count("*", {as: "countAll"}).from("address_point").first();
+  const result = await getKnexDb()
+    .count("*", { as: "countAll" })
+    .from("address_point")
+    .first();
   return Number(result.countAll) >= 2900000; // total is almost 3 million
 };
 
@@ -234,7 +237,9 @@ export const checkStreetExists = async (
   const rowList = await knex.raw(
     `SELECT name AS street_name
     FROM street
-    WHERE city_code = ? AND name = ?  ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`,
+    WHERE city_code = ? AND name = ?  ${
+      isSqlite(knex) ? "COLLATE NOCASE" : ""
+    }`,
     [cityCode, streetName]
   );
 
@@ -279,10 +284,7 @@ export const checkStreetExists = async (
 
 const getAllStreets = async (cityCode: number): Promise<string[]> => {
   const knex = getKnexDb();
-  return await knex
-    .pluck("name")
-    .from("street")
-    .where("city_code", cityCode);
+  return await knex.pluck("name").from("street").where("city_code", cityCode);
 };
 
 export const findAddressPoints = async (
