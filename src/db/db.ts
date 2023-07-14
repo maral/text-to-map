@@ -139,8 +139,7 @@ export const insertMultipleRows = async (
   rows: string[][],
   table: string,
   columnNames: string[],
-  preventDuplicates: boolean = true,
-  keyColumns: string[] = []
+  preventDuplicates: boolean = true
 ): Promise<number> => {
   if (rows.length === 0) {
     return 0;
@@ -151,13 +150,7 @@ export const insertMultipleRows = async (
     rows.length
   );
 
-  if (preventDuplicates && keyColumns.length === 0) {
-    keyColumns = [columnNames[0]];
-  }
-
-  const onConfict = preventDuplicates
-    ? `ON CONFLICT (${keyColumns.join(", ")}) DO NOTHING`
-    : "";
+  const onConfict = preventDuplicates ? `ON CONFLICT DO NOTHING` : "";
 
   await getKnexDb().raw(
     `INSERT INTO ${table} (${columnNames.join(

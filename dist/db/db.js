@@ -115,17 +115,12 @@ export const nonEmptyOrNull = (value) => {
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
  */
-export const insertMultipleRows = (rows, table, columnNames, preventDuplicates = true, keyColumns = []) => __awaiter(void 0, void 0, void 0, function* () {
+export const insertMultipleRows = (rows, table, columnNames, preventDuplicates = true) => __awaiter(void 0, void 0, void 0, function* () {
     if (rows.length === 0) {
         return 0;
     }
     const insertPlaceholders = generate2DPlaceholders(columnNames.length, rows.length);
-    if (preventDuplicates && keyColumns.length === 0) {
-        keyColumns = [columnNames[0]];
-    }
-    const onConfict = preventDuplicates
-        ? `ON CONFLICT (${keyColumns.join(", ")}) DO NOTHING`
-        : "";
+    const onConfict = preventDuplicates ? `ON CONFLICT DO NOTHING` : "";
     yield getKnexDb().raw(`INSERT INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
     return rows.length;
 });

@@ -53,8 +53,7 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
         [location],
         "school_location",
         ["school_izo", "address_point_id"],
-        true,
-        ["school_izo", "address_point_id"]
+        true
       );
     } catch (error) {
       console.log(

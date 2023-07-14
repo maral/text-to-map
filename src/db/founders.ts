@@ -116,8 +116,7 @@ export const insertFounders = async (founders: Founder[]): Promise<number> => {
     schoolFounderConnectionData,
     "school_founder",
     ["school_izo", "founder_id"],
-    true,
-    ["school_izo", "founder_id"]
+    true
   );
 
   return insertedFounders + insertedConnections;

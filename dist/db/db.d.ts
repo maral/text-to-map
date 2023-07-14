@@ -21,7 +21,7 @@ export declare const nonEmptyOrNull: (value: string) => string | null;
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
  */
-export declare const insertMultipleRows: (rows: string[][], table: string, columnNames: string[], preventDuplicates?: boolean, keyColumns?: string[]) => Promise<number>;
+export declare const insertMultipleRows: (rows: string[][], table: string, columnNames: string[], preventDuplicates?: boolean) => Promise<number>;
 /**
  * Insert a single row and return the autoincremented ID.
  */
