@@ -130,10 +130,10 @@ export const getAddressPointById = (addressPointId) => __awaiter(void 0, void 0,
     const knex = getKnexDb();
     const row = yield knex.raw(`${addressPointSelect}
       WHERE a.id = ?`, [addressPointId]);
-    if (!row) {
+    if (row.length === 0) {
         return null;
     }
-    return rowToAddressPoint(row);
+    return rowToAddressPoint(row[0]);
 });
 let lastFounder = null;
 let allStreets = [];

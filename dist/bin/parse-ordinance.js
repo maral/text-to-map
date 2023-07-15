@@ -36,6 +36,7 @@ function main() {
         };
         console.time("downloadAndImportAllLatestAddressPoints");
         const { municipality } = yield getNewMunicipality("Česká Lípa");
+        console.log(municipality.founder.schools[0].locations);
         const addressPoints = yield parseOrdinanceToAddressPoints(lines, {
         // currentMunicipality: municipality,
         }, reportErrors, reportWarnings);

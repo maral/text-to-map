@@ -216,10 +216,10 @@ export const getAddressPointById = async (
       WHERE a.id = ?`,
     [addressPointId]
   );
-  if (!row) {
+  if (row.length === 0) {
     return null;
   }
-  return rowToAddressPoint(row);
+  return rowToAddressPoint(row[0]);
 };
 
 let lastFounder: Founder | null = null;
