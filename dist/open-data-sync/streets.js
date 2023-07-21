@@ -47,6 +47,7 @@ const importDataToDb = (data) => __awaiter(void 0, void 0, void 0, function* () 
     }
     yield insertStreetsFromDbf(data);
 });
+const attempts = 5;
 export const downloadAndImportStreets = (options = {}) => __awaiter(void 0, void 0, void 0, function* () {
     yield runSyncPart(SyncPart.Streets, [SyncPart.AddressPoints], () => __awaiter(void 0, void 0, void 0, function* () {
         console.log("Starting to download and import streets. This takes up to 1 hour.");
@@ -68,14 +69,35 @@ export const downloadAndImportStreets = (options = {}) => __awaiter(void 0, void
         console.log(`Total of ${done} links to ZIP files already stored.`);
         // get all links not yet stored
         const newLinks = allDatasetFeedLinks.filter((link) => !syncedStreetLinks.has(link));
+        let delay = 0;
         console.log(`Loading ${newLinks.length} new links to ZIP files.`);
         for (const link of newLinks) {
-            const zipLink = yield getLatestUrlFromAtomFeed(link);
-            const dbfObject = yield downloadZipAndParseDbfFile(zipLink, done, completeOptions);
-            yield importDataToDb(dbfObject);
-            yield setStreetAsSynced(link);
-            done++;
-            console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
+            for (let i = 0; i < attempts; i++) {
+                try {
+                    const zipLink = yield getLatestUrlFromAtomFeed(link);
+                    const dbfObject = yield downloadZipAndParseDbfFile(zipLink, done, completeOptions);
+                    yield importDataToDb(dbfObject);
+                    yield setStreetAsSynced(link);
+                    done++;
+                    console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
+                    yield wait(delay);
+                    break;
+                }
+                catch (error) {
+                    if (i < attempts - 1) {
+                        delay += 100; // if error occured, it is likely to repeat so we wait a bit longer
+                        const waitTime = (i + 1) * 3;
+                        console.error(`Error connecting to CUZK servers, retrying in ${waitTime} seconds...`);
+                        yield wait(waitTime * 1000);
+                    }
+                    else {
+                        throw error;
+                    }
+                }
+            }
         }
     }));
+});
+const wait = (ms) => __awaiter(void 0, void 0, void 0, function* () {
+    yield new Promise((resolve) => setTimeout(resolve, ms));
 });

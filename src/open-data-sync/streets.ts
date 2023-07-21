@@ -64,6 +64,8 @@ const importDataToDb = async (data: DbfStreet[]) => {
   await insertStreetsFromDbf(data);
 };
 
+const attempts = 5;
+
 export const downloadAndImportStreets = async (
   options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
@@ -102,19 +104,41 @@ export const downloadAndImportStreets = async (
       (link) => !syncedStreetLinks.has(link)
     );
 
+    let delay = 0;
     console.log(`Loading ${newLinks.length} new links to ZIP files.`);
     for (const link of newLinks) {
-      const zipLink = await getLatestUrlFromAtomFeed(link);
-      const dbfObject = await downloadZipAndParseDbfFile(
-        zipLink,
-        done,
-        completeOptions
-      );
-      await importDataToDb(dbfObject);
-      await setStreetAsSynced(link);
+      for (let i = 0; i < attempts; i++) {
+        try {
+          const zipLink = await getLatestUrlFromAtomFeed(link);
+          const dbfObject = await downloadZipAndParseDbfFile(
+            zipLink,
+            done,
+            completeOptions
+          );
+          await importDataToDb(dbfObject);
+          await setStreetAsSynced(link);
 
-      done++;
-      console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
+          done++;
+          console.log(`Loaded links: ${done}/${allDatasetFeedLinks.length}`);
+          await wait(delay);
+          break;
+        } catch (error) {
+          if (i < attempts - 1) {
+            delay += 100; // if error occured, it is likely to repeat so we wait a bit longer
+            const waitTime = (i + 1) * 3;
+            console.error(
+              `Error connecting to CUZK servers, retrying in ${waitTime} seconds...`
+            );
+            await wait(waitTime * 1000);
+          } else {
+            throw error;
+          }
+        }
+      }
     }
   });
+};
+
+const wait = async (ms: number): Promise<void> => {
+  await new Promise((resolve) => setTimeout(resolve, ms));
 };
