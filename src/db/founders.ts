@@ -1,6 +1,10 @@
 import distance from "@turf/distance";
 import { wholeLineError } from "../street-markdown/smd";
-import { DbMunicipalityResult, SmdError } from "../street-markdown/types";
+import {
+  DbMunicipalityResult,
+  MunicipalityPartResult,
+  SmdError,
+} from "../street-markdown/types";
 import {
   extractMunicipalityName,
   findClosestString,
@@ -11,6 +15,7 @@ import {
   Founder,
   MunicipalityType,
   MunicipalityWithPosition,
+  PlaceWithPosition,
   School,
 } from "./types";
 
@@ -205,21 +210,19 @@ const fixFounderProblems = async (
       );
       return municipalities[0].code;
     } else {
-      // get code and position of the closest city
-      let lowestDistance = Number.MAX_SAFE_INTEGER;
-      let municipalityCode: number = null;
-      for (const municipality of municipalities) {
-        let municipalityDistance = distance(
-          [municipality.lat, municipality.lng],
-          [schoolPosition.wgs84_latitude, schoolPosition.wgs84_longitude]
-        );
-        if (municipalityDistance < lowestDistance) {
-          lowestDistance = municipalityDistance;
-          municipalityCode = municipality.code;
-        }
-      }
       console.log("using the closest municipality matching the extracted name");
-      return municipalityCode;
+      return getClosestCode(
+        {
+          code: 1,
+          lat: schoolPosition.wgs84_latitude,
+          lng: schoolPosition.wgs84_longitude,
+        },
+        municipalities.map((municipality) => ({
+          code: municipality.code,
+          lat: municipality.lat,
+          lng: municipality.lng,
+        }))
+      );
     }
   } else {
     if (municipalities.length > 0) {
@@ -240,6 +243,25 @@ const fixFounderProblems = async (
       return null;
     }
   }
+};
+
+const getClosestCode = async (
+  from: PlaceWithPosition,
+  toList: PlaceWithPosition[]
+): Promise<number> => {
+  let lowestDistance = Number.MAX_SAFE_INTEGER;
+  let code: number = null;
+  for (const place of toList) {
+    let municipalityDistance = distance(
+      [place.lat, place.lng],
+      [from.lat, from.lng]
+    );
+    if (municipalityDistance < lowestDistance) {
+      lowestDistance = municipalityDistance;
+      code = place.code;
+    }
+  }
+  return code;
 };
 
 const getCityCodeByDistrictCode = async (
@@ -460,19 +482,85 @@ const getAllFounderNames = async (): Promise<FounderNames[]> => {
   }));
 };
 
+export const findMunicipalityPartByName = async (
+  name: string,
+  founder: Founder
+): Promise<MunicipalityPartResult> => {
+  const errors: SmdError[] = [];
+  const cityCode = await getFounderCityCode(founder);
+  const result = await getKnexDb()
+    .first("code")
+    .from("municipality_part")
+    .where({ name, city_code: cityCode });
+
+  if (result) {
+    return { municipalityPartCode: result.code, errors };
+  } else {
+    const allNames = await getAllMunicipalityPartNames(cityCode);
+    const namesList = allNames.map((row) => row.name);
+    const bestMatch = findClosestString(name, namesList);
+
+    errors.push({
+      message: `Obec ani městská část '${name}' neexistuje, mysleli jste '${bestMatch}'?`,
+      startOffset: 0,
+      endOffset: 0,
+    });
+
+    return {
+      municipalityPartCode: null,
+      errors,
+    };
+  }
+};
+
 export const findMunicipalityByNameAndType = async (
   name: string,
-  type: MunicipalityType
+  type: MunicipalityType,
+  founder: Founder
 ): Promise<DbMunicipalityResult> => {
   const errors: SmdError[] = [];
 
-  const result = await getKnexDb()
-    .first("code")
-    .from(type === MunicipalityType.City ? "city" : "city_district")
-    .where("name", name);
+  const result =
+    type === MunicipalityType.City
+      ? await getKnexDb().select("code").from("city").where("name", name)
+      : await getKnexDb()
+          .select("code")
+          .from("city_district")
+          .where("name", name)
+          .andWhere("city_code", await getFounderCityCode(founder));
 
-  if (result) {
-    return { municipality: { code: result.code, type }, errors };
+  if (result.length > 0) {
+    if (result.length > 1) {
+      const cityCode = await getFounderCityCode(founder);
+      const positions = await getKnexDb()
+        .select("city_code", "wgs84_latitude", "wgs84_longitude")
+        .from("address_point")
+        .groupBy("city_code")
+        .whereIn(
+          "city_code",
+          result.map((row) => row.code)
+        );
+      const founderPosition = await getKnexDb()
+        .first("wgs84_latitude", "wgs84_longitude")
+        .from("address_point")
+        .groupBy("city_code")
+        .where("city_code", cityCode);
+      const closestCode = await getClosestCode(
+        {
+          code: cityCode,
+          lat: founderPosition.wgs84_latitude,
+          lng: founderPosition.wgs84_longitude,
+        },
+        positions.map((row) => ({
+          code: row.city_code,
+          lat: row.wgs84_latitude,
+          lng: row.wgs84_longitude,
+        }))
+      );
+      return { municipality: { code: closestCode, type }, errors };
+    } else {
+      return { municipality: { code: result[0].code, type }, errors };
+    }
   } else {
     const allNames = await getAllMunicipalityNames(type);
     const namesList = allNames.map((row) => row.name);
@@ -501,6 +589,20 @@ const getAllMunicipalityNames = async (
     await getKnexDb()
       .select("name", "code")
       .from(type === MunicipalityType.City ? "city" : "city_district")
+  ).map((row) => ({
+    name: row.name,
+    code: row.code,
+  }));
+};
+
+const getAllMunicipalityPartNames = async (
+  cityCode: number
+): Promise<{ name: string; code: number }[]> => {
+  return (
+    await getKnexDb()
+      .select("name", "code")
+      .from("municipality_part")
+      .where("city_code", cityCode)
   ).map((row) => ({
     name: row.name,
     code: row.code,

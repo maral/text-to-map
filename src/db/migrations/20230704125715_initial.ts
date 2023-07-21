@@ -20,10 +20,6 @@ export async function up(knex: Knex): Promise<void> {
     table_6.text("key").primary().notNullable();
     table_6.text("value").notNullable();
   });
-  await knex.schema.createTable("municipality_part", function (table_7) {
-    table_7.integer("code").primary().notNullable();
-    table_7.text("name").notNullable();
-  });
   await knex.schema.createTable("object_type", function (table_8) {
     table_8.integer("id").primary().notNullable();
     table_8.text("name").notNullable();
@@ -79,6 +75,15 @@ export async function up(knex: Knex): Promise<void> {
       .inTable("city")
       .notNullable();
     table_2.text("name").notNullable();
+  });
+  await knex.schema.createTable("municipality_part", function (table_7) {
+    table_7.integer("code").primary().notNullable();
+    table_7
+      .integer("city_code")
+      .references("code")
+      .inTable("city")
+      .notNullable();
+    table_7.text("name").notNullable();
   });
   await knex.schema.createTable("street", function (table_15) {
     table_15.integer("code").primary().notNullable();

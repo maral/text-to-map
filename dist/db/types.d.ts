@@ -32,6 +32,11 @@ export interface Municipality {
     code: number;
 }
 export type MunicipalityWithPosition = Municipality & Position;
+export interface PlaceWithPosition {
+    code: number;
+    lat: number;
+    lng: number;
+}
 export declare const founderToMunicipality: (founder: Founder) => Municipality;
 export interface DbfStreet {
     KOD: string;

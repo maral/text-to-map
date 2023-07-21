@@ -7,17 +7,17 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { checkStreetExists, findAddressPoints, getAddressPointById, } from "../db/address-points";
+import { FindAddressPointsType, checkStreetExists, findAddressPoints, getAddressPointById, } from "../db/address-points";
 import { disconnectKnex } from "../db/db";
 import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
 import { founderToMunicipality } from "../db/types";
-import { getSwitchMunicipality, getWholeMunicipality, isMunicipalitySwitch, isWholeMunicipality, } from "./municipality";
+import { getMunicipalityPart, getSwitchMunicipality, getWholeMunicipality, isMunicipalityPart, isMunicipalitySwitch, isNoStreetNameLine, isWholeMunicipality, } from "./municipality";
 import { parseLine } from "./smd-line-parser";
 import { isAddressPoint, } from "./types";
 export const parseOrdinanceToAddressPoints = (lines, initialState = {}, onError = () => { }, onWarning = () => { }, onProcessedLine = () => { }) => __awaiter(void 0, void 0, void 0, function* () {
     try {
-        const state = Object.assign({ currentMunicipality: null, currentFilterMunicipality: null, currentSchool: null, municipalities: [] }, initialState);
+        const state = Object.assign({ currentMunicipality: null, currentFilterMunicipality: null, currentSchool: null, noStreetNameSchoolIzo: null, municipalities: [] }, initialState);
         let lineNumber = 1;
         for (const rawLine of lines) {
             const line = cleanLine(rawLine);
@@ -38,6 +38,9 @@ export const parseOrdinanceToAddressPoints = (lines, initialState = {}, onError 
             state.currentMunicipality.schools.push(mapSchoolForExport(state.currentSchool));
         }
         if (state.currentMunicipality != null) {
+            if (state.noStreetNameSchoolIzo) {
+                yield addNoStreetNameToSchool(state);
+            }
             state.municipalities.push(convertMunicipality(state.currentMunicipality));
         }
         return state.municipalities;
@@ -79,25 +82,37 @@ const processOneLine = (params) => __awaiter(void 0, void 0, void 0, function* (
         yield processSchoolLine(params);
         return;
     }
-    if (isMunicipalitySwitch(line)) {
+    if (isMunicipalityPart(line)) {
+        yield processMunicipalityPartLine(params);
+    }
+    else if (isMunicipalitySwitch(line)) {
         processMunicipalitySwitchLine(params);
     }
     else if (isWholeMunicipality(line)) {
         yield processWholeMunicipalityLine(params);
     }
+    else if (isNoStreetNameLine(line)) {
+        state.noStreetNameSchoolIzo = state.currentSchool.izo;
+    }
     else {
         yield processAddressPointLine(params);
     }
 });
-const processMunicipalityLine = ({ line, state, onError, }) => __awaiter(void 0, void 0, void 0, function* () {
+const processMunicipalityLine = ({ line, lineNumber, state, onError, }) => __awaiter(void 0, void 0, void 0, function* () {
     if (state.currentSchool !== null) {
         state.currentMunicipality.schools.push(state.currentSchool);
         state.currentSchool = null;
     }
     if (state.currentMunicipality !== null) {
+        if (state.noStreetNameSchoolIzo) {
+            yield addNoStreetNameToSchool(state);
+        }
         state.municipalities.push(convertMunicipality(state.currentMunicipality));
     }
     const { municipality, errors } = yield getNewMunicipality(line);
+    if (errors.length > 0) {
+        onError({ lineNumber, line, errors });
+    }
     state.currentMunicipality = municipality;
     state.currentFilterMunicipality = founderToMunicipality(state.currentMunicipality.founder);
     state.currentSchool = null;
@@ -122,8 +137,21 @@ const processSchoolLine = ({ line, lineNumber, state, onError, }) => __awaiter(v
     state.currentSchool = yield getNewSchool(line, state.currentMunicipality.founder, lineNumber, onError);
     state.currentFilterMunicipality = founderToMunicipality(state.currentMunicipality.founder);
 });
+const processMunicipalityPartLine = ({ line, state, lineNumber, onError, }) => __awaiter(void 0, void 0, void 0, function* () {
+    const { municipalityPartCode, errors } = yield getMunicipalityPart(line, state.currentMunicipality.founder);
+    if (errors.length > 0) {
+        onError({ lineNumber, line, errors });
+    }
+    else {
+        const addressPoints = yield findAddressPoints({
+            type: FindAddressPointsType.MunicipalityPart,
+            municipalityPartCode,
+        });
+        state.currentSchool.addresses.push(...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(mapAddressPointForExport));
+    }
+});
 const processMunicipalitySwitchLine = ({ line, state, lineNumber, onError, }) => __awaiter(void 0, void 0, void 0, function* () {
-    const { municipality, errors } = yield getSwitchMunicipality(line);
+    const { municipality, errors } = yield getSwitchMunicipality(line, state.currentMunicipality.founder);
     if (errors.length > 0) {
         onError({ lineNumber, line, errors });
     }
@@ -132,12 +160,15 @@ const processMunicipalitySwitchLine = ({ line, state, lineNumber, onError, }) =>
     }
 });
 const processWholeMunicipalityLine = ({ line, state, lineNumber, onError, }) => __awaiter(void 0, void 0, void 0, function* () {
-    const { municipality, errors } = yield getWholeMunicipality(line);
+    const { municipality, errors } = yield getWholeMunicipality(line, state.currentMunicipality.founder);
     if (errors.length > 0) {
         onError({ lineNumber, line, errors });
     }
     else {
-        const addressPoints = yield findAddressPoints({ wholeMunicipality: true, street: "", numberSpec: [] }, municipality);
+        const addressPoints = yield findAddressPoints({
+            type: FindAddressPointsType.WholeMunicipality,
+            municipality,
+        });
         state.currentSchool.addresses.push(...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(mapAddressPointForExport));
     }
 });
@@ -153,11 +184,32 @@ const processAddressPointLine = ({ line, state, lineNumber, onError, onWarning, 
                 onWarning({ lineNumber, line, errors });
             }
             if (exists) {
-                let addressPoints = yield findAddressPoints(smdLine, state.currentFilterMunicipality);
+                let addressPoints = yield findAddressPoints({
+                    type: FindAddressPointsType.SmdLine,
+                    smdLine,
+                    municipality: state.currentFilterMunicipality,
+                });
                 state.currentSchool.addresses.push(...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(mapAddressPointForExport));
             }
         }
     }
+});
+const addNoStreetNameToSchool = (state) => __awaiter(void 0, void 0, void 0, function* () {
+    const addressPoints = state.currentMunicipality.schools.flatMap((school) => school.addresses);
+    // get all address points without street name for current municipality
+    const pointsNoStreetName = yield findAddressPoints({
+        type: FindAddressPointsType.WholeMunicipalityNoStreetName,
+        municipality: {
+            code: state.currentMunicipality.founder.cityOrDistrictCode,
+            type: state.currentMunicipality.founder.municipalityType,
+        },
+    });
+    // filter out address points already present
+    const remainingPoints = pointsNoStreetName.filter((point) => !addressPoints.some((ap) => ap.address === point.address));
+    // find the right school and add the remaining address points
+    const schoolIndex = state.currentMunicipality.schools.findIndex((school) => school.izo === state.noStreetNameSchoolIzo);
+    state.currentMunicipality.schools[schoolIndex].addresses.push(...remainingPoints);
+    state.noStreetNameSchoolIzo = null;
 });
 export const getNewMunicipality = (name) => __awaiter(void 0, void 0, void 0, function* () {
     const { founder, errors } = yield findFounder(name);

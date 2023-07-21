@@ -28,10 +28,6 @@ export function up(knex) {
             table_6.text("key").primary().notNullable();
             table_6.text("value").notNullable();
         });
-        yield knex.schema.createTable("municipality_part", function (table_7) {
-            table_7.integer("code").primary().notNullable();
-            table_7.text("name").notNullable();
-        });
         yield knex.schema.createTable("object_type", function (table_8) {
             table_8.integer("id").primary().notNullable();
             table_8.text("name").notNullable();
@@ -87,6 +83,15 @@ export function up(knex) {
                 .inTable("city")
                 .notNullable();
             table_2.text("name").notNullable();
+        });
+        yield knex.schema.createTable("municipality_part", function (table_7) {
+            table_7.integer("code").primary().notNullable();
+            table_7
+                .integer("city_code")
+                .references("code")
+                .inTable("city")
+                .notNullable();
+            table_7.text("name").notNullable();
         });
         yield knex.schema.createTable("street", function (table_15) {
             table_15.integer("code").primary().notNullable();

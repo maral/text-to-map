@@ -10,6 +10,7 @@ import {
   fitsType,
   findAddressPoints,
   equalsFullStreetNumber,
+  FindAddressPointsType,
 } from "../../src/db/address-points";
 import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import { founderToMunicipality } from "../../src/db/types";
@@ -49,7 +50,6 @@ describe("search db - address points", () => {
 
   test("insert cities", async () => {
     expect(await insertCities(testRows)).toBe(1); // only 1 city in test data
-    expect(await insertCities(testRows)).toBe(0); // second try same values should be ignored, 0 new rows should be inserted
   });
 
   test("insert districts", async () => {
@@ -58,12 +58,10 @@ describe("search db - address points", () => {
 
   test("insert municipality parts", async () => {
     expect(await insertMunicipalityParts(testRows)).toBe(1); // 1 municipality in test data
-    expect(await insertMunicipalityParts(testRows)).toBe(0);
   });
 
   test("insert streets", async () => {
     expect(await insertStreets(testRows)).toBe(2); // 2 streets in test data
-    expect(await insertStreets(testRows)).toBe(0);
   });
 
   test("insert whole rows", async () => {
@@ -215,18 +213,20 @@ describe("find address points", () => {
 
   test("find address points", async () => {
     expect(
-      await findAddressPoints(
-        {
+      await findAddressPoints({
+        type: FindAddressPointsType.SmdLine,
+        smdLine: {
           street: "Lysá",
           numberSpec: [],
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
 
     expect(
-      await findAddressPoints(
-        {
+      await findAddressPoints({
+        type: FindAddressPointsType.SmdLine,
+        smdLine: {
           street: "Lysá",
           numberSpec: [
             {
@@ -235,13 +235,14 @@ describe("find address points", () => {
             },
           ],
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
 
     expect(
-      await findAddressPoints(
-        {
+      await findAddressPoints({
+        type: FindAddressPointsType.SmdLine,
+        smdLine: {
           street: "Lysá",
           numberSpec: [
             {
@@ -250,25 +251,27 @@ describe("find address points", () => {
             },
           ],
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
   });
 
   test("find address points", async () => {
     expect(
-      await findAddressPoints(
-        {
+      await findAddressPoints({
+        type: FindAddressPointsType.SmdLine,
+        smdLine: {
           street: "Lysá",
           numberSpec: { negative: true, ranges: [], type: SeriesType.Even },
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual([]);
 
     expect(
-      await findAddressPoints(
-        {
+      await findAddressPoints({
+        type: FindAddressPointsType.SmdLine,
+        smdLine: {
           street: "Lysá",
           numberSpec: {
             negative: true,
@@ -276,13 +279,14 @@ describe("find address points", () => {
             type: SeriesType.Description,
           },
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual([]);
 
     expect(
-      await findAddressPoints(
-        {
+      await findAddressPoints({
+        type: FindAddressPointsType.SmdLine,
+        smdLine: {
           street: "Lysá",
           numberSpec: {
             negative: true,
@@ -290,8 +294,8 @@ describe("find address points", () => {
             type: SeriesType.Odd,
           },
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
   });
 });

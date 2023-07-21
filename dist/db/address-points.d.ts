@@ -1,4 +1,4 @@
-import { AddressPoint, FullStreetNumber, RangeSpec, SeriesType, SmdError, SmdLine, WholeMunicipalitySmdLine } from "../street-markdown/types";
+import { AddressPoint, FullStreetNumber, RangeSpec, SeriesType, SmdError, SmdLine } from "../street-markdown/types";
 import { Founder, Municipality } from "./types";
 export declare const Column: {
     admCode: number;
@@ -33,7 +33,27 @@ export declare const checkStreetExists: (streetName: string, founder: Founder) =
     exists: boolean;
     errors: SmdError[];
 }>;
-export declare const findAddressPoints: (smdLine: SmdLine | WholeMunicipalitySmdLine, municipality: Municipality) => Promise<AddressPoint[]>;
+export declare enum FindAddressPointsType {
+    SmdLine = 0,
+    MunicipalityPart = 1,
+    WholeMunicipality = 2,
+    WholeMunicipalityNoStreetName = 3
+}
+export type FindAddressPointsParams = {
+    type: FindAddressPointsType.SmdLine;
+    smdLine: SmdLine;
+    municipality: Municipality;
+} | {
+    type: FindAddressPointsType.MunicipalityPart;
+    municipalityPartCode: number;
+} | {
+    type: FindAddressPointsType.WholeMunicipality;
+    municipality: Municipality;
+} | {
+    type: FindAddressPointsType.WholeMunicipalityNoStreetName;
+    municipality: Municipality;
+};
+export declare const findAddressPoints: (params: FindAddressPointsParams) => Promise<AddressPoint[]>;
 export declare const isInRange: (number: number | null, letter: string | null, range: RangeSpec) => boolean;
 export declare const fitsType: (number: number | null, type: SeriesType) => boolean;
 export declare const equalsFullStreetNumber: (fullStreetNumber: FullStreetNumber, addressPoint: AddressPoint) => boolean;

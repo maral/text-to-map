@@ -1,4 +1,3 @@
-export const isWholeMunicipalitySmdLine = (something) => something.hasOwnProperty("wholeMunicipality");
 export const isSeriesSpecArray = (something) => Array.isArray(something);
 export const isNegativeSeriesSpec = (something) => something.hasOwnProperty("negative");
 export const isFullStreetNumber = (something) => something.hasOwnProperty("orientationNumber");

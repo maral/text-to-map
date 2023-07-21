@@ -11,17 +11,6 @@ export interface SmdLine {
   numberSpec: SeriesSpec[] | NegativeSeriesSpec;
 }
 
-export interface WholeMunicipalitySmdLine extends SmdLine {
-  wholeMunicipality: true;
-  street: string;
-  numberSpec: SeriesSpec[] | NegativeSeriesSpec;
-}
-
-export const isWholeMunicipalitySmdLine = (
-  something: SmdLine | WholeMunicipalitySmdLine
-): something is WholeMunicipalitySmdLine =>
-  something.hasOwnProperty("wholeMunicipality");
-
 export interface SeriesSpec {
   type: SeriesType;
   ranges: (RangeSpec | FullStreetNumber)[];
@@ -104,6 +93,11 @@ export interface DbMunicipalityResult {
   errors: SmdError[];
 }
 
+export interface MunicipalityPartResult {
+  municipalityPartCode: number;
+  errors: SmdError[];
+}
+
 export interface MunicipalityWithFounder extends Municipality {
   founder: Founder | null;
 }
@@ -112,6 +106,7 @@ export interface SmdState {
   currentMunicipality: MunicipalityWithFounder;
   currentFilterMunicipality: DbMunicipality;
   currentSchool: School;
+  noStreetNameSchoolIzo: string;
   municipalities: Municipality[];
 }
 

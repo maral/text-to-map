@@ -7,11 +7,9 @@ import {
   SeriesType,
   SmdError,
   SmdLine,
-  WholeMunicipalitySmdLine,
   isNegativeSeriesSpec,
   isRange,
   isSeriesSpecArray,
-  isWholeMunicipalitySmdLine,
 } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
@@ -157,9 +155,10 @@ export const insertMunicipalityParts = async (
   return await insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.municipalityPartCode, [
       Column.municipalityPartName,
+      Column.cityCode,
     ]),
     "municipality_part",
-    ["code", "name"]
+    ["code", "name", "city_code"]
   );
 };
 
@@ -270,7 +269,6 @@ export const checkStreetExists = async (
       //   `Street '${streetName}' has wrong case, correct case: '${match}'.`
       // );
     }
-    exists = true;
   } else {
     const closest = findClosestString(streetName, allStreets);
     errors.push({
@@ -287,21 +285,58 @@ const getAllStreets = async (cityCode: number): Promise<string[]> => {
   return await knex.pluck("name").from("street").where("city_code", cityCode);
 };
 
+export enum FindAddressPointsType {
+  SmdLine,
+  MunicipalityPart,
+  WholeMunicipality,
+  WholeMunicipalityNoStreetName,
+}
+
+export type FindAddressPointsParams =
+  | {
+      type: FindAddressPointsType.SmdLine;
+      smdLine: SmdLine;
+      municipality: Municipality;
+    }
+  | {
+      type: FindAddressPointsType.MunicipalityPart;
+      municipalityPartCode: number;
+    }
+  | {
+      type: FindAddressPointsType.WholeMunicipality;
+      municipality: Municipality;
+    }
+  | {
+      type: FindAddressPointsType.WholeMunicipalityNoStreetName;
+      municipality: Municipality;
+    };
+
 export const findAddressPoints = async (
-  smdLine: SmdLine | WholeMunicipalitySmdLine,
-  municipality: Municipality
+  params: FindAddressPointsParams
 ): Promise<AddressPoint[]> => {
   const knex = getKnexDb();
 
-  const params = isWholeMunicipalitySmdLine(smdLine)
-    ? [municipality.code]
-    : [smdLine.street, municipality.code];
+  const queryParams =
+    params.type === FindAddressPointsType.SmdLine
+      ? [params.smdLine.street, params.municipality.code]
+      : params.type === FindAddressPointsType.MunicipalityPart
+      ? [params.municipalityPartCode]
+      : [params.municipality.code];
 
-  const streetJoinCondition = isWholeMunicipalitySmdLine(smdLine)
-    ? "LEFT JOIN street s ON a.street_code = s.code"
-    : `JOIN street s ON a.street_code = s.code AND s.name = ? ${
-        isSqlite(knex) ? "COLLATE NOCASE" : ""
-      }`;
+  const streetJoinCondition =
+    params.type === FindAddressPointsType.SmdLine
+      ? `JOIN street s ON a.street_code = s.code AND s.name = ? ${
+          isSqlite(knex) ? "COLLATE NOCASE" : ""
+        }`
+      : "LEFT JOIN street s ON a.street_code = s.code";
+
+  const whereCondition =
+    params.type === FindAddressPointsType.MunicipalityPart
+      ? "a.municipality_part_code = ?"
+      : getMunicipalityWhere("a", params.municipality) +
+        (params.type === FindAddressPointsType.WholeMunicipalityNoStreetName
+          ? " AND a.street_code IS NULL"
+          : "");
 
   const queryResult = await knex.raw(
     `SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
@@ -315,18 +350,18 @@ export const findAddressPoints = async (
     LEFT JOIN city_district d ON a.city_district_code = d.code
     LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
     LEFT JOIN prague_district p ON a.prague_district_code = p.code
-    WHERE ${getMunicipalityWhere("a", municipality)}`,
-    params
+    WHERE ${whereCondition}`,
+    queryParams
   );
 
   const filteredAddressPoints = queryResult.map(rowToAddressPoint);
 
-  if (isWholeMunicipalitySmdLine(smdLine)) {
+  if (params.type !== FindAddressPointsType.SmdLine) {
     return filteredAddressPoints;
   }
 
   const result: AddressPoint[] = [];
-  const numberSpec = smdLine.numberSpec;
+  const numberSpec = params.smdLine.numberSpec;
   if (isSeriesSpecArray(numberSpec)) {
     numberSpec.forEach((seriesSpec) => {
       result.push(

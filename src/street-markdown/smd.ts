@@ -1,4 +1,5 @@
 import {
+  FindAddressPointsType,
   checkStreetExists,
   findAddressPoints,
   getAddressPointById,
@@ -8,9 +9,12 @@ import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
 import { Founder, founderToMunicipality } from "../db/types";
 import {
+  getMunicipalityPart,
   getSwitchMunicipality,
   getWholeMunicipality,
+  isMunicipalityPart,
   isMunicipalitySwitch,
+  isNoStreetNameLine,
   isWholeMunicipality,
 } from "./municipality";
 import { parseLine } from "./smd-line-parser";
@@ -40,6 +44,7 @@ export const parseOrdinanceToAddressPoints = async (
       currentMunicipality: null,
       currentFilterMunicipality: null,
       currentSchool: null,
+      noStreetNameSchoolIzo: null,
       municipalities: [],
       ...initialState,
     };
@@ -69,6 +74,9 @@ export const parseOrdinanceToAddressPoints = async (
     }
 
     if (state.currentMunicipality != null) {
+      if (state.noStreetNameSchoolIzo) {
+        await addNoStreetNameToSchool(state);
+      }
       state.municipalities.push(convertMunicipality(state.currentMunicipality));
     }
 
@@ -124,10 +132,14 @@ const processOneLine = async (params: ProcessLineParams) => {
     return;
   }
 
-  if (isMunicipalitySwitch(line)) {
+  if (isMunicipalityPart(line)) {
+    await processMunicipalityPartLine(params);
+  } else if (isMunicipalitySwitch(line)) {
     processMunicipalitySwitchLine(params);
   } else if (isWholeMunicipality(line)) {
     await processWholeMunicipalityLine(params);
+  } else if (isNoStreetNameLine(line)) {
+    state.noStreetNameSchoolIzo = state.currentSchool.izo;
   } else {
     await processAddressPointLine(params);
   }
@@ -135,6 +147,7 @@ const processOneLine = async (params: ProcessLineParams) => {
 
 const processMunicipalityLine = async ({
   line,
+  lineNumber,
   state,
   onError,
 }: ProcessLineParams) => {
@@ -144,10 +157,16 @@ const processMunicipalityLine = async ({
   }
 
   if (state.currentMunicipality !== null) {
+    if (state.noStreetNameSchoolIzo) {
+      await addNoStreetNameToSchool(state);
+    }
     state.municipalities.push(convertMunicipality(state.currentMunicipality));
   }
 
   const { municipality, errors } = await getNewMunicipality(line);
+  if (errors.length > 0) {
+    onError({ lineNumber, line, errors });
+  }
   state.currentMunicipality = municipality;
   state.currentFilterMunicipality = founderToMunicipality(
     state.currentMunicipality.founder
@@ -193,13 +212,41 @@ const processSchoolLine = async ({
   );
 };
 
+const processMunicipalityPartLine = async ({
+  line,
+  state,
+  lineNumber,
+  onError,
+}: ProcessLineParams) => {
+  const { municipalityPartCode, errors } = await getMunicipalityPart(
+    line,
+    state.currentMunicipality.founder
+  );
+  if (errors.length > 0) {
+    onError({ lineNumber, line, errors });
+  } else {
+    const addressPoints = await findAddressPoints({
+      type: FindAddressPointsType.MunicipalityPart,
+      municipalityPartCode,
+    });
+    state.currentSchool.addresses.push(
+      ...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(
+        mapAddressPointForExport
+      )
+    );
+  }
+};
+
 const processMunicipalitySwitchLine = async ({
   line,
   state,
   lineNumber,
   onError,
 }: ProcessLineParams) => {
-  const { municipality, errors } = await getSwitchMunicipality(line);
+  const { municipality, errors } = await getSwitchMunicipality(
+    line,
+    state.currentMunicipality.founder
+  );
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
@@ -213,14 +260,17 @@ const processWholeMunicipalityLine = async ({
   lineNumber,
   onError,
 }: ProcessLineParams) => {
-  const { municipality, errors } = await getWholeMunicipality(line);
+  const { municipality, errors } = await getWholeMunicipality(
+    line,
+    state.currentMunicipality.founder
+  );
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
-    const addressPoints = await findAddressPoints(
-      { wholeMunicipality: true, street: "", numberSpec: [] },
-      municipality
-    );
+    const addressPoints = await findAddressPoints({
+      type: FindAddressPointsType.WholeMunicipality,
+      municipality,
+    });
     state.currentSchool.addresses.push(
       ...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(
         mapAddressPointForExport
@@ -249,10 +299,11 @@ const processAddressPointLine = async ({
         onWarning({ lineNumber, line, errors });
       }
       if (exists) {
-        let addressPoints = await findAddressPoints(
+        let addressPoints = await findAddressPoints({
+          type: FindAddressPointsType.SmdLine,
           smdLine,
-          state.currentFilterMunicipality
-        );
+          municipality: state.currentFilterMunicipality,
+        });
 
         state.currentSchool.addresses.push(
           ...filterOutSchoolAddressPoint(
@@ -263,6 +314,36 @@ const processAddressPointLine = async ({
       }
     }
   }
+};
+
+const addNoStreetNameToSchool = async (state: SmdState) => {
+  const addressPoints = state.currentMunicipality.schools.flatMap(
+    (school) => school.addresses
+  );
+
+  // get all address points without street name for current municipality
+  const pointsNoStreetName = await findAddressPoints({
+    type: FindAddressPointsType.WholeMunicipalityNoStreetName,
+    municipality: {
+      code: state.currentMunicipality.founder.cityOrDistrictCode,
+      type: state.currentMunicipality.founder.municipalityType,
+    },
+  });
+
+  // filter out address points already present
+  const remainingPoints = pointsNoStreetName.filter(
+    (point) => !addressPoints.some((ap) => ap.address === point.address)
+  );
+
+  // find the right school and add the remaining address points
+  const schoolIndex = state.currentMunicipality.schools.findIndex(
+    (school) => school.izo === state.noStreetNameSchoolIzo
+  );
+
+  state.currentMunicipality.schools[schoolIndex].addresses.push(
+    ...remainingPoints
+  );
+  state.noStreetNameSchoolIzo = null;
 };
 
 export const getNewMunicipality = async (

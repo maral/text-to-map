@@ -39,6 +39,13 @@ export interface Municipality {
 
 export type MunicipalityWithPosition = Municipality & Position;
 
+export interface PlaceWithPosition {
+  code: number;
+  lat: number;
+  lng: number;
+}
+
+
 export const founderToMunicipality = (founder: Founder): Municipality => {
   return {
     type: founder.municipalityType,

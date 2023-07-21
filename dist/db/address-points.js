@@ -8,7 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import { AddressPointType, createSingleLineAddress } from "czech-address";
-import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, isWholeMunicipalitySmdLine, } from "../street-markdown/types";
+import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
 import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isSqlite, nonEmptyOrNull, } from "./db";
@@ -94,7 +94,8 @@ export const insertDistricts = (buffer) => __awaiter(void 0, void 0, void 0, fun
 export const insertMunicipalityParts = (buffer) => __awaiter(void 0, void 0, void 0, function* () {
     return yield insertMultipleRows(extractKeyValuesPairs(buffer, Column.municipalityPartCode, [
         Column.municipalityPartName,
-    ]), "municipality_part", ["code", "name"]);
+        Column.cityCode,
+    ]), "municipality_part", ["code", "name", "city_code"]);
 });
 export const insertPragueDistricts = (buffer) => __awaiter(void 0, void 0, void 0, function* () {
     return yield insertMultipleRows(extractKeyValuesPairs(buffer, Column.pragueDistrictCode, [
@@ -167,7 +168,6 @@ export const checkStreetExists = (streetName, founder) => __awaiter(void 0, void
             //   `Street '${streetName}' has wrong case, correct case: '${match}'.`
             // );
         }
-        exists = true;
     }
     else {
         const closest = findClosestString(streetName, allStreets);
@@ -183,14 +183,29 @@ const getAllStreets = (cityCode) => __awaiter(void 0, void 0, void 0, function* 
     const knex = getKnexDb();
     return yield knex.pluck("name").from("street").where("city_code", cityCode);
 });
-export const findAddressPoints = (smdLine, municipality) => __awaiter(void 0, void 0, void 0, function* () {
+export var FindAddressPointsType;
+(function (FindAddressPointsType) {
+    FindAddressPointsType[FindAddressPointsType["SmdLine"] = 0] = "SmdLine";
+    FindAddressPointsType[FindAddressPointsType["MunicipalityPart"] = 1] = "MunicipalityPart";
+    FindAddressPointsType[FindAddressPointsType["WholeMunicipality"] = 2] = "WholeMunicipality";
+    FindAddressPointsType[FindAddressPointsType["WholeMunicipalityNoStreetName"] = 3] = "WholeMunicipalityNoStreetName";
+})(FindAddressPointsType || (FindAddressPointsType = {}));
+export const findAddressPoints = (params) => __awaiter(void 0, void 0, void 0, function* () {
     const knex = getKnexDb();
-    const params = isWholeMunicipalitySmdLine(smdLine)
-        ? [municipality.code]
-        : [smdLine.street, municipality.code];
-    const streetJoinCondition = isWholeMunicipalitySmdLine(smdLine)
-        ? "LEFT JOIN street s ON a.street_code = s.code"
-        : `JOIN street s ON a.street_code = s.code AND s.name = ? ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`;
+    const queryParams = params.type === FindAddressPointsType.SmdLine
+        ? [params.smdLine.street, params.municipality.code]
+        : params.type === FindAddressPointsType.MunicipalityPart
+            ? [params.municipalityPartCode]
+            : [params.municipality.code];
+    const streetJoinCondition = params.type === FindAddressPointsType.SmdLine
+        ? `JOIN street s ON a.street_code = s.code AND s.name = ? ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`
+        : "LEFT JOIN street s ON a.street_code = s.code";
+    const whereCondition = params.type === FindAddressPointsType.MunicipalityPart
+        ? "a.municipality_part_code = ?"
+        : getMunicipalityWhere("a", params.municipality) +
+            (params.type === FindAddressPointsType.WholeMunicipalityNoStreetName
+                ? " AND a.street_code IS NULL"
+                : "");
     const queryResult = yield knex.raw(`SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
       a.orientational_number, a.orientational_number_letter, c.name AS city_name,
       d.name AS district_name, m.name AS municipality_part_name, p.name AS prague_district_name,
@@ -202,13 +217,13 @@ export const findAddressPoints = (smdLine, municipality) => __awaiter(void 0, vo
     LEFT JOIN city_district d ON a.city_district_code = d.code
     LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
     LEFT JOIN prague_district p ON a.prague_district_code = p.code
-    WHERE ${getMunicipalityWhere("a", municipality)}`, params);
+    WHERE ${whereCondition}`, queryParams);
     const filteredAddressPoints = queryResult.map(rowToAddressPoint);
-    if (isWholeMunicipalitySmdLine(smdLine)) {
+    if (params.type !== FindAddressPointsType.SmdLine) {
         return filteredAddressPoints;
     }
     const result = [];
-    const numberSpec = smdLine.numberSpec;
+    const numberSpec = params.smdLine.numberSpec;
     if (isSeriesSpecArray(numberSpec)) {
         numberSpec.forEach((seriesSpec) => {
             result.push(...filterAddressPointsByRanges(filteredAddressPoints, seriesSpec));
