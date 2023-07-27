@@ -17,10 +17,13 @@ export var SupportedDbType;
 (function (SupportedDbType) {
     SupportedDbType["sqlite"] = "sqlite";
     SupportedDbType["postgres"] = "postgres";
+    SupportedDbType["mysql"] = "mysql";
 })(SupportedDbType || (SupportedDbType = {}));
+const mysqlConnectionStringPattern = /^([^:]+):(\d+):([^:]+):([^:]+):([^:]+)$/;
 const DbClient = {
     [SupportedDbType.sqlite]: "better-sqlite3",
     [SupportedDbType.postgres]: "pg",
+    [SupportedDbType.mysql]: "mysql",
 };
 const defaults = {
     dbType: SupportedDbType.sqlite,
@@ -56,6 +59,20 @@ export const getKnexDb = (config = {}) => {
                 useNullAsDefault: true,
             });
         }
+        else if (_knexDbConfig.dbType === SupportedDbType.mysql) {
+            const [host, port, user, password, database] = _knexDbConfig.mysqlConnectionString.split(":");
+            _knexDb = knex({
+                client: DbClient[SupportedDbType.mysql],
+                connection: {
+                    host,
+                    port: Number(port),
+                    user,
+                    password,
+                    database,
+                },
+                useNullAsDefault: true,
+            });
+        }
         else {
             throw new Error(`Unsupported DB type: ${_knexDbConfig.dbType}`);
         }
@@ -67,6 +84,9 @@ export const isPostgres = (knex) => {
 };
 export const isSqlite = (knex) => {
     return knex.client.config.client === DbClient[SupportedDbType.sqlite];
+};
+export const isMysql = (knex) => {
+    return knex.client.config.client === DbClient[SupportedDbType.mysql];
 };
 const getMigrationConfig = () => {
     return { directory: join(__dirname, "migrations") };
@@ -100,6 +120,16 @@ const getEnvConfig = () => {
             }
             envConfig.pgConnectionString = process.env.TEXTTOMAP_PG_CONNECTION_STRING;
         }
+        else if (envConfig.dbType === SupportedDbType.mysql) {
+            if (!process.env.TEXTTOMAP_MYSQL_CONNECTION_DATA) {
+                throw new Error("Environmental variable 'TEXTTOMAP_MYSQL_CONNECTION_DATA' must be set for MySQL or MariaDB.");
+            }
+            if (!mysqlConnectionStringPattern.test(process.env.TEXTTOMAP_MYSQL_CONNECTION_DATA)) {
+                throw new Error("Environmental variable 'TEXTTOMAP_MYSQL_CONNECTION_DATA' must be in format 'host:port:user:password:database'.");
+            }
+            envConfig.mysqlConnectionString =
+                process.env.TEXTTOMAP_MYSQL_CONNECTION_DATA;
+        }
         else if (envConfig.dbType === SupportedDbType.sqlite) {
             if (process.env.TEXTTOMAP_SQLITE_PATH) {
                 envConfig.filePath = process.env.TEXTTOMAP_SQLITE_PATH;
@@ -120,8 +150,9 @@ export const insertMultipleRows = (rows, table, columnNames, preventDuplicates =
         return 0;
     }
     const insertPlaceholders = generate2DPlaceholders(columnNames.length, rows.length);
-    const onConfict = preventDuplicates ? `ON CONFLICT DO NOTHING` : "";
-    yield getKnexDb().raw(`INSERT INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
+    const knex = getKnexDb();
+    const onConfict = preventDuplicates && !isMysql(knex) ? `ON CONFLICT DO NOTHING` : "";
+    yield knex.raw(`INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
     return rows.length;
 });
 /**

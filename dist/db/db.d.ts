@@ -2,17 +2,20 @@ import { Knex } from "knex";
 interface DbConfig {
     dbType: SupportedDbType;
     pgConnectionString?: string;
+    mysqlConnectionString?: string;
     initFilePath: string;
     filePath?: string;
     verbose: boolean;
 }
 export declare enum SupportedDbType {
     sqlite = "sqlite",
-    postgres = "postgres"
+    postgres = "postgres",
+    mysql = "mysql"
 }
 export declare const getKnexDb: (config?: Partial<DbConfig>) => Knex;
 export declare const isPostgres: (knex: Knex) => boolean;
 export declare const isSqlite: (knex: Knex) => boolean;
+export declare const isMysql: (knex: Knex) => boolean;
 export declare const initDb: (config?: Partial<DbConfig>) => Promise<Knex>;
 export declare const clearDb: (config?: Partial<DbConfig>) => Promise<Knex>;
 export declare const disconnectKnex: () => Promise<void>;

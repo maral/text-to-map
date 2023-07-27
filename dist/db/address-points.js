@@ -11,7 +11,7 @@ import { AddressPointType, createSingleLineAddress } from "czech-address";
 import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
-import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isSqlite, nonEmptyOrNull, } from "./db";
+import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isMysql, isSqlite, nonEmptyOrNull, } from "./db";
 import { getFounderCityCode } from "./founders";
 import { MunicipalityType } from "./types";
 const DescriptiveType = "č.p.";
@@ -79,7 +79,8 @@ export const commitAddressPoints = (buffer) => __awaiter(void 0, void 0, void 0,
         params.push(data[Column.admCode], nonEmptyOrNull(data[Column.streetCode]), ObjectTypes[data[Column.objectType]], nonEmptyOrNull(data[Column.houseNumber]), nonEmptyOrNull(data[Column.orientationalNumber]), nonEmptyOrNull(data[Column.orientationalNumberLetter]), data[Column.cityCode], nonEmptyOrNull(data[Column.districtCode]), nonEmptyOrNull(data[Column.municipalityPartCode]), nonEmptyOrNull(data[Column.pragueDistrictCode]), data[Column.postalCode], nonEmptyOrNull(data[Column.xCoordinate]), nonEmptyOrNull(data[Column.yCoordinate]), latOrNull, lonOrNull);
     });
     const placeHolders = generate2DPlaceholders(columnNames.length, buffer.length);
-    yield getKnexDb().raw(`INSERT INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ON CONFLICT (id) DO NOTHING`, params);
+    const knex = getKnexDb();
+    yield knex.raw(`INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${!isMysql(knex) ? "ON CONFLICT (id) DO NOTHING" : ""}`, params);
     return buffer.length;
 });
 export const insertCities = (buffer) => __awaiter(void 0, void 0, void 0, function* () {

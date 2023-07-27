@@ -7,114 +7,130 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
         step((generator = generator.apply(thisArg, _arguments || [])).next());
     });
 };
-import { isPostgres, isSqlite } from "../db";
+import { isMysql, isPostgres, isSqlite } from "../db";
 export function up(knex) {
     return __awaiter(this, void 0, void 0, function* () {
         yield knex.schema.createTable("prague_district", function (table_10) {
-            table_10.integer("code").primary().notNullable();
-            table_10.text("name").notNullable();
+            table_10.integer("code").unsigned().primary().notNullable();
+            table_10.string("name").notNullable();
         });
         yield knex.schema.createTable("school", function (table_12) {
-            table_12.text("izo").primary();
-            table_12.text("redizo").notNullable();
-            table_12.text("name").notNullable();
-            table_12.integer("capacity").notNullable();
+            table_12.string("izo").primary();
+            table_12.string("redizo").notNullable();
+            table_12.string("name").notNullable();
+            table_12.integer("capacity").unsigned().notNullable();
         });
         yield knex.schema.createTable("founder_type", function (table_5) {
-            table_5.integer("code").primary().notNullable();
-            table_5.text("name").notNullable();
+            table_5.integer("code").unsigned().primary().notNullable();
+            table_5.string("name").notNullable();
         });
         yield knex.schema.createTable("meta", function (table_6) {
-            table_6.text("key").primary().notNullable();
+            table_6.string("key").primary().notNullable();
             table_6.text("value").notNullable();
         });
         yield knex.schema.createTable("object_type", function (table_8) {
-            table_8.integer("id").primary().notNullable();
-            table_8.text("name").notNullable();
+            table_8.integer("id").unsigned().primary().notNullable();
+            table_8.string("name").notNullable();
         });
         yield knex.schema.createTable("street_sync", function (table_16) {
-            table_16.text("feed_url").primary().notNullable();
+            table_16.string("feed_url", 500).primary().notNullable();
         });
         yield knex.schema.createTable("region", function (table_11) {
-            table_11.integer("code").primary().notNullable();
-            table_11.text("name").notNullable();
-            table_11.text("short_name").notNullable();
-            table_11.integer("csu_code_100").notNullable();
-            table_11.text("csu_code_108_nuts").notNullable();
+            table_11.integer("code").unsigned().primary().notNullable();
+            table_11.string("name").notNullable();
+            table_11.string("short_name").notNullable();
+            table_11.integer("csu_code_100").unsigned().notNullable();
+            table_11.string("csu_code_108_nuts").notNullable();
         });
         yield knex.schema.createTable("county", function (table_3) {
-            table_3.integer("code").primary().notNullable();
-            table_3.text("name").notNullable();
-            table_3.integer("csu_code_101_lau").notNullable();
-            table_3.text("csu_code_109_nuts").notNullable();
+            table_3.integer("code").unsigned().primary().notNullable();
+            table_3.string("name").notNullable();
+            table_3.integer("csu_code_101_lau").unsigned().notNullable();
+            table_3.string("csu_code_109_nuts").notNullable();
             table_3
                 .integer("region_code")
+                .unsigned()
                 .references("code")
                 .inTable("region")
                 .notNullable();
         });
         yield knex.schema.createTable("orp", function (table_9) {
-            table_9.integer("code").primary().notNullable();
-            table_9.text("name").notNullable();
-            table_9.integer("csu_code_65").notNullable();
+            table_9.integer("code").unsigned().primary().notNullable();
+            table_9.string("name").notNullable();
+            table_9.integer("csu_code_65").unsigned().notNullable();
             table_9
                 .integer("region_code")
+                .unsigned()
                 .references("code")
                 .inTable("region")
                 .notNullable();
             table_9
                 .integer("county_code")
+                .unsigned()
                 .references("code")
                 .inTable("county")
                 .notNullable();
         });
         yield knex.schema.createTable("city", function (table_1) {
-            table_1.integer("code").primary().notNullable();
-            table_1.text("name").notNullable();
-            table_1.integer("region_code").references("code").inTable("region");
-            table_1.integer("county_code").references("code").inTable("county");
-            table_1.integer("orp_code").references("code").inTable("orp");
+            table_1.integer("code").unsigned().primary().notNullable();
+            table_1.string("name").notNullable();
+            table_1
+                .integer("region_code")
+                .unsigned()
+                .references("code")
+                .inTable("region");
+            table_1
+                .integer("county_code")
+                .unsigned()
+                .references("code")
+                .inTable("county");
+            table_1.integer("orp_code").unsigned().references("code").inTable("orp");
         });
         yield knex.schema.createTable("city_district", function (table_2) {
-            table_2.integer("code").primary().notNullable();
+            table_2.integer("code").unsigned().primary().notNullable();
             table_2
                 .integer("city_code")
+                .unsigned()
                 .references("code")
                 .inTable("city")
                 .notNullable();
-            table_2.text("name").notNullable();
+            table_2.string("name").notNullable();
         });
         yield knex.schema.createTable("municipality_part", function (table_7) {
-            table_7.integer("code").primary().notNullable();
+            table_7.integer("code").unsigned().primary().notNullable();
             table_7
                 .integer("city_code")
+                .unsigned()
                 .references("code")
                 .inTable("city")
                 .notNullable();
-            table_7.text("name").notNullable();
+            table_7.string("name").notNullable();
         });
         yield knex.schema.createTable("street", function (table_15) {
-            table_15.integer("code").primary().notNullable();
+            table_15.integer("code").unsigned().primary().notNullable();
             table_15
                 .integer("city_code")
+                .unsigned()
                 .references("code")
                 .inTable("city")
                 .notNullable();
-            table_15.text("name").notNullable();
+            table_15.string("name").notNullable();
         });
         yield knex.schema.createTable("founder", function (table_4) {
             table_4.increments("id");
-            table_4.text("name").notNullable();
-            table_4.text("short_name").notNullable();
-            table_4.text("ico").notNullable();
+            table_4.string("name").notNullable();
+            table_4.string("short_name").notNullable();
+            table_4.string("ico").notNullable();
             table_4
                 .integer("founder_type_code")
+                .unsigned()
                 .references("code")
                 .inTable("founder_type")
                 .notNullable();
-            table_4.integer("city_code").references("code").inTable("city");
+            table_4.integer("city_code").unsigned().references("code").inTable("city");
             table_4
                 .integer("city_district_code")
+                .unsigned()
                 .references("code")
                 .inTable("city_district");
             table_4.unique(["name", "ico"]);
@@ -122,12 +138,13 @@ export function up(knex) {
         yield knex.schema.createTable("school_founder", function (table_13) {
             table_13.increments("id");
             table_13
-                .text("school_izo")
+                .string("school_izo")
                 .references("izo")
                 .inTable("school")
                 .notNullable();
             table_13
                 .integer("founder_id")
+                .unsigned()
                 .references("id")
                 .inTable("founder")
                 .notNullable();
@@ -135,29 +152,42 @@ export function up(knex) {
         });
         yield knex.schema.createTable("address_point", function (table) {
             table.increments("id");
-            table.integer("street_code").references("code").inTable("street");
+            table
+                .integer("street_code")
+                .unsigned()
+                .references("code")
+                .inTable("street");
             table
                 .integer("object_type_id")
+                .unsigned()
                 .references("id")
                 .inTable("object_type")
                 .notNullable();
             table.integer("descriptive_number");
             table.integer("orientational_number");
-            table.text("orientational_number_letter");
-            table.integer("city_code").references("code").inTable("city").notNullable();
+            table.string("orientational_number_letter");
+            table
+                .integer("city_code")
+                .unsigned()
+                .references("code")
+                .inTable("city")
+                .notNullable();
             table
                 .integer("city_district_code")
+                .unsigned()
                 .references("code")
                 .inTable("city_district");
             table
                 .integer("municipality_part_code")
+                .unsigned()
                 .references("code")
                 .inTable("municipality_part");
             table
                 .integer("prague_district_code")
+                .unsigned()
                 .references("code")
                 .inTable("prague_district");
-            table.text("postal_code").notNullable();
+            table.string("postal_code").notNullable();
             table.double("jtsk_x");
             table.double("jtsk_y");
             table.double("wgs84_latitude");
@@ -166,12 +196,13 @@ export function up(knex) {
         yield knex.schema.createTable("school_location", function (table_14) {
             table_14.increments("id");
             table_14
-                .text("school_izo")
+                .string("school_izo")
                 .references("izo")
                 .inTable("school")
                 .notNullable();
             table_14
                 .integer("address_point_id")
+                .unsigned()
                 .references("id")
                 .inTable("address_point")
                 .notNullable()
@@ -180,7 +211,7 @@ export function up(knex) {
         });
         yield knex.schema.createTable("sync_log", function (table_15) {
             table_15.increments("id");
-            table_15.text("part").notNullable();
+            table_15.string("part").notNullable();
             table_15.dateTime("started_at").notNullable();
             table_15.dateTime("finished_at");
             table_15.boolean("completed").defaultTo(false);
@@ -246,12 +277,20 @@ export function up(knex) {
     });
 }
 const createCaseInsensitiveIndex = (knex, table, column) => __awaiter(void 0, void 0, void 0, function* () {
+    const createIndexStart = `CREATE INDEX ${table}_${column} ON ${table}`;
     if (isPostgres(knex)) {
         yield knex.schema.alterTable(table, (t) => {
             t.specificType(column, "CITEXT").notNullable().alter();
         });
+        yield knex.schema.raw(`${createIndexStart} (${column});`);
     }
-    yield knex.schema.raw(`CREATE INDEX ${table}_${column} ON ${table} (${column}${isSqlite(knex) ? " COLLATE NOCASE" : ""});`);
+    else if (isSqlite(knex)) {
+        yield knex.schema.raw(`${createIndexStart} (${column} COLLATE NOCASE);`);
+    }
+    else if (isMysql(knex)) {
+        yield knex.schema.raw(`ALTER TABLE ${table} MODIFY COLUMN ${column} VARCHAR(255) COLLATE utf8_general_ci;`);
+        yield knex.schema.raw(`${createIndexStart} (${column});`);
+    }
 });
 export function down(knex) {
     return __awaiter(this, void 0, void 0, function* () {
