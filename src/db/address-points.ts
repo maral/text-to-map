@@ -18,6 +18,7 @@ import {
   generate2DPlaceholders,
   getKnexDb,
   insertMultipleRows,
+  isMysql,
   isSqlite,
   nonEmptyOrNull,
 } from "./db";
@@ -120,10 +121,13 @@ export const commitAddressPoints = async (
     buffer.length
   );
 
-  await getKnexDb().raw(
-    `INSERT INTO address_point (${columnNames.join(
-      ","
-    )}) VALUES ${placeHolders} ON CONFLICT (id) DO NOTHING`,
+  const knex = getKnexDb();
+  await knex.raw(
+    `INSERT ${
+      isMysql(knex) ? "IGNORE" : ""
+    } INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${
+      !isMysql(knex) ? "ON CONFLICT (id) DO NOTHING" : ""
+    }`,
     params
   );
 
