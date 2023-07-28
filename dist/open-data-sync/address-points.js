@@ -14,6 +14,7 @@ import iconv from "iconv-lite";
 import fetch from "node-fetch";
 import { join } from "path";
 import { pipeline } from "stream/promises";
+import chunk from "lodash/chunk";
 import { commitAddressPoints } from "../db/address-points";
 import { SyncPart } from "../db/types";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
@@ -42,24 +43,21 @@ const importDataToDb = (options) => __awaiter(void 0, void 0, void 0, function* 
     let total = 0;
     let next = 0;
     console.log("Initiating import of RUIAN data to search DB (~3 million rows to be imported).");
-    const buffer = [];
     for (const file of files) {
+        const rows = [];
         const parseStream = parse({ delimiter: ";", fromLine: 2 }).on("data", (data) => __awaiter(void 0, void 0, void 0, function* () {
-            buffer.push(data);
-            if (buffer.length >= maxBufferSize) {
-                parseStream.pause();
-                total += yield commitAddressPoints(buffer);
-                if (total - next >= 100000) {
-                    next += 100000;
-                    console.log(`Total imported rows: ${next}`);
-                }
-                buffer.length = 0;
-                parseStream.resume();
-            }
+            rows.push(data);
         }));
         yield pipeline(createReadStream(join(extractionFolder, file)), iconv.decodeStream("win1250"), parseStream);
+        const chunks = chunk(rows, maxBufferSize);
+        yield Promise.all(chunks.map((chunk) => __awaiter(void 0, void 0, void 0, function* () {
+            total += yield commitAddressPoints(chunk);
+            if (total - next >= 100000) {
+                next += 100000;
+                console.log(`Total imported rows: ${next}`);
+            }
+        })));
     }
-    total += yield commitAddressPoints(buffer);
     console.log(`Import completed. Total imported rows: ${total}`);
 });
 const getExtractionFolder = (options) => join(options.tmpDir, options.addressPointsCsvFolderName);
