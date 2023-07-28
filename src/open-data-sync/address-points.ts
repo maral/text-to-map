@@ -5,7 +5,7 @@ import iconv from "iconv-lite";
 import fetch from "node-fetch";
 import { join } from "path";
 import { pipeline } from "stream/promises";
-
+import chunk from "lodash/chunk";
 import { commitAddressPoints } from "../db/address-points";
 import { SyncPart } from "../db/types";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
@@ -56,22 +56,12 @@ const importDataToDb = async (options: OpenDataSyncOptions) => {
     "Initiating import of RUIAN data to search DB (~3 million rows to be imported)."
   );
 
-  const buffer: string[][] = [];
   for (const file of files) {
+    const rows: string[][] = [];
     const parseStream = parse({ delimiter: ";", fromLine: 2 }).on(
       "data",
       async (data) => {
-        buffer.push(data);
-        if (buffer.length >= maxBufferSize) {
-          parseStream.pause();
-          total += await commitAddressPoints(buffer);
-          if (total - next >= 100000) {
-            next += 100000;
-            console.log(`Total imported rows: ${next}`);
-          }
-          buffer.length = 0;
-          parseStream.resume();
-        }
+        rows.push(data);
       }
     );
 
@@ -80,8 +70,20 @@ const importDataToDb = async (options: OpenDataSyncOptions) => {
       iconv.decodeStream("win1250"),
       parseStream
     );
+
+    const chunks = chunk(rows, maxBufferSize);
+
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        total += await commitAddressPoints(chunk);
+
+        if (total - next >= 100000) {
+          next += 100000;
+          console.log(`Total imported rows: ${next}`);
+        }
+      })
+    );
   }
-  total += await commitAddressPoints(buffer);
 
   console.log(`Import completed. Total imported rows: ${total}`);
 };
