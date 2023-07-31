@@ -13,12 +13,17 @@ import {
 import { runSyncPart } from "./common";
 import { createReadStream } from "fs";
 import { insertCityPositions } from "../db/cities";
+import { fileURLToPath } from "url";
+import { dirname, join } from "path";
 
 const importDataToDb = async (options: OpenDataSyncOptions) => {
   console.log("Starting to parse CSV file...");
 
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
+
   // source: https://github.com/33bcdd/souradnice-mest/blob/master/souradnice.csv
-  const csvStream = createReadStream("./data/souradnice.csv");
+  const csvStream = createReadStream(join(__dirname, "..", "souradnice.csv"));
 
   const rows: string[][] = [];
   const parseStream = parse({ delimiter: ",", fromLine: 2 }).on(
