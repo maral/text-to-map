@@ -64,4 +64,5 @@ export enum SyncPart {
   Schools = "schools",
   Regions = "regions",
   Streets = "streets",
+  Cities = "cities",
 }
