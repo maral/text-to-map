@@ -8,12 +8,13 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import { clearDb, initDb } from "./db/db";
-import { downloadAndImportAddressPoints, } from "./open-data-sync/address-points";
+import { downloadAndImportAddressPoints } from "./open-data-sync/address-points";
+import { importCities } from "./open-data-sync/cities";
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
-export * from "./street-markdown/types";
 export * from "./street-markdown/smd";
+export * from "./street-markdown/types";
 /**
  * Download and import all open data to SQLite DB. The DB file will be located
  * in the `dataDir` folder.
@@ -31,9 +32,10 @@ export function downloadAndImportEverything(options = {}, syncStreets = true) {
         yield downloadAndImportAddressPoints(options);
         yield downloadAndImportSchools(options);
         yield downloadAndImportRegions(options);
+        yield importCities(options);
         if (syncStreets) {
             yield downloadAndImportStreets(options);
         }
     });
 }
-export { initDb, downloadAndImportAddressPoints, clearDb, downloadAndImportSchools, downloadAndImportStreets, downloadAndImportRegions, };
+export { clearDb, downloadAndImportAddressPoints, downloadAndImportRegions, downloadAndImportSchools, downloadAndImportStreets, importCities, initDb, };

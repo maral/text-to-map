@@ -16,4 +16,5 @@ export var SyncPart;
     SyncPart["Schools"] = "schools";
     SyncPart["Regions"] = "regions";
     SyncPart["Streets"] = "streets";
+    SyncPart["Cities"] = "cities";
 })(SyncPart || (SyncPart = {}));
