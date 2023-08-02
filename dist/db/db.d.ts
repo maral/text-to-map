@@ -20,6 +20,7 @@ export declare const initDb: (config?: Partial<DbConfig>) => Promise<Knex>;
 export declare const clearDb: (config?: Partial<DbConfig>) => Promise<Knex>;
 export declare const disconnectKnex: () => Promise<void>;
 export declare const nonEmptyOrNull: (value: string) => string | null;
+export declare const rawQuery: (query: string, ...bindings: readonly Knex.RawBinding[]) => Promise<any[]>;
 /**
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).

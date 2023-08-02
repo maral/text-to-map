@@ -1,5 +1,5 @@
 import chunk from "lodash/chunk";
-import { extractKeyValuesPairs, getKnexDb, insertMultipleRows } from "./db";
+import { extractKeyValuesPairs, getKnexDb, insertMultipleRows, rawQuery } from "./db";
 
 const citiesColumn = {
   cityName: 0,
@@ -23,13 +23,11 @@ export const insertCityPositions = async (
   changes += await insertCities(data);
   const prev = changes;
 
-  const knex = getKnexDb();
-
   for (const arrayChunk of chunk(data, 1000)) {
     const queries = [];
     for (const row of arrayChunk) {
       queries.push(
-        knex.raw(
+        rawQuery(
           `UPDATE city SET wgs84_latitude = ?, wgs84_longitude = ? WHERE code = ?`,
           [
             row[citiesColumn.latitude],

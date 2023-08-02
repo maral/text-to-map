@@ -45,8 +45,6 @@ async function main() {
 
   const { municipality } = await getNewMunicipality("Česká Lípa");
 
-  console.log(municipality.founder.schools[0].locations);
-
   const addressPoints = await parseOrdinanceToAddressPoints(
     lines,
     {

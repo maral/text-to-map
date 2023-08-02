@@ -21,6 +21,7 @@ import {
   isMysql,
   isSqlite,
   nonEmptyOrNull,
+  rawQuery,
 } from "./db";
 import { getFounderCityCode } from "./founders";
 import { Founder, Municipality, MunicipalityType } from "./types";
@@ -122,7 +123,7 @@ export const commitAddressPoints = async (
   );
 
   const knex = getKnexDb();
-  await knex.raw(
+  await rawQuery(
     `INSERT ${
       isMysql(knex) ? "IGNORE" : ""
     } INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${
@@ -213,8 +214,7 @@ const addressPointSelect = `
 export const getAddressPointById = async (
   addressPointId: number
 ): Promise<AddressPoint | null> => {
-  const knex = getKnexDb();
-  const row = await knex.raw(
+  const row = await rawQuery(
     `${addressPointSelect}
       WHERE a.id = ?`,
     [addressPointId]
@@ -237,7 +237,7 @@ export const checkStreetExists = async (
 
   // we check the whole city
   const cityCode = await getFounderCityCode(founder);
-  const rowList = await knex.raw(
+  const rowList = await rawQuery(
     `SELECT name AS street_name
     FROM street
     WHERE city_code = ? AND name = ?  ${
@@ -342,7 +342,7 @@ export const findAddressPoints = async (
           ? " AND a.street_code IS NULL"
           : "");
 
-  const queryResult = await knex.raw(
+  const queryResult = await rawQuery(
     `SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
       a.orientational_number, a.orientational_number_letter, c.name AS city_name,
       d.name AS district_name, m.name AS municipality_part_name, p.name AS prague_district_name,

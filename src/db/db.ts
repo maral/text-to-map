@@ -63,6 +63,7 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
         client: DbClient[SupportedDbType.postgres],
         connection: _knexDbConfig.pgConnectionString,
         useNullAsDefault: true,
+        debug: _knexDbConfig.verbose,
       });
     } else if (_knexDbConfig.dbType === SupportedDbType.mysql) {
       const [host, port, user, password, database] =
@@ -77,6 +78,7 @@ export const getKnexDb = (config: Partial<DbConfig> = {}): Knex => {
           database,
         },
         useNullAsDefault: true,
+        debug: _knexDbConfig.verbose,
       });
     } else {
       throw new Error(`Unsupported DB type: ${_knexDbConfig.dbType}`);
@@ -172,6 +174,15 @@ export const nonEmptyOrNull = (value: string): string | null => {
   return value ? value : null;
 };
 
+export const rawQuery = async (
+  query: string,
+  ...bindings: readonly Knex.RawBinding[]
+): Promise<any[]> => {
+  const knex = getKnexDb();
+  const result = await knex.raw(query, ...bindings);
+  return isMysql(knex) ? result[0] : result;
+};
+
 /**
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
@@ -196,7 +207,7 @@ export const insertMultipleRows = async (
   const onConfict =
     preventDuplicates && !isMysql(knex) ? `ON CONFLICT DO NOTHING` : "";
 
-  await knex.raw(
+  await rawQuery(
     `INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO ${table} (${columnNames.join(
       ","
     )}) VALUES ${insertPlaceholders} ${onConfict}`,

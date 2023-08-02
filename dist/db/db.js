@@ -57,6 +57,7 @@ export const getKnexDb = (config = {}) => {
                 client: DbClient[SupportedDbType.postgres],
                 connection: _knexDbConfig.pgConnectionString,
                 useNullAsDefault: true,
+                debug: _knexDbConfig.verbose,
             });
         }
         else if (_knexDbConfig.dbType === SupportedDbType.mysql) {
@@ -71,6 +72,7 @@ export const getKnexDb = (config = {}) => {
                     database,
                 },
                 useNullAsDefault: true,
+                debug: _knexDbConfig.verbose,
             });
         }
         else {
@@ -141,6 +143,11 @@ const getEnvConfig = () => {
 export const nonEmptyOrNull = (value) => {
     return value ? value : null;
 };
+export const rawQuery = (query, ...bindings) => __awaiter(void 0, void 0, void 0, function* () {
+    const knex = getKnexDb();
+    const result = yield knex.raw(query, ...bindings);
+    return isMysql(knex) ? result[0] : result;
+});
 /**
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
@@ -152,7 +159,7 @@ export const insertMultipleRows = (rows, table, columnNames, preventDuplicates =
     const insertPlaceholders = generate2DPlaceholders(columnNames.length, rows.length);
     const knex = getKnexDb();
     const onConfict = preventDuplicates && !isMysql(knex) ? `ON CONFLICT DO NOTHING` : "";
-    yield knex.raw(`INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
+    yield rawQuery(`INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO ${table} (${columnNames.join(",")}) VALUES ${insertPlaceholders} ${onConfict}`, rows.flat());
     return rows.length;
 });
 /**

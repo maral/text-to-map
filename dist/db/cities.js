@@ -8,7 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import chunk from "lodash/chunk";
-import { extractKeyValuesPairs, getKnexDb, insertMultipleRows } from "./db";
+import { extractKeyValuesPairs, insertMultipleRows, rawQuery } from "./db";
 const citiesColumn = {
     cityName: 0,
     cityCode: 1,
@@ -26,11 +26,10 @@ export const insertCityPositions = (data) => __awaiter(void 0, void 0, void 0, f
     // we need to insert them before updating them with region data
     changes += yield insertCities(data);
     const prev = changes;
-    const knex = getKnexDb();
     for (const arrayChunk of chunk(data, 1000)) {
         const queries = [];
         for (const row of arrayChunk) {
-            queries.push(knex.raw(`UPDATE city SET wgs84_latitude = ?, wgs84_longitude = ? WHERE code = ?`, [
+            queries.push(rawQuery(`UPDATE city SET wgs84_latitude = ?, wgs84_longitude = ? WHERE code = ?`, [
                 row[citiesColumn.latitude],
                 row[citiesColumn.longitude],
                 row[citiesColumn.cityCode],

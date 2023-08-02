@@ -11,7 +11,7 @@ import { AddressPointType, createSingleLineAddress } from "czech-address";
 import { SeriesType, isNegativeSeriesSpec, isRange, isSeriesSpecArray, } from "../street-markdown/types";
 import { findClosestString } from "../utils/helpers";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
-import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isMysql, isSqlite, nonEmptyOrNull, } from "./db";
+import { extractKeyValuesPairs, generate2DPlaceholders, getKnexDb, insertMultipleRows, isMysql, isSqlite, nonEmptyOrNull, rawQuery, } from "./db";
 import { getFounderCityCode } from "./founders";
 import { MunicipalityType } from "./types";
 const DescriptiveType = "č.p.";
@@ -80,7 +80,7 @@ export const commitAddressPoints = (buffer) => __awaiter(void 0, void 0, void 0,
     });
     const placeHolders = generate2DPlaceholders(columnNames.length, buffer.length);
     const knex = getKnexDb();
-    yield knex.raw(`INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${!isMysql(knex) ? "ON CONFLICT (id) DO NOTHING" : ""}`, params);
+    yield rawQuery(`INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${!isMysql(knex) ? "ON CONFLICT (id) DO NOTHING" : ""}`, params);
     return buffer.length;
 });
 export const insertCities = (buffer) => __awaiter(void 0, void 0, void 0, function* () {
@@ -129,8 +129,7 @@ const addressPointSelect = `
   LEFT JOIN prague_district p ON a.prague_district_code = p.code
   LEFT JOIN municipality_part m ON a.municipality_part_code = m.code`;
 export const getAddressPointById = (addressPointId) => __awaiter(void 0, void 0, void 0, function* () {
-    const knex = getKnexDb();
-    const row = yield knex.raw(`${addressPointSelect}
+    const row = yield rawQuery(`${addressPointSelect}
       WHERE a.id = ?`, [addressPointId]);
     if (row.length === 0) {
         return null;
@@ -144,7 +143,7 @@ export const checkStreetExists = (streetName, founder) => __awaiter(void 0, void
     const errors = [];
     // we check the whole city
     const cityCode = yield getFounderCityCode(founder);
-    const rowList = yield knex.raw(`SELECT name AS street_name
+    const rowList = yield rawQuery(`SELECT name AS street_name
     FROM street
     WHERE city_code = ? AND name = ?  ${isSqlite(knex) ? "COLLATE NOCASE" : ""}`, [cityCode, streetName]);
     if (rowList.length > 0) {
@@ -207,7 +206,7 @@ export const findAddressPoints = (params) => __awaiter(void 0, void 0, void 0, f
             (params.type === FindAddressPointsType.WholeMunicipalityNoStreetName
                 ? " AND a.street_code IS NULL"
                 : "");
-    const queryResult = yield knex.raw(`SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
+    const queryResult = yield rawQuery(`SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
       a.orientational_number, a.orientational_number_letter, c.name AS city_name,
       d.name AS district_name, m.name AS municipality_part_name, p.name AS prague_district_name,
       a.postal_code, a.wgs84_latitude, a.wgs84_longitude
