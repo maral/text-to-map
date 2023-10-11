@@ -9,10 +9,9 @@ import { findFounder } from "../db/founders";
 import { findSchool } from "../db/schools";
 import { Founder, founderToMunicipality } from "../db/types";
 import {
-  getMunicipalityPart,
+  getMunicipalityPartResult,
   getSwitchMunicipality,
   getWholeMunicipality,
-  isMunicipalityPart,
   isMunicipalitySwitch,
   isNoStreetNameLine,
   isWholeMunicipality,
@@ -132,9 +131,7 @@ const processOneLine = async (params: ProcessLineParams) => {
     return;
   }
 
-  if (isMunicipalityPart(line)) {
-    await processMunicipalityPartLine(params);
-  } else if (isMunicipalitySwitch(line)) {
+  if (isMunicipalitySwitch(line)) {
     processMunicipalitySwitchLine(params);
   } else if (isWholeMunicipality(line)) {
     await processWholeMunicipalityLine(params);
@@ -212,31 +209,6 @@ const processSchoolLine = async ({
   );
 };
 
-const processMunicipalityPartLine = async ({
-  line,
-  state,
-  lineNumber,
-  onError,
-}: ProcessLineParams) => {
-  const { municipalityPartCode, errors } = await getMunicipalityPart(
-    line,
-    state.currentMunicipality.founder
-  );
-  if (errors.length > 0) {
-    onError({ lineNumber, line, errors });
-  } else {
-    const addressPoints = await findAddressPoints({
-      type: FindAddressPointsType.MunicipalityPart,
-      municipalityPartCode,
-    });
-    state.currentSchool.addresses.push(
-      ...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(
-        mapAddressPointForExport
-      )
-    );
-  }
-};
-
 const processMunicipalitySwitchLine = async ({
   line,
   state,
@@ -268,7 +240,7 @@ const processWholeMunicipalityLine = async ({
     onError({ lineNumber, line, errors });
   } else {
     const addressPoints = await findAddressPoints({
-      type: FindAddressPointsType.WholeMunicipality,
+      type: "wholeMunicipality",
       municipality,
     });
     state.currentSchool.addresses.push(
@@ -291,26 +263,52 @@ const processAddressPointLine = async ({
     onError({ lineNumber, line, errors });
   } else {
     for (const smdLine of smdLines) {
-      const { exists, errors } = await checkStreetExists(
-        smdLine.street,
-        state.currentMunicipality.founder
-      );
-      if (errors.length > 0) {
-        onWarning({ lineNumber, line, errors });
-      }
-      if (exists) {
-        let addressPoints = await findAddressPoints({
-          type: FindAddressPointsType.SmdLine,
-          smdLine,
-          municipality: state.currentFilterMunicipality,
-        });
-
-        state.currentSchool.addresses.push(
-          ...filterOutSchoolAddressPoint(
-            addressPoints,
-            state.currentSchool
-          ).map(mapAddressPointForExport)
+      if (smdLine.type === "street") {
+        const { exists, errors } = await checkStreetExists(
+          smdLine.street,
+          state.currentMunicipality.founder
         );
+        if (errors.length > 0) {
+          onWarning({ lineNumber, line, errors });
+        }
+        if (exists) {
+          const addressPoints = await findAddressPoints({
+            type: "smdLine",
+            smdLine,
+            municipality: state.currentFilterMunicipality,
+          });
+
+          state.currentSchool.addresses.push(
+            ...filterOutSchoolAddressPoint(
+              addressPoints,
+              state.currentSchool
+            ).map(mapAddressPointForExport)
+          );
+        }
+      } else if (smdLine.type === "municipalityPart") {
+        const { municipalityPartCode, errors } =
+          await getMunicipalityPartResult(
+            smdLine.municipalityPart,
+            line,
+            state.currentMunicipality.founder
+          );
+        if (errors.length > 0) {
+          onWarning({ lineNumber, line, errors });
+        } else {
+          const addressPoints = await findAddressPoints({
+            type: "smdLine",
+            smdLine,
+            municipality: state.currentFilterMunicipality,
+            municipalityPartCode,
+          });
+
+          state.currentSchool.addresses.push(
+            ...filterOutSchoolAddressPoint(
+              addressPoints,
+              state.currentSchool
+            ).map(mapAddressPointForExport)
+          );
+        }
       }
     }
   }
@@ -323,7 +321,7 @@ const addNoStreetNameToSchool = async (state: SmdState) => {
 
   // get all address points without street name for current municipality
   const pointsNoStreetName = await findAddressPoints({
-    type: FindAddressPointsType.WholeMunicipalityNoStreetName,
+    type: "wholeMunicipalityNoStreetName",
     municipality: {
       code: state.currentMunicipality.founder.cityOrDistrictCode,
       type: state.currentMunicipality.founder.municipalityType,

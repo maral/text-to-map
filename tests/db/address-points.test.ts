@@ -1,21 +1,20 @@
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
-import { closeDb, setupDb, testFounders, testRows } from "./db-setup";
+import { AddressPointType, createSingleLineAddress } from "czech-address";
 import {
   commitAddressPoints,
+  equalsFullStreetNumber,
+  findAddressPoints,
+  fitsType,
   insertCities,
   insertDistricts,
-  insertStreets,
   insertMunicipalityParts,
+  insertStreets,
   isInRange,
-  fitsType,
-  findAddressPoints,
-  equalsFullStreetNumber,
-  FindAddressPointsType,
 } from "../../src/db/address-points";
-import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import { founderToMunicipality } from "../../src/db/types";
-import { AddressPointType, createSingleLineAddress } from "czech-address";
+import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import jtsk2wgs84 from "../../src/utils/jtsk2wgs84";
+import { closeDb, setupDb, testFounders, testRows } from "./db-setup";
 
 let testRowsLarge: string[][] = [];
 const doTestLarge = true;
@@ -214,8 +213,9 @@ describe("find address points", () => {
   test("find address points", async () => {
     expect(
       await findAddressPoints({
-        type: FindAddressPointsType.SmdLine,
+        type: "smdLine",
         smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: [],
         },
@@ -225,8 +225,9 @@ describe("find address points", () => {
 
     expect(
       await findAddressPoints({
-        type: FindAddressPointsType.SmdLine,
+        type: "smdLine",
         smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: [
             {
@@ -241,8 +242,9 @@ describe("find address points", () => {
 
     expect(
       await findAddressPoints({
-        type: FindAddressPointsType.SmdLine,
+        type: "smdLine",
         smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: [
             {
@@ -259,8 +261,9 @@ describe("find address points", () => {
   test("find address points", async () => {
     expect(
       await findAddressPoints({
-        type: FindAddressPointsType.SmdLine,
+        type: "smdLine",
         smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: { negative: true, ranges: [], type: SeriesType.Even },
         },
@@ -270,8 +273,9 @@ describe("find address points", () => {
 
     expect(
       await findAddressPoints({
-        type: FindAddressPointsType.SmdLine,
+        type: "smdLine",
         smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: {
             negative: true,
@@ -285,8 +289,9 @@ describe("find address points", () => {
 
     expect(
       await findAddressPoints({
-        type: FindAddressPointsType.SmdLine,
+        type: "smdLine",
         smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: {
             negative: true,

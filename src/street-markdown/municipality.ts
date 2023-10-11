@@ -5,8 +5,6 @@ import {
 import { Founder, MunicipalityType } from "../db/types";
 import { DbMunicipalityResult, MunicipalityPartResult } from "./types";
 
-const municipalityPartPattern = /^část (?<type>obce|města) (?<name>.+)$/;
-
 const municipalitySwitchStartPattern = /^navíc ulice /;
 
 const municipalitySwitchPattern =
@@ -18,32 +16,6 @@ const wholeMunicipalityPattern =
   /^území (?<type>městské části|městského obvodu|obce|města) (?<name>.+)$/;
 
 const noStreetNamePattern = /^všechny ostatní budovy bez názvu ulice\s*$/;
-
-export const isMunicipalityPart = (line: string): boolean => {
-  return municipalityPartPattern.test(line);
-};
-
-export const getMunicipalityPart = async (
-  line: string,
-  founder: Founder
-): Promise<MunicipalityPartResult> => {
-  const match = municipalityPartPattern.exec(line);
-  if (match === null) {
-    return {
-      errors: [
-        {
-          message:
-            "Neplatný zápis pro přidání části obce. Správný zápis je: části <obce/města> <název části obce>. Např.: 'části obce Kladno' (název části obce musí být v 1. pádě).",
-          startOffset: 0,
-          endOffset: line.length + 1,
-        },
-      ],
-      municipalityPartCode: null,
-    };
-  }
-  const { name } = match.groups;
-  return await getMunicipalityPartResult(cleanName(name), line, founder);
-};
 
 export const isMunicipalitySwitch = (line: string): boolean => {
   return municipalitySwitchStartPattern.test(line);
@@ -127,7 +99,7 @@ const getMunicipalityResult = async (
   };
 };
 
-const getMunicipalityPartResult = async (
+export const getMunicipalityPartResult = async (
   name: string,
   line: string,
   founder: Founder

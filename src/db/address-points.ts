@@ -289,29 +289,19 @@ const getAllStreets = async (cityCode: number): Promise<string[]> => {
   return await knex.pluck("name").from("street").where("city_code", cityCode);
 };
 
-export enum FindAddressPointsType {
-  SmdLine,
-  MunicipalityPart,
-  WholeMunicipality,
-  WholeMunicipalityNoStreetName,
-}
-
 export type FindAddressPointsParams =
   | {
-      type: FindAddressPointsType.SmdLine;
+      type: "smdLine";
       smdLine: SmdLine;
       municipality: Municipality;
+      municipalityPartCode?: number;
     }
   | {
-      type: FindAddressPointsType.MunicipalityPart;
-      municipalityPartCode: number;
-    }
-  | {
-      type: FindAddressPointsType.WholeMunicipality;
+      type: "wholeMunicipality";
       municipality: Municipality;
     }
   | {
-      type: FindAddressPointsType.WholeMunicipalityNoStreetName;
+      type: "wholeMunicipalityNoStreetName";
       municipality: Municipality;
     };
 
@@ -320,27 +310,10 @@ export const findAddressPoints = async (
 ): Promise<AddressPoint[]> => {
   const knex = getKnexDb();
 
-  const queryParams =
-    params.type === FindAddressPointsType.SmdLine
-      ? [params.smdLine.street, params.municipality.code]
-      : params.type === FindAddressPointsType.MunicipalityPart
-      ? [params.municipalityPartCode]
-      : [params.municipality.code];
+  const queryParams = getQueryParams(params);
+  const streetJoinCondition = getStreetJoinCondition(params);
 
-  const streetJoinCondition =
-    params.type === FindAddressPointsType.SmdLine
-      ? `JOIN street s ON a.street_code = s.code AND s.name = ? ${
-          isSqlite(knex) ? "COLLATE NOCASE" : ""
-        }`
-      : "LEFT JOIN street s ON a.street_code = s.code";
-
-  const whereCondition =
-    params.type === FindAddressPointsType.MunicipalityPart
-      ? "a.municipality_part_code = ?"
-      : getMunicipalityWhere("a", params.municipality) +
-        (params.type === FindAddressPointsType.WholeMunicipalityNoStreetName
-          ? " AND a.street_code IS NULL"
-          : "");
+  const whereCondition = getWhereCondition(params);
 
   const queryResult = await rawQuery(
     `SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
@@ -358,33 +331,36 @@ export const findAddressPoints = async (
     queryParams
   );
 
-  const filteredAddressPoints = queryResult.map(rowToAddressPoint);
+  return filterAddressPoints(queryResult.map(rowToAddressPoint), params);
+};
 
-  if (params.type !== FindAddressPointsType.SmdLine) {
-    return filteredAddressPoints;
+export const filterAddressPoints = (
+  addressPoints: AddressPoint[],
+  params: FindAddressPointsParams
+): AddressPoint[] => {
+  if (
+    params.type === "wholeMunicipality" ||
+    params.type === "wholeMunicipalityNoStreetName"
+  ) {
+    return addressPoints;
   }
 
   const result: AddressPoint[] = [];
   const numberSpec = params.smdLine.numberSpec;
   if (isSeriesSpecArray(numberSpec)) {
     numberSpec.forEach((seriesSpec) => {
-      result.push(
-        ...filterAddressPointsByRanges(filteredAddressPoints, seriesSpec)
-      );
+      result.push(...filterAddressPointsByRanges(addressPoints, seriesSpec));
     });
 
     // when no number specs are present, we take everything
     if (numberSpec.length === 0) {
-      result.push(...filteredAddressPoints);
+      result.push(...addressPoints);
     }
   } else if (isNegativeSeriesSpec(numberSpec)) {
     // negative number spec (e.g. odd numbers except 13-17)
-    const toExclude = filterAddressPointsByRanges(
-      filteredAddressPoints,
-      numberSpec
-    );
+    const toExclude = filterAddressPointsByRanges(addressPoints, numberSpec);
     result.push(
-      ...filteredAddressPoints.filter(
+      ...addressPoints.filter(
         (addressPoint) => !toExclude.includes(addressPoint)
       )
     );
@@ -433,6 +409,46 @@ const filterAddressPointsByRanges = (
   }
 
   return result;
+};
+
+export const getQueryParams = (
+  params: FindAddressPointsParams
+): (string | number)[] => {
+  if (params.type === "smdLine" && params.smdLine.type === "street") {
+    return [params.smdLine.street, params.municipality.code];
+  }
+
+  if (params.type === "smdLine" && params.smdLine.type === "municipalityPart") {
+    return [params.municipalityPartCode];
+  }
+
+  return [params.municipality.code];
+};
+
+export const getStreetJoinCondition = (
+  params: FindAddressPointsParams
+): string => {
+  if (params.type === "smdLine" && params.smdLine.type === "street") {
+    return `JOIN street s ON a.street_code = s.code AND s.name = ? ${
+      isSqlite(getKnexDb()) ? "COLLATE NOCASE" : ""
+    }`;
+  }
+  return "LEFT JOIN street s ON a.street_code = s.code";
+};
+
+export const getWhereCondition = (params: FindAddressPointsParams): string => {
+  if (params.type === "smdLine" && params.smdLine.type === "municipalityPart") {
+    return "a.municipality_part_code = ?";
+  }
+
+  if (params.type === "wholeMunicipalityNoStreetName") {
+    return `${getMunicipalityWhere(
+      "a",
+      params.municipality
+    )} AND a.street_code IS NULL`;
+  }
+
+  return getMunicipalityWhere("a", params.municipality);
 };
 
 export const isInRange = (

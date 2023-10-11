@@ -1,5 +1,8 @@
 import { describe, expect, test } from "@jest/globals";
-import { parseRichNumber } from "../../src/street-markdown/smd-parser";
+import {
+  parseMunicipalityPartName,
+  parseRichNumber,
+} from "../../src/street-markdown/smd-parser";
 
 describe("smd extra parsing functions", () => {
   test("parse number with/without a character", () => {
@@ -8,5 +11,12 @@ describe("smd extra parsing functions", () => {
       number: 123,
       letter: "a",
     });
+  });
+
+  test("parse municipality part name", () => {
+    expect(parseMunicipalityPartName("část obce Březenec")).toEqual("Březenec");
+    expect(parseMunicipalityPartName("část města Březenec")).toEqual(
+      "Březenec"
+    );
   });
 });

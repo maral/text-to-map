@@ -17,11 +17,11 @@ const transformMulti = (smdLines: SmdLine[]): ProcessedSmdLines => {
 };
 
 const streetOnly = (street: string): ProcessedSmdLines => {
-  return transform({ street, numberSpec: [] });
+  return transform({ type: "street", street, numberSpec: [] });
 };
 
 const streetOnlyNoTransform = (street: string): SmdLine => {
-  return { street, numberSpec: [] };
+  return { type: "street", street, numberSpec: [] };
 };
 
 const simpleExampleWithType = (type: SeriesType): ProcessedSmdLines => {
@@ -35,6 +35,7 @@ const exampleWithTypeAndRanges = (
   ranges: (RangeSpec | FullStreetNumber)[]
 ): ProcessedSmdLines => {
   return transform({
+    type: "street",
     street: "Šrobárova",
     numberSpec: [
       {
@@ -49,6 +50,7 @@ describe("parse line with street and number information", () => {
   test("street without number spec", () => {
     expect(parseLine("Šrobárova")).toEqual(
       transform({
+        type: "street",
         street: "Šrobárova",
         numberSpec: [],
       })
@@ -58,6 +60,7 @@ describe("parse line with street and number information", () => {
   test("street with simple range", () => {
     expect(parseLine("Šrobárova - č. 19-25")).toEqual(
       transform({
+        type: "street",
         street: "Šrobárova",
         numberSpec: [
           {
@@ -189,6 +192,7 @@ describe("parse line with street and number information", () => {
   test("street with single numbers and character", () => {
     expect(parseLine("Šrobárova - č. 19, 25, 36a")).toEqual(
       transform({
+        type: "street",
         street: "Šrobárova",
         numberSpec: [
           {
@@ -212,6 +216,7 @@ describe("parse line with street and number information", () => {
       parseLine("Šrobárova - lichá č. 19-27, sudá č. 10-22, č.p. 326, 255-258")
     ).toEqual(
       transform({
+        type: "street",
         street: "Šrobárova",
         numberSpec: [
           {
@@ -362,6 +367,7 @@ describe("parse line with street and number information", () => {
 
   test("street with full street numbers", () => {
     const expected = transform({
+      type: "street",
       street: "Šrobárova",
       numberSpec: [
         {
@@ -382,6 +388,7 @@ describe("parse line with street and number information", () => {
 
   test("multiple street with roman numerals", () => {
     const expected = transform({
+      type: "street",
       street: "Šrobárova",
       numberSpec: [
         {
@@ -427,6 +434,45 @@ describe("parse line with street and number information", () => {
           streetOnlyNoTransform
         )
       )
+    );
+  });
+
+  test("municipality part", () => {
+    expect(parseLine("část obce Huntířov")).toEqual(
+      transform({
+        type: "municipalityPart",
+        municipalityPart: "Huntířov",
+        numberSpec: [],
+      })
+    );
+  });
+
+  test("municipality part with number specs", () => {
+    expect(parseLine("část obce Huntířov - č.p. 19-25")).toEqual(
+      transform({
+        type: "municipalityPart",
+        municipalityPart: "Huntířov",
+        numberSpec: [
+          {
+            type: SeriesType.Description,
+            ranges: [{ from: { number: 19 }, to: { number: 25 } }],
+          },
+        ],
+      })
+    );
+
+    const result = parseLine("část města Dolní Libchava - mimo č. p. 19");
+
+    expect(result).toEqual(
+      transform({
+        type: "municipalityPart",
+        municipalityPart: "Dolní Libchava",
+        numberSpec: {
+          negative: true,
+          type: SeriesType.Description,
+          ranges: [{ from: { number: 19 }, to: { number: 19 } }],
+        },
+      })
     );
   });
 });

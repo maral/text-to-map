@@ -43,7 +43,7 @@ export const parseLine = (
   }
 
   smdParser.input = lexingResult.tokens;
-  const smdLines = <SmdLine[]>(<unknown>smdParser.street());
+  const smdLines = smdParser.street();
 
   if (smdParser.errors.length > 0) {
     errors.push(

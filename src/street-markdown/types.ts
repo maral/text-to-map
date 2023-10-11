@@ -6,10 +6,23 @@ export interface ProcessedSmdLines {
   errors: SmdError[];
 }
 
+export type SmdLineType =
+  | "street"
+  | "wholeMunicipalityLine"
+  | "municipalitySwitch"
+  | "municipalityPart";
+
 export interface SmdLine {
-  street: string;
-  numberSpec: SeriesSpec[] | NegativeSeriesSpec;
-}
+  | {
+      type: "street";
+      street: string;
+      numberSpec: SeriesSpec[] | NegativeSeriesSpec;
+    }
+  | {
+      type: "municipalityPart";
+      municipalityPart: string;
+      numberSpec: SeriesSpec[] | NegativeSeriesSpec;
+    };
 
 export interface SeriesSpec {
   type: SeriesType;
