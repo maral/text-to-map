@@ -12,7 +12,7 @@ export type SmdLineType =
   | "municipalitySwitch"
   | "municipalityPart";
 
-export interface SmdLine {
+export type SmdLine =
   | {
       type: "street";
       street: string;
@@ -119,7 +119,14 @@ export interface SmdState {
   currentMunicipality: MunicipalityWithFounder;
   currentFilterMunicipality: DbMunicipality;
   currentSchool: School;
-  noStreetNameSchoolIzo: string;
+  rests: {
+    noStreetNameSchoolIzo: string;
+    municipalityParts: {
+      municipalityPartCode: number;
+      schoolIzo: string;
+    }[];
+    wholeMunicipalitySchoolIzo: string;
+  };
   municipalities: Municipality[];
 }
 

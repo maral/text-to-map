@@ -297,6 +297,10 @@ export type FindAddressPointsParams =
       municipalityPartCode?: number;
     }
   | {
+      type: "wholeMunicipalityPart";
+      municipalityPartCode: number;
+    }
+  | {
       type: "wholeMunicipality";
       municipality: Municipality;
     }
@@ -340,7 +344,8 @@ export const filterAddressPoints = (
 ): AddressPoint[] => {
   if (
     params.type === "wholeMunicipality" ||
-    params.type === "wholeMunicipalityNoStreetName"
+    params.type === "wholeMunicipalityNoStreetName" ||
+    params.type === "wholeMunicipalityPart"
   ) {
     return addressPoints;
   }
@@ -418,7 +423,10 @@ export const getQueryParams = (
     return [params.smdLine.street, params.municipality.code];
   }
 
-  if (params.type === "smdLine" && params.smdLine.type === "municipalityPart") {
+  if (
+    (params.type === "smdLine" && params.smdLine.type === "municipalityPart") ||
+    params.type === "wholeMunicipalityPart"
+  ) {
     return [params.municipalityPartCode];
   }
 
@@ -437,7 +445,10 @@ export const getStreetJoinCondition = (
 };
 
 export const getWhereCondition = (params: FindAddressPointsParams): string => {
-  if (params.type === "smdLine" && params.smdLine.type === "municipalityPart") {
+  if (
+    (params.type === "smdLine" && params.smdLine.type === "municipalityPart") ||
+    params.type === "wholeMunicipalityPart"
+  ) {
     return "a.municipality_part_code = ?";
   }
 

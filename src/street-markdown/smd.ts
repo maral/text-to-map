@@ -1,5 +1,4 @@
 import {
-  FindAddressPointsType,
   checkStreetExists,
   findAddressPoints,
   getAddressPointById,
@@ -10,10 +9,13 @@ import { findSchool } from "../db/schools";
 import { Founder, founderToMunicipality } from "../db/types";
 import {
   getMunicipalityPartResult,
+  getRestOfMunicipalityPart,
   getSwitchMunicipality,
   getWholeMunicipality,
   isMunicipalitySwitch,
-  isNoStreetNameLine,
+  isRestOfMunicipalityLine,
+  isRestOfMunicipalityPartLine,
+  isRestWithNoStreetNameLine,
   isWholeMunicipality,
 } from "./municipality";
 import { parseLine } from "./smd-line-parser";
@@ -43,7 +45,11 @@ export const parseOrdinanceToAddressPoints = async (
       currentMunicipality: null,
       currentFilterMunicipality: null,
       currentSchool: null,
-      noStreetNameSchoolIzo: null,
+      rests: {
+        noStreetNameSchoolIzo: null,
+        municipalityParts: [],
+        wholeMunicipalitySchoolIzo: null,
+      },
       municipalities: [],
       ...initialState,
     };
@@ -72,12 +78,7 @@ export const parseOrdinanceToAddressPoints = async (
       );
     }
 
-    if (state.currentMunicipality != null) {
-      if (state.noStreetNameSchoolIzo) {
-        await addNoStreetNameToSchool(state);
-      }
-      state.municipalities.push(convertMunicipality(state.currentMunicipality));
-    }
+    await completeCurrentMunicipality(state);
 
     return state.municipalities;
   } catch (error) {
@@ -135,8 +136,23 @@ const processOneLine = async (params: ProcessLineParams) => {
     processMunicipalitySwitchLine(params);
   } else if (isWholeMunicipality(line)) {
     await processWholeMunicipalityLine(params);
-  } else if (isNoStreetNameLine(line)) {
-    state.noStreetNameSchoolIzo = state.currentSchool.izo;
+  } else if (isRestWithNoStreetNameLine(line)) {
+    state.rests.noStreetNameSchoolIzo = state.currentSchool.izo;
+  } else if (isRestOfMunicipalityLine(line)) {
+    state.rests.wholeMunicipalitySchoolIzo = state.currentSchool.izo;
+  } else if (isRestOfMunicipalityPartLine(line)) {
+    const { municipalityPartCode, errors } = await getRestOfMunicipalityPart(
+      line,
+      state.currentMunicipality.founder
+    );
+    if (errors.length > 0) {
+      params.onError({ lineNumber: params.lineNumber, line, errors });
+    } else {
+      state.rests.municipalityParts.push({
+        municipalityPartCode,
+        schoolIzo: state.currentSchool.izo,
+      });
+    }
   } else {
     await processAddressPointLine(params);
   }
@@ -153,12 +169,7 @@ const processMunicipalityLine = async ({
     state.currentSchool = null;
   }
 
-  if (state.currentMunicipality !== null) {
-    if (state.noStreetNameSchoolIzo) {
-      await addNoStreetNameToSchool(state);
-    }
-    state.municipalities.push(convertMunicipality(state.currentMunicipality));
-  }
+  await completeCurrentMunicipality(state);
 
   const { municipality, errors } = await getNewMunicipality(line);
   if (errors.length > 0) {
@@ -170,6 +181,13 @@ const processMunicipalityLine = async ({
   );
 
   state.currentSchool = null;
+};
+
+const completeCurrentMunicipality = async (state: SmdState) => {
+  if (state.currentMunicipality !== null) {
+    await addRests(state);
+    state.municipalities.push(convertMunicipality(state.currentMunicipality));
+  }
 };
 
 const processEmptyLine = ({ state }: ProcessLineParams) => {
@@ -314,11 +332,53 @@ const processAddressPointLine = async ({
   }
 };
 
-const addNoStreetNameToSchool = async (state: SmdState) => {
+const addRestToSchool = async (
+  restPoints: AddressPoint[],
+  schoolIzo: string,
+  state: SmdState
+) => {
   const addressPoints = state.currentMunicipality.schools.flatMap(
     (school) => school.addresses
   );
 
+  // filter out address points already present
+  const remainingPoints = restPoints.filter(
+    (point) => !addressPoints.some((ap) => ap.address === point.address)
+  );
+
+  // find the right school and add the remaining address points
+  const schoolIndex = state.currentMunicipality.schools.findIndex(
+    (school) => school.izo === schoolIzo
+  );
+
+  state.currentMunicipality.schools[schoolIndex].addresses.push(
+    ...remainingPoints
+  );
+};
+
+const addRests = async (state: SmdState) => {
+  if (state.rests.noStreetNameSchoolIzo) {
+    await addRestWithNoStreetNameToSchool(state);
+  }
+
+  if (state.rests.wholeMunicipalitySchoolIzo) {
+    await addRestOfMunicipality(state);
+  }
+
+  for (const rest of state.rests.municipalityParts) {
+    await addRestOfMunicipalityPart(
+      state,
+      rest.municipalityPartCode,
+      rest.schoolIzo
+    );
+  }
+
+  state.rests.noStreetNameSchoolIzo = null;
+  state.rests.wholeMunicipalitySchoolIzo = null;
+  state.rests.municipalityParts = [];
+};
+
+const addRestWithNoStreetNameToSchool = async (state: SmdState) => {
   // get all address points without street name for current municipality
   const pointsNoStreetName = await findAddressPoints({
     type: "wholeMunicipalityNoStreetName",
@@ -327,21 +387,32 @@ const addNoStreetNameToSchool = async (state: SmdState) => {
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
+  await addRestToSchool(pointsNoStreetName, state.rests.noStreetNameSchoolIzo, state);
+};
 
-  // filter out address points already present
-  const remainingPoints = pointsNoStreetName.filter(
-    (point) => !addressPoints.some((ap) => ap.address === point.address)
-  );
+const addRestOfMunicipality = async (state: SmdState) => {
+  // get all address points for current municipality
+  const allPoints = await findAddressPoints({
+    type: "wholeMunicipality",
+    municipality: {
+      code: state.currentMunicipality.founder.cityOrDistrictCode,
+      type: state.currentMunicipality.founder.municipalityType,
+    },
+  });
+  await addRestToSchool(allPoints, state.rests.wholeMunicipalitySchoolIzo, state);
+};
 
-  // find the right school and add the remaining address points
-  const schoolIndex = state.currentMunicipality.schools.findIndex(
-    (school) => school.izo === state.noStreetNameSchoolIzo
-  );
-
-  state.currentMunicipality.schools[schoolIndex].addresses.push(
-    ...remainingPoints
-  );
-  state.noStreetNameSchoolIzo = null;
+const addRestOfMunicipalityPart = async (
+  state: SmdState,
+  municipalityPartCode: number,
+  schoolIzo: string
+) => {
+  // get all address points for current municipality
+  const allPoints = await findAddressPoints({
+    type: "wholeMunicipalityPart",
+    municipalityPartCode,
+  });
+  await addRestToSchool(allPoints, schoolIzo, state);
 };
 
 export const getNewMunicipality = async (
