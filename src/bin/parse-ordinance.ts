@@ -45,14 +45,15 @@ async function main() {
 
   const { municipality } = await getNewMunicipalityByName("Česká Lípa");
 
-  const addressPoints = await parseOrdinanceToAddressPoints(
+  const addressPoints = await parseOrdinanceToAddressPoints({
     lines,
-    {
+    initialState: {
       // currentMunicipality: municipality,
     },
-    reportErrors,
-    reportWarnings
-  );
+    onError: reportErrors,
+    onWarning: reportWarnings,
+    includeUnmappedAddressPoints: true,
+  });
   console.timeEnd("downloadAndImportAllLatestAddressPoints");
 
   console.log(

@@ -36,9 +36,15 @@ function main() {
         };
         console.time("downloadAndImportAllLatestAddressPoints");
         const { municipality } = yield getNewMunicipalityByName("Česká Lípa");
-        const addressPoints = yield parseOrdinanceToAddressPoints(lines, {
-        // currentMunicipality: municipality,
-        }, reportErrors, reportWarnings);
+        const addressPoints = yield parseOrdinanceToAddressPoints({
+            lines,
+            initialState: {
+            // currentMunicipality: municipality,
+            },
+            onError: reportErrors,
+            onWarning: reportWarnings,
+            includeUnmappedAddressPoints: true,
+        });
         console.timeEnd("downloadAndImportAllLatestAddressPoints");
         console.log(`Parsed ${lines.length} lines, ${errorCount} errors, ${warningCount} warnings.`);
         if (errorCount > 0) {

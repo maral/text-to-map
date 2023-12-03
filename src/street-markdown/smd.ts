@@ -25,6 +25,7 @@ import {
   ExportAddressPoint,
   Municipality,
   MunicipalityWithFounder,
+  MunicipalityWithFounderResult,
   ProcessLineCallbackParams,
   ProcessLineParams,
   School,
@@ -33,13 +34,23 @@ import {
   isAddressPoint,
 } from "./types";
 
-export const parseOrdinanceToAddressPoints = async (
-  lines: string[],
-  initialState: Partial<SmdState> = {},
-  onError: (params: ErrorCallbackParams) => void = () => {},
-  onWarning: (params: ErrorCallbackParams) => void = () => {},
-  onProcessedLine: (params: ProcessLineCallbackParams) => void = () => {}
-) => {
+interface ParseOrdinanceProps {
+  lines: string[];
+  initialState?: Partial<SmdState>;
+  onError?: (params: ErrorCallbackParams) => void;
+  onWarning?: (params: ErrorCallbackParams) => void;
+  onProcessedLine?: (params: ProcessLineCallbackParams) => void;
+  includeUnmappedAddressPoints: boolean;
+}
+
+export const parseOrdinanceToAddressPoints = async ({
+  lines,
+  initialState = {},
+  onError = () => {},
+  onWarning = () => {},
+  onProcessedLine = () => {},
+  includeUnmappedAddressPoints = false,
+}: ParseOrdinanceProps) => {
   try {
     const state: SmdState = {
       currentMunicipality: null,
@@ -49,6 +60,7 @@ export const parseOrdinanceToAddressPoints = async (
         noStreetNameSchoolIzo: null,
         municipalityParts: [],
         wholeMunicipalitySchoolIzo: null,
+        includeUnmappedAddressPoints,
       },
       municipalities: [],
       ...initialState,
@@ -106,6 +118,7 @@ export const convertMunicipality = (
   return {
     municipalityName: municipality.municipalityName,
     schools: municipality.schools,
+    unmappedPoints: municipality.unmappedPoints,
   };
 };
 
@@ -332,7 +345,7 @@ const processAddressPointLine = async ({
   }
 };
 
-const addRestToSchool = async (
+const addRestToSchool = (
   restPoints: AddressPoint[],
   schoolIzo: string,
   state: SmdState
@@ -373,6 +386,10 @@ const addRests = async (state: SmdState) => {
     );
   }
 
+  if (state.rests.includeUnmappedAddressPoints) {
+    await addRestOfMunicipalityToUnmappedPoints(state);
+  }
+
   state.rests.noStreetNameSchoolIzo = null;
   state.rests.wholeMunicipalitySchoolIzo = null;
   state.rests.municipalityParts = [];
@@ -387,27 +404,32 @@ const addRestWithNoStreetNameToSchool = async (state: SmdState) => {
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
-  await addRestToSchool(
-    pointsNoStreetName,
-    state.rests.noStreetNameSchoolIzo,
+  addRestToSchool(pointsNoStreetName, state.rests.noStreetNameSchoolIzo, state);
+};
+
+const addRestOfMunicipality = async (state: SmdState) => {
+  addRestToSchool(
+    await getRestOfMunicipality(state),
+    state.rests.wholeMunicipalitySchoolIzo,
     state
   );
 };
 
-const addRestOfMunicipality = async (state: SmdState) => {
+const addRestOfMunicipalityToUnmappedPoints = async (state: SmdState) => {
+  state.currentMunicipality.unmappedPoints = (await getRestOfMunicipality(state)).map(mapAddressPointForExport);
+};
+
+const getRestOfMunicipality = async (
+  state: SmdState
+): Promise<AddressPoint[]> => {
   // get all address points for current municipality
-  const allPoints = await findAddressPoints({
+  return await findAddressPoints({
     type: "wholeMunicipality",
     municipality: {
       code: state.currentMunicipality.founder.cityOrDistrictCode,
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
-  await addRestToSchool(
-    allPoints,
-    state.rests.wholeMunicipalitySchoolIzo,
-    state
-  );
 };
 
 const addRestOfMunicipalityPart = async (
@@ -420,28 +442,32 @@ const addRestOfMunicipalityPart = async (
     type: "wholeMunicipalityPart",
     municipalityPartCode,
   });
-  await addRestToSchool(allPoints, schoolIzo, state);
+  addRestToSchool(allPoints, schoolIzo, state);
 };
 
 export const getNewMunicipalityByName = async (
   name: string
-): Promise<{ municipality: MunicipalityWithFounder; errors: SmdError[] }> => {
+): Promise<MunicipalityWithFounderResult> => {
   const { founder, errors } = await findFounder(name);
   return getNewMunicipality(founder, errors);
 };
 
 export const getNewMunicipalityByFounderId = async (
   founderId: number
-): Promise<{ municipality: MunicipalityWithFounder; errors: SmdError[] }> => {
+): Promise<MunicipalityWithFounderResult> => {
   const { founder, errors } = await getFounderById(founderId);
   return getNewMunicipality(founder, errors);
 };
 
-const getNewMunicipality = (founder: Founder, errors: SmdError[]) => ({
+const getNewMunicipality = (
+  founder: Founder,
+  errors: SmdError[]
+): MunicipalityWithFounderResult => ({
   municipality: {
     municipalityName: founder ? founder.name : "Neznámá obec",
     founder,
     schools: [],
+    unmappedPoints: [],
   },
   errors,
 });

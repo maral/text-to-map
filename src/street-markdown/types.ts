@@ -99,6 +99,7 @@ export interface School {
 export interface Municipality {
   municipalityName: string;
   schools: School[];
+  unmappedPoints: ExportAddressPoint[];
 }
 
 export interface DbMunicipalityResult {
@@ -115,6 +116,11 @@ export interface MunicipalityWithFounder extends Municipality {
   founder: Founder | null;
 }
 
+export interface MunicipalityWithFounderResult {
+  municipality: MunicipalityWithFounder;
+  errors: SmdError[];
+}
+
 export interface SmdState {
   currentMunicipality: MunicipalityWithFounder;
   currentFilterMunicipality: DbMunicipality;
@@ -126,6 +132,7 @@ export interface SmdState {
       schoolIzo: string;
     }[];
     wholeMunicipalitySchoolIzo: string;
+    includeUnmappedAddressPoints: boolean;
   };
   municipalities: Municipality[];
 }
