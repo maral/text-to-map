@@ -1,6 +1,6 @@
 import { readFileSync, writeFileSync } from "fs";
 import {
-  getNewMunicipality,
+  getNewMunicipalityByName,
   parseOrdinanceToAddressPoints,
 } from "../street-markdown/smd";
 import { ErrorCallbackParams } from "../street-markdown/types";
@@ -43,7 +43,7 @@ async function main() {
 
   console.time("downloadAndImportAllLatestAddressPoints");
 
-  const { municipality } = await getNewMunicipality("Česká Lípa");
+  const { municipality } = await getNewMunicipalityByName("Česká Lípa");
 
   const addressPoints = await parseOrdinanceToAddressPoints(
     lines,

@@ -33,27 +33,26 @@ export declare const checkStreetExists: (streetName: string, founder: Founder) =
     exists: boolean;
     errors: SmdError[];
 }>;
-export declare enum FindAddressPointsType {
-    SmdLine = 0,
-    MunicipalityPart = 1,
-    WholeMunicipality = 2,
-    WholeMunicipalityNoStreetName = 3
-}
 export type FindAddressPointsParams = {
-    type: FindAddressPointsType.SmdLine;
+    type: "smdLine";
     smdLine: SmdLine;
     municipality: Municipality;
+    municipalityPartCode?: number;
 } | {
-    type: FindAddressPointsType.MunicipalityPart;
+    type: "wholeMunicipalityPart";
     municipalityPartCode: number;
 } | {
-    type: FindAddressPointsType.WholeMunicipality;
+    type: "wholeMunicipality";
     municipality: Municipality;
 } | {
-    type: FindAddressPointsType.WholeMunicipalityNoStreetName;
+    type: "wholeMunicipalityNoStreetName";
     municipality: Municipality;
 };
 export declare const findAddressPoints: (params: FindAddressPointsParams) => Promise<AddressPoint[]>;
+export declare const filterAddressPoints: (addressPoints: AddressPoint[], params: FindAddressPointsParams) => AddressPoint[];
+export declare const getQueryParams: (params: FindAddressPointsParams) => (string | number)[];
+export declare const getStreetJoinCondition: (params: FindAddressPointsParams) => string;
+export declare const getWhereCondition: (params: FindAddressPointsParams) => string;
 export declare const isInRange: (number: number | null, letter: string | null, range: RangeSpec) => boolean;
 export declare const fitsType: (number: number | null, type: SeriesType) => boolean;
 export declare const equalsFullStreetNumber: (fullStreetNumber: FullStreetNumber, addressPoint: AddressPoint) => boolean;

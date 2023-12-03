@@ -8,7 +8,7 @@ var __awaiter = (this && this.__awaiter) || function (thisArg, _arguments, P, ge
     });
 };
 import { readFileSync, writeFileSync } from "fs";
-import { getNewMunicipality, parseOrdinanceToAddressPoints, } from "../street-markdown/smd";
+import { getNewMunicipalityByName, parseOrdinanceToAddressPoints, } from "../street-markdown/smd";
 function main() {
     return __awaiter(this, void 0, void 0, function* () {
         // take first node argument as a file name
@@ -35,7 +35,7 @@ function main() {
             warningCount++;
         };
         console.time("downloadAndImportAllLatestAddressPoints");
-        const { municipality } = yield getNewMunicipality("Česká Lípa");
+        const { municipality } = yield getNewMunicipalityByName("Česká Lípa");
         const addressPoints = yield parseOrdinanceToAddressPoints(lines, {
         // currentMunicipality: municipality,
         }, reportErrors, reportWarnings);

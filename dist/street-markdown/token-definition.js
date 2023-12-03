@@ -1,7 +1,7 @@
 import { createToken, Lexer } from "chevrotain";
-let streetNameWasMatched = false;
+let nameWasMatched = false;
 export const resetTokenState = () => {
-    streetNameWasMatched = false;
+    nameWasMatched = false;
 };
 export const prepareLine = (text) => {
     return text
@@ -9,10 +9,12 @@ export const prepareLine = (text) => {
         .replace(/;/g, ",")
         .replace(/,$/, "");
 };
+// this function prevents numbers that make part of the street name to be matched before the
+// street/municipality part name is completely matched
 const tokenBlockerFactory = (pattern) => {
     const stickyPattern = new RegExp(pattern, "y");
     return (text, startOffset) => {
-        if (streetNameWasMatched) {
+        if (nameWasMatched) {
             stickyPattern.lastIndex = startOffset;
             return stickyPattern.exec(text);
         }
@@ -35,26 +37,32 @@ const interruptPatterns = [
     "s výjimkou",
     "kromě",
 ];
+// this pattern allows a single space or a single hyphen (without an adjacent space) between words
 const streetNamePattern = /[^ -]+([ -]?[^ -]+)*/;
-export const streetNameMatcher = (text, startOffset) => {
-    if (streetNameWasMatched || startOffset > 0) {
-        return null;
-    }
-    else {
-        const result = streetNamePattern.exec(text);
-        if (result !== null) {
-            streetNameWasMatched = true;
-            const firstIndex = interruptPatterns.reduce((currentMin, pattern) => {
-                const index = text.search(new RegExp(` ${pattern}( |$)`));
-                return index >= 0 ? Math.min(index, currentMin) : currentMin;
-            }, Infinity);
-            if (firstIndex < Infinity) {
-                return [result[0].substring(0, firstIndex).trim()];
-            }
+// same but with a prefix of municipality part
+const municipalityPartNamePattern = /část (obce|města) [^ -]+([ -]?[^ -]+)*/;
+export const nameMatcherFactory = (pattern) => {
+    return (text, startOffset) => {
+        if (nameWasMatched || startOffset > 0) {
+            return null;
         }
-        return result;
-    }
+        else {
+            const result = pattern.exec(text);
+            if (result !== null) {
+                nameWasMatched = true;
+                const firstIndex = interruptPatterns.reduce((currentMin, pattern) => {
+                    const index = text.search(new RegExp(` ${pattern}( |$)`));
+                    return index >= 0 ? Math.min(index, currentMin) : currentMin;
+                }, Infinity);
+                if (firstIndex < Infinity) {
+                    return [result[0].substring(0, firstIndex).trim()];
+                }
+            }
+            return result;
+        }
+    };
 };
+export const streetNameMatcher = nameMatcherFactory(streetNamePattern);
 const MainSeparator = createToken({ name: "MainSeparator", pattern: / - / });
 const From = createToken({ name: "From", pattern: /od/ });
 const To = createToken({ name: "To", pattern: /do/ });
@@ -93,9 +101,13 @@ const Without = createToken({
     name: "Without",
     pattern: /bez|vyjma|mimo|s výjimkou|kromě/,
 });
+const MunicipalityPartName = createToken({
+    name: "MunicipalityPartName",
+    pattern: nameMatcherFactory(municipalityPartNamePattern),
+});
 const StreetName = createToken({
     name: "StreetName",
-    pattern: streetNameMatcher,
+    pattern: nameMatcherFactory(streetNamePattern),
 });
 const Number = createToken({
     name: "Number",
@@ -131,6 +143,7 @@ const smdTokens = [
     Slash,
     Space,
     // Colon,
+    MunicipalityPartName,
     StreetName,
 ];
 MainSeparator.LABEL = "' - '";
@@ -151,4 +164,4 @@ const tokenVocabulary = {};
 smdTokens.forEach((tokenType) => {
     tokenVocabulary[tokenType.name] = tokenType;
 });
-export { MainSeparator, Separator, OddType, EvenType, DescriptiveType, AllType, Number, From, To, AndAbove, AndBelow, Without, Hyphen, Slash, Space, StreetName, smdTokens, tokenVocabulary, };
+export { MainSeparator, Separator, OddType, EvenType, DescriptiveType, AllType, Number, From, To, AndAbove, AndBelow, Without, Hyphen, Slash, Space, StreetName, MunicipalityPartName, smdTokens, tokenVocabulary, };

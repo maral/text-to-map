@@ -2,7 +2,11 @@ import { Founder } from "../db/types";
 import { ErrorCallbackParams, Municipality, MunicipalityWithFounder, ProcessLineCallbackParams, School, SmdError, SmdState } from "./types";
 export declare const parseOrdinanceToAddressPoints: (lines: string[], initialState?: Partial<SmdState>, onError?: (params: ErrorCallbackParams) => void, onWarning?: (params: ErrorCallbackParams) => void, onProcessedLine?: (params: ProcessLineCallbackParams) => void) => Promise<Municipality[]>;
 export declare const convertMunicipality: (municipality: MunicipalityWithFounder) => Municipality;
-export declare const getNewMunicipality: (name: string) => Promise<{
+export declare const getNewMunicipalityByName: (name: string) => Promise<{
+    municipality: MunicipalityWithFounder;
+    errors: SmdError[];
+}>;
+export declare const getNewMunicipalityByFounderId: (founderId: number) => Promise<{
     municipality: MunicipalityWithFounder;
     errors: SmdError[];
 }>;

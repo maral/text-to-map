@@ -325,13 +325,8 @@ const extractFounderName = (line: string): string => {
   }
 };
 
-export const findFounder = async (
-  nameWithHashtag: string
-): Promise<{ founder: Founder; errors: SmdError[] }> => {
-  const errors: SmdError[] = [];
-  const name = extractFounderName(nameWithHashtag);
-
-  const result = await getKnexDb()
+const getBaseFounderQuery = () => {
+  return getKnexDb()
     .select(
       "f.id",
       "f.name",
@@ -342,7 +337,29 @@ export const findFounder = async (
     )
     .from("founder as f")
     .leftJoin("city as c", "c.code", "f.city_code")
-    .leftJoin("city_district as d", "d.code", "f.city_district_code")
+    .leftJoin("city_district as d", "d.code", "f.city_district_code");
+};
+
+export const getFounderById = async (
+  id: number
+): Promise<{ founder: Founder; errors: SmdError[] }> => {
+  const result = await getBaseFounderQuery().where("f.id", id).first();
+  const founder = await resultToFounder(result);
+  return {
+    founder: founder ?? null,
+    errors: founder
+      ? []
+      : [wholeLineError(`Zřizovatel s id ${id} neexistuje.`, "")],
+  };
+};
+
+export const findFounder = async (
+  nameWithHashtag: string
+): Promise<{ founder: Founder; errors: SmdError[] }> => {
+  const errors: SmdError[] = [];
+  const name = extractFounderName(nameWithHashtag);
+
+  const result = await getBaseFounderQuery()
     .where("f.name", name)
     .orWhere("c.name", name)
     .orWhere("d.name", name)

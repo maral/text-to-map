@@ -4,7 +4,7 @@ import {
   getAddressPointById,
 } from "../db/address-points";
 import { disconnectKnex } from "../db/db";
-import { findFounder } from "../db/founders";
+import { findFounder, getFounderById } from "../db/founders";
 import { findSchool } from "../db/schools";
 import { Founder, founderToMunicipality } from "../db/types";
 import {
@@ -171,7 +171,7 @@ const processMunicipalityLine = async ({
 
   await completeCurrentMunicipality(state);
 
-  const { municipality, errors } = await getNewMunicipality(line);
+  const { municipality, errors } = await getNewMunicipalityByName(line);
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   }
@@ -387,7 +387,11 @@ const addRestWithNoStreetNameToSchool = async (state: SmdState) => {
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
-  await addRestToSchool(pointsNoStreetName, state.rests.noStreetNameSchoolIzo, state);
+  await addRestToSchool(
+    pointsNoStreetName,
+    state.rests.noStreetNameSchoolIzo,
+    state
+  );
 };
 
 const addRestOfMunicipality = async (state: SmdState) => {
@@ -399,7 +403,11 @@ const addRestOfMunicipality = async (state: SmdState) => {
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
-  await addRestToSchool(allPoints, state.rests.wholeMunicipalitySchoolIzo, state);
+  await addRestToSchool(
+    allPoints,
+    state.rests.wholeMunicipalitySchoolIzo,
+    state
+  );
 };
 
 const addRestOfMunicipalityPart = async (
@@ -415,19 +423,28 @@ const addRestOfMunicipalityPart = async (
   await addRestToSchool(allPoints, schoolIzo, state);
 };
 
-export const getNewMunicipality = async (
+export const getNewMunicipalityByName = async (
   name: string
 ): Promise<{ municipality: MunicipalityWithFounder; errors: SmdError[] }> => {
   const { founder, errors } = await findFounder(name);
-  return {
-    municipality: {
-      municipalityName: founder ? founder.name : "Neznámá obec",
-      founder,
-      schools: [],
-    },
-    errors,
-  };
+  return getNewMunicipality(founder, errors);
 };
+
+export const getNewMunicipalityByFounderId = async (
+  founderId: number
+): Promise<{ municipality: MunicipalityWithFounder; errors: SmdError[] }> => {
+  const { founder, errors } = await getFounderById(founderId);
+  return getNewMunicipality(founder, errors);
+};
+
+const getNewMunicipality = (founder: Founder, errors: SmdError[]) => ({
+  municipality: {
+    municipalityName: founder ? founder.name : "Neznámá obec",
+    founder,
+    schools: [],
+  },
+  errors,
+});
 
 export const getNewSchool = async (
   name: string,

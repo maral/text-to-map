@@ -223,14 +223,27 @@ const extractFounderName = (line) => {
         return line.trim();
     }
 };
-export const findFounder = (nameWithHashtag) => __awaiter(void 0, void 0, void 0, function* () {
-    const errors = [];
-    const name = extractFounderName(nameWithHashtag);
-    const result = yield getKnexDb()
+const getBaseFounderQuery = () => {
+    return getKnexDb()
         .select("f.id", "f.name", "f.ico", "f.founder_type_code", "f.city_code", "f.city_district_code")
         .from("founder as f")
         .leftJoin("city as c", "c.code", "f.city_code")
-        .leftJoin("city_district as d", "d.code", "f.city_district_code")
+        .leftJoin("city_district as d", "d.code", "f.city_district_code");
+};
+export const getFounderById = (id) => __awaiter(void 0, void 0, void 0, function* () {
+    const result = yield getBaseFounderQuery().where("f.id", id).first();
+    const founder = yield resultToFounder(result);
+    return {
+        founder: founder !== null && founder !== void 0 ? founder : null,
+        errors: founder
+            ? []
+            : [wholeLineError(`Zřizovatel s id ${id} neexistuje.`, "")],
+    };
+});
+export const findFounder = (nameWithHashtag) => __awaiter(void 0, void 0, void 0, function* () {
+    const errors = [];
+    const name = extractFounderName(nameWithHashtag);
+    const result = yield getBaseFounderQuery()
         .where("f.name", name)
         .orWhere("c.name", name)
         .orWhere("d.name", name)

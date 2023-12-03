@@ -4,6 +4,7 @@ export declare class SmdParser extends EmbeddedActionsParser {
     constructor(tokenVocabulary: TokenVocabulary);
     street: import("chevrotain").ParserMethod<[], SmdLine[]>;
     private streetNameAndNumbersSpecs;
+    private municipalityPartNameAndNumbersSpecs;
     private numberSpecs;
     private seriesSpecs;
     private _gatePostfixTypeSeriesSpec;
@@ -19,3 +20,4 @@ export declare class SmdParser extends EmbeddedActionsParser {
     private fullStreetNumber;
 }
 export declare const parseRichNumber: (number: string) => RichNumber;
+export declare const parseMunicipalityPartName: (name: string) => string;

@@ -1,6 +1,6 @@
 import { EmbeddedActionsParser, EOF } from "chevrotain";
 import { splitStreetViaRomanNumerals } from "./roman-numerals";
-import { MainSeparator, Separator, OddType, EvenType, DescriptiveType, AllType, Number, Hyphen, StreetName, From, To, AndAbove, AndBelow, Slash, Without, } from "./token-definition";
+import { AllType, AndAbove, AndBelow, DescriptiveType, EvenType, From, Hyphen, MainSeparator, MunicipalityPartName, Number, OddType, Separator, Slash, StreetName, To, Without, } from "./token-definition";
 import { SeriesType } from "./types";
 export class SmdParser extends EmbeddedActionsParser {
     constructor(tokenVocabulary) {
@@ -15,14 +15,39 @@ export class SmdParser extends EmbeddedActionsParser {
                 },
                 {
                     ALT: () => {
-                        result = { street: this.CONSUME(StreetName).image, numberSpec: [] };
+                        result = {
+                            type: "street",
+                            street: this.CONSUME(StreetName).image,
+                            numberSpec: [],
+                        };
+                    },
+                },
+                {
+                    ALT: () => {
+                        result = this.SUBRULE(this.municipalityPartNameAndNumbersSpecs);
+                    },
+                },
+                {
+                    ALT: () => {
+                        const municipalityPart = parseMunicipalityPartName(this.CONSUME(MunicipalityPartName).image);
+                        result = {
+                            type: "municipalityPart",
+                            municipalityPart,
+                            numberSpec: [],
+                        };
                     },
                 },
             ]);
-            return splitStreetViaRomanNumerals(result.street).map((street) => ({
-                street,
-                numberSpec: result.numberSpec,
-            }));
+            if (result.type === "street") {
+                return splitStreetViaRomanNumerals(result.street).map((street) => ({
+                    type: "street",
+                    street,
+                    numberSpec: result.numberSpec,
+                }));
+            }
+            else {
+                return [result];
+            }
         });
         this.streetNameAndNumbersSpecs = this.RULE("streetNameAndNumbersSpecs", () => {
             const street = this.CONSUME(StreetName).image;
@@ -30,10 +55,23 @@ export class SmdParser extends EmbeddedActionsParser {
                 this.CONSUME(MainSeparator);
             });
             const numberSpec = this.SUBRULE(this.numberSpecs);
-            return { street, numberSpec };
+            return { type: "street", street, numberSpec };
+        });
+        this.municipalityPartNameAndNumbersSpecs = this.RULE("municipalityPartNameAndNumbersSpecs", () => {
+            const municipalityPart = parseMunicipalityPartName(this.CONSUME(MunicipalityPartName).image);
+            this.OPTION(() => {
+                this.CONSUME(MainSeparator);
+            });
+            const numberSpec = this.SUBRULE(this.numberSpecs);
+            return {
+                type: "municipalityPart",
+                municipalityPart,
+                numberSpec,
+            };
         });
         this.numberSpecs = this.RULE("numberSpecs", () => {
-            const result = [];
+            const positiveResult = [];
+            let negativeResult;
             this.OR([
                 {
                     GATE: () => this.LA(2).tokenType === Without,
@@ -55,14 +93,14 @@ export class SmdParser extends EmbeddedActionsParser {
                                 GATE: this._gatePostfixTypeSeriesSpec,
                                 ALT: () => {
                                     const { type, ranges } = this.SUBRULE(this.postfixTypeSeriesSpec);
-                                    return { negative: true, type, ranges };
+                                    negativeResult = { negative: true, type, ranges };
                                 },
                             },
                             {
                                 ALT: () => {
                                     const type = this.SUBRULE2(this.seriesType);
                                     const ranges = this.SUBRULE2(this.rangeList);
-                                    return { negative: true, type, ranges };
+                                    negativeResult = { negative: true, type, ranges };
                                 },
                             },
                         ]);
@@ -73,13 +111,16 @@ export class SmdParser extends EmbeddedActionsParser {
                         this.AT_LEAST_ONE_SEP({
                             SEP: Separator,
                             DEF: () => {
-                                result.push(this.SUBRULE(this.seriesSpecs));
+                                positiveResult.push(this.SUBRULE(this.seriesSpecs));
                             },
                         });
                     },
                 },
             ]);
-            return result;
+            if (negativeResult) {
+                return negativeResult;
+            }
+            return positiveResult;
         });
         this.seriesSpecs = this.RULE("seriesSpecs", () => {
             let ranges = [];
@@ -321,7 +362,10 @@ export class SmdParser extends EmbeddedActionsParser {
             const descriptiveNumber = parseRichNumber(this.CONSUME(Number).image);
             this.CONSUME(Slash);
             const orientationNumber = parseRichNumber(this.CONSUME2(Number).image);
-            return { descriptionNumber: descriptiveNumber, orientationalNumber: orientationNumber };
+            return {
+                descriptionNumber: descriptiveNumber,
+                orientationalNumber: orientationNumber,
+            };
         });
         this.performSelfAnalysis();
     }
@@ -340,4 +384,10 @@ export const parseRichNumber = (number) => {
             number: parseInt(number),
         };
     }
+};
+const municipalityPartPattern = /^část (?<type>obce|města) (?<name>.+)$/;
+export const parseMunicipalityPartName = (name) => {
+    var _a, _b;
+    const match = municipalityPartPattern.exec(name);
+    return (_b = (_a = match === null || match === void 0 ? void 0 : match.groups.name) === null || _a === void 0 ? void 0 : _a.trim()) !== null && _b !== void 0 ? _b : "";
 };

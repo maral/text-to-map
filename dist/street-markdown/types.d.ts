@@ -4,10 +4,16 @@ export interface ProcessedSmdLines {
     smdLines: SmdLine[];
     errors: SmdError[];
 }
-export interface SmdLine {
+export type SmdLineType = "street" | "wholeMunicipalityLine" | "municipalitySwitch" | "municipalityPart";
+export type SmdLine = {
+    type: "street";
     street: string;
     numberSpec: SeriesSpec[] | NegativeSeriesSpec;
-}
+} | {
+    type: "municipalityPart";
+    municipalityPart: string;
+    numberSpec: SeriesSpec[] | NegativeSeriesSpec;
+};
 export interface SeriesSpec {
     type: SeriesType;
     ranges: (RangeSpec | FullStreetNumber)[];
@@ -74,7 +80,14 @@ export interface SmdState {
     currentMunicipality: MunicipalityWithFounder;
     currentFilterMunicipality: DbMunicipality;
     currentSchool: School;
-    noStreetNameSchoolIzo: string;
+    rests: {
+        noStreetNameSchoolIzo: string;
+        municipalityParts: {
+            municipalityPartCode: number;
+            schoolIzo: string;
+        }[];
+        wholeMunicipalitySchoolIzo: string;
+    };
     municipalities: Municipality[];
 }
 export interface ProcessLineCallbackParams {
