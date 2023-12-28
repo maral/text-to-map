@@ -423,11 +423,12 @@ export const getFounderCityCode = async (founder: Founder): Promise<number> => {
   if (founder.municipalityType === MunicipalityType.District) {
     if (cityCodeFounder !== founder) {
       cityCodeFounder = founder;
-      cachedCityCode = await getKnexDb()
-        .pluck("city_code")
-        .from("city_district")
-        .where("code", founder.cityOrDistrictCode)
-        .first();
+      cachedCityCode = (
+        await getKnexDb()
+          .from("city_district")
+          .where("code", founder.cityOrDistrictCode)
+          .first()
+      ).city_code;
     }
     return cachedCityCode;
   } else {
