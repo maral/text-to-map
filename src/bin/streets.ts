@@ -1,7 +1,8 @@
-import { downloadAndImportAllStreets } from "../open-data-sync/streets";
+import { downloadAndImportStreets } from "../open-data-sync/streets";
+import { defaultBinOptions } from "./constants";
 
 console.time("downloadAndImportAllStreets");
-downloadAndImportAllStreets({})
+downloadAndImportStreets(defaultBinOptions)
   .then(() => {
     console.timeEnd("downloadAndImportAllStreets");
   })

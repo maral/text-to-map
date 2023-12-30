@@ -1,21 +1,22 @@
 import { createReadStream, createWriteStream, existsSync, rmSync } from "fs";
+import fetch from "node-fetch";
 import { join } from "path";
 import sax, { Tag } from "sax";
-import fetch from "node-fetch";
 
-import { setDbConfig } from "../db/db";
+import { pipeline } from "stream/promises";
+import { disconnectKnex } from "../db/db";
+import { insertFounders } from "../db/founders";
+import { insertSchools } from "../db/schools";
+import { Founder, MunicipalityType, School, SchoolLocation, SyncPart } from "../db/types";
 import {
   OpenDataSyncOptions,
-  OpenDataSyncOptionsNotEmpty,
+  OpenDataSyncOptionsPartial,
   prepareOptions,
 } from "../utils/helpers";
-import { pipeline } from "stream/promises";
-import { Founder, MunicipalityType, School, SchoolLocation } from "../db/types";
-import { insertSchools } from "../db/schools";
-import { insertFounders } from "../db/founders";
+import { runSyncPart } from "./common";
 
 const downloadXml = async (
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<void> => {
   if (existsSync(getXmlFilePath(options))) {
     return;
@@ -34,6 +35,7 @@ const downloadXml = async (
 
 enum XMLState {
   None,
+  RedIzo,
   SchoolName,
   Izo,
   Ico,
@@ -51,6 +53,7 @@ const SCHOOL_TYPE_PRIMARY = "B00";
 const createNewSchool = (): School => {
   return {
     name: "",
+    redizo: "",
     izo: "",
     capacity: 0,
     locations: [],
@@ -72,7 +75,7 @@ const getMunicipalityType = (founderType: string): MunicipalityType => {
 type SchoolAddress = { izo: string; address: string[]; isPrimary: boolean };
 
 const processSchoolRegisterXml = async (
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<{
   schools: School[];
   founders: Map<string, Founder>;
@@ -106,6 +109,9 @@ const processSchoolRegisterXml = async (
             currentSchool = createNewSchool();
             isCurrentSchoolPrimary = false;
             isRuianCodeMissing = false;
+            break;
+          case "RedIzo":
+            state = XMLState.RedIzo;
             break;
           case "RedPlnyNazev":
             state = XMLState.SchoolName;
@@ -207,6 +213,7 @@ const processSchoolRegisterXml = async (
           case "MistoRUAINKod":
             isRuianCodeMissing = !isRuianCodeSet;
           case "RedPlnyNazev":
+          case "RedIzo":
           case "ICO":
           case "IZO":
           case "SkolaDruhTyp":
@@ -224,6 +231,8 @@ const processSchoolRegisterXml = async (
       })
       .on("text", (text: string) => {
         switch (state) {
+          case XMLState.RedIzo:
+            currentSchool.redizo = text;
           case XMLState.SchoolName:
             currentSchool.name = text;
             break;
@@ -276,7 +285,7 @@ const processSchoolRegisterXml = async (
 };
 
 const importDataToDb = async (
-  options: OpenDataSyncOptionsNotEmpty,
+  options: OpenDataSyncOptions,
   saveFoundersToCsv: boolean = false,
   saveSchoolsWithoutRuianToCsv: boolean = false
 ) => {
@@ -325,30 +334,30 @@ const importDataToDb = async (
     csv.end();
   }
 
-  setDbConfig({
-    filePath: options.dbFilePath,
-    initFilePath: options.dbInitFilePath,
-  });
+  await insertSchools(schools);
 
-  insertSchools(schools);
-
-  insertFounders(Array.from(founders.values()));
+  await insertFounders(Array.from(founders.values()));
 };
 
-const getXmlFilePath = (options: OpenDataSyncOptions): string => {
+const getXmlFilePath = (options: OpenDataSyncOptionsPartial): string => {
   return join(options.tmpDir, options.schoolsXmlFileName);
 };
 
-export const downloadAndImportAllSchools = async (
-  options: OpenDataSyncOptions
+export const downloadAndImportSchools = async (
+  options: OpenDataSyncOptionsPartial = {},
+  saveFoundersToCsv: boolean = false,
+  saveSchoolsWithoutRuianToCsv: boolean = false,
 ) => {
-  const runOptions = prepareOptions(options);
+  await runSyncPart(SyncPart.Schools, [SyncPart.AddressPoints], async () => {
+    const runOptions = prepareOptions(options);
 
-  await downloadXml(runOptions);
-  await importDataToDb(runOptions, false, true);
+    await downloadXml(runOptions);
+    await importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
+    deleteSchoolsXmlFile(runOptions);
+  });
 };
 
-export const deleteSchoolsXmlFile = (options: OpenDataSyncOptions = {}) => {
+export const deleteSchoolsXmlFile = (options: OpenDataSyncOptionsPartial = {}) => {
   const runOptions = prepareOptions(options);
 
   if (existsSync(getXmlFilePath(runOptions))) {

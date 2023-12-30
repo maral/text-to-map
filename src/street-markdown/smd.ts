@@ -3,56 +3,496 @@ import {
   findAddressPoints,
   getAddressPointById,
 } from "../db/address-points";
-import { findFounder } from "../db/founders";
+import { disconnectKnex } from "../db/db";
+import { findFounder, getFounderById } from "../db/founders";
 import { findSchool } from "../db/schools";
+import { Founder, founderToMunicipality } from "../db/types";
 import {
-  Founder,
-  founderToMunicipality,
-  Municipality as DbMunicipality,
-} from "../db/types";
-import {
+  getMunicipalityPartResult,
+  getRestOfMunicipalityPart,
   getSwitchMunicipality,
   getWholeMunicipality,
   isMunicipalitySwitch,
+  isRestOfMunicipalityLine,
+  isRestOfMunicipalityPartLine,
+  isRestWithNoStreetNameLine,
   isWholeMunicipality,
 } from "./municipality";
 import { parseLine } from "./smd-line-parser";
 import {
   AddressPoint,
+  ErrorCallbackParams,
   ExportAddressPoint,
-  isAddressPoint,
   Municipality,
+  MunicipalityWithFounder,
+  MunicipalityWithFounderResult,
+  ProcessLineCallbackParams,
+  ProcessLineParams,
   School,
+  SmdError,
+  SmdState,
+  isAddressPoint,
 } from "./types";
 
-interface MunicipalityWithFounder extends Municipality {
-  founder: Founder | null;
+interface ParseOrdinanceProps {
+  lines: string[];
+  initialState?: Partial<SmdState>;
+  onError?: (params: ErrorCallbackParams) => void;
+  onWarning?: (params: ErrorCallbackParams) => void;
+  onProcessedLine?: (params: ProcessLineCallbackParams) => void;
+  includeUnmappedAddressPoints: boolean;
 }
 
-const getNewMunicipality = (name: string): MunicipalityWithFounder => {
-  const { founder, errors } = findFounder(name);
-  if (errors.length > 0) {
-    errors.forEach(console.error);
+export const parseOrdinanceToAddressPoints = async ({
+  lines,
+  initialState = {},
+  onError = () => {},
+  onWarning = () => {},
+  onProcessedLine = () => {},
+  includeUnmappedAddressPoints = false,
+}: ParseOrdinanceProps) => {
+  try {
+    const state: SmdState = {
+      currentMunicipality: null,
+      currentFilterMunicipality: null,
+      currentSchool: null,
+      rests: {
+        noStreetNameSchoolIzo: null,
+        municipalityParts: [],
+        wholeMunicipalitySchoolIzo: null,
+        includeUnmappedAddressPoints,
+      },
+      municipalities: [],
+      ...initialState,
+    };
+
+    let lineNumber = 1;
+
+    for (const rawLine of lines) {
+      const line = cleanLine(rawLine);
+      await processOneLine({
+        line,
+        state,
+        lineNumber,
+        onError,
+        onWarning,
+      });
+      onProcessedLine({ lineNumber, line });
+      lineNumber++;
+    }
+
+    if (state.currentSchool != null) {
+      if (state.currentMunicipality == null) {
+        return [];
+      }
+      state.currentMunicipality.schools.push(
+        mapSchoolForExport(state.currentSchool)
+      );
+    }
+
+    await completeCurrentMunicipality(state);
+
+    return state.municipalities;
+  } catch (error) {
+    console.error(error);
+  } finally {
+    await disconnectKnex();
   }
+};
+
+const filterOutSchoolAddressPoint = (
+  addressPoints: AddressPoint[],
+  school: School
+) => {
+  const schoolPosition = school.position;
+  return schoolPosition && isAddressPoint(schoolPosition)
+    ? (addressPoints = addressPoints.filter(
+        (ap) => ap.id !== schoolPosition.id
+      ))
+    : addressPoints;
+};
+
+export const convertMunicipality = (
+  municipality: MunicipalityWithFounder
+): Municipality => {
   return {
-    municipalityName: founder ? founder.name : "Neznámá obec",
-    founder,
-    schools: [],
+    municipalityName: municipality.municipalityName,
+    schools: municipality.schools,
+    unmappedPoints: municipality.unmappedPoints,
   };
 };
 
-const getNewSchool = (name: string, founder: Founder | null): School => {
+const processOneLine = async (params: ProcessLineParams) => {
+  const { line, state } = params;
+
+  if (line[0] === "#") {
+    await processMunicipalityLine(params);
+    return;
+  }
+
+  if (line === "") {
+    // end of school
+    processEmptyLine(params);
+    return;
+  }
+
+  if (line[0] === "!") {
+    return;
+  }
+
+  if (state.currentSchool === null) {
+    await processSchoolLine(params);
+    return;
+  }
+
+  if (isMunicipalitySwitch(line)) {
+    processMunicipalitySwitchLine(params);
+  } else if (isWholeMunicipality(line)) {
+    await processWholeMunicipalityLine(params);
+  } else if (isRestWithNoStreetNameLine(line)) {
+    state.rests.noStreetNameSchoolIzo = state.currentSchool.izo;
+  } else if (isRestOfMunicipalityLine(line)) {
+    state.rests.wholeMunicipalitySchoolIzo = state.currentSchool.izo;
+  } else if (isRestOfMunicipalityPartLine(line)) {
+    const { municipalityPartCode, errors } = await getRestOfMunicipalityPart(
+      line,
+      state.currentMunicipality.founder
+    );
+    if (errors.length > 0) {
+      params.onError({ lineNumber: params.lineNumber, line, errors });
+    } else {
+      state.rests.municipalityParts.push({
+        municipalityPartCode,
+        schoolIzo: state.currentSchool.izo,
+      });
+    }
+  } else {
+    await processAddressPointLine(params);
+  }
+};
+
+const processMunicipalityLine = async ({
+  line,
+  lineNumber,
+  state,
+  onError,
+}: ProcessLineParams) => {
+  if (state.currentSchool !== null) {
+    state.currentMunicipality.schools.push(state.currentSchool);
+    state.currentSchool = null;
+  }
+
+  await completeCurrentMunicipality(state);
+
+  const { municipality, errors } = await getNewMunicipalityByName(line);
+  if (errors.length > 0) {
+    onError({ lineNumber, line, errors });
+  }
+  state.currentMunicipality = municipality;
+  state.currentFilterMunicipality = founderToMunicipality(
+    state.currentMunicipality.founder
+  );
+
+  state.currentSchool = null;
+};
+
+const completeCurrentMunicipality = async (state: SmdState) => {
+  if (state.currentMunicipality !== null) {
+    await addRests(state);
+    state.municipalities.push(convertMunicipality(state.currentMunicipality));
+  }
+};
+
+const processEmptyLine = ({ state }: ProcessLineParams) => {
+  if (state.currentSchool !== null) {
+    state.currentMunicipality.schools.push(state.currentSchool);
+    state.currentSchool = null;
+  }
+};
+
+const processSchoolLine = async ({
+  line,
+  lineNumber,
+  state,
+  onError,
+}: ProcessLineParams) => {
+  if (state.currentMunicipality === null) {
+    onError({
+      lineNumber,
+      line,
+      errors: [
+        wholeLineError(
+          "Definici školy musí předcházet definice zřizovatele (uvozená '#', např. '# Strakonice').",
+          line
+        ),
+      ],
+    });
+    return;
+  }
+  state.currentSchool = await getNewSchool(
+    line,
+    state.currentMunicipality.founder,
+    lineNumber,
+    onError
+  );
+  state.currentFilterMunicipality = founderToMunicipality(
+    state.currentMunicipality.founder
+  );
+};
+
+const processMunicipalitySwitchLine = async ({
+  line,
+  state,
+  lineNumber,
+  onError,
+}: ProcessLineParams) => {
+  const { municipality, errors } = await getSwitchMunicipality(
+    line,
+    state.currentMunicipality.founder
+  );
+  if (errors.length > 0) {
+    onError({ lineNumber, line, errors });
+  } else {
+    state.currentFilterMunicipality = municipality;
+  }
+};
+
+const processWholeMunicipalityLine = async ({
+  line,
+  state,
+  lineNumber,
+  onError,
+}: ProcessLineParams) => {
+  const { municipality, errors } = await getWholeMunicipality(
+    line,
+    state.currentMunicipality.founder
+  );
+  if (errors.length > 0) {
+    onError({ lineNumber, line, errors });
+  } else {
+    const addressPoints = await findAddressPoints({
+      type: "wholeMunicipality",
+      municipality,
+    });
+    state.currentSchool.addresses.push(
+      ...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(
+        mapAddressPointForExport
+      )
+    );
+  }
+};
+
+const processAddressPointLine = async ({
+  line,
+  state,
+  lineNumber,
+  onError,
+  onWarning,
+}: ProcessLineParams) => {
+  const { smdLines, errors } = parseLine(line);
+  if (errors.length > 0) {
+    onError({ lineNumber, line, errors });
+  } else {
+    for (const smdLine of smdLines) {
+      if (smdLine.type === "street") {
+        const { exists, errors } = await checkStreetExists(
+          smdLine.street,
+          state.currentMunicipality.founder
+        );
+        if (errors.length > 0) {
+          onWarning({ lineNumber, line, errors });
+        }
+        if (exists) {
+          const addressPoints = await findAddressPoints({
+            type: "smdLine",
+            smdLine,
+            municipality: state.currentFilterMunicipality,
+          });
+
+          state.currentSchool.addresses.push(
+            ...filterOutSchoolAddressPoint(
+              addressPoints,
+              state.currentSchool
+            ).map(mapAddressPointForExport)
+          );
+        }
+      } else if (smdLine.type === "municipalityPart") {
+        const { municipalityPartCode, errors } =
+          await getMunicipalityPartResult(
+            smdLine.municipalityPart,
+            line,
+            state.currentMunicipality.founder
+          );
+        if (errors.length > 0) {
+          onWarning({ lineNumber, line, errors });
+        } else {
+          const addressPoints = await findAddressPoints({
+            type: "smdLine",
+            smdLine,
+            municipality: state.currentFilterMunicipality,
+            municipalityPartCode,
+          });
+
+          state.currentSchool.addresses.push(
+            ...filterOutSchoolAddressPoint(
+              addressPoints,
+              state.currentSchool
+            ).map(mapAddressPointForExport)
+          );
+        }
+      }
+    }
+  }
+};
+
+const addRestToSchool = (
+  restPoints: AddressPoint[],
+  schoolIzo: string,
+  state: SmdState
+) => {
+  const addressPoints = state.currentMunicipality.schools.flatMap(
+    (school) => school.addresses
+  );
+
+  // filter out address points already present
+  const remainingPoints = restPoints.filter(
+    (point) => !addressPoints.some((ap) => ap.address === point.address)
+  );
+
+  // find the right school and add the remaining address points
+  const schoolIndex = state.currentMunicipality.schools.findIndex(
+    (school) => school.izo === schoolIzo
+  );
+
+  state.currentMunicipality.schools[schoolIndex].addresses.push(
+    ...remainingPoints
+  );
+};
+
+const addRests = async (state: SmdState) => {
+  if (state.rests.noStreetNameSchoolIzo) {
+    await addRestWithNoStreetNameToSchool(state);
+  }
+
+  if (state.rests.wholeMunicipalitySchoolIzo) {
+    await addRestOfMunicipality(state);
+  }
+
+  for (const rest of state.rests.municipalityParts) {
+    await addRestOfMunicipalityPart(
+      state,
+      rest.municipalityPartCode,
+      rest.schoolIzo
+    );
+  }
+
+  if (state.rests.includeUnmappedAddressPoints) {
+    await addRestOfMunicipalityToUnmappedPoints(state);
+  }
+
+  state.rests.noStreetNameSchoolIzo = null;
+  state.rests.wholeMunicipalitySchoolIzo = null;
+  state.rests.municipalityParts = [];
+};
+
+const addRestWithNoStreetNameToSchool = async (state: SmdState) => {
+  // get all address points without street name for current municipality
+  const pointsNoStreetName = await findAddressPoints({
+    type: "wholeMunicipalityNoStreetName",
+    municipality: {
+      code: state.currentMunicipality.founder.cityOrDistrictCode,
+      type: state.currentMunicipality.founder.municipalityType,
+    },
+  });
+  addRestToSchool(pointsNoStreetName, state.rests.noStreetNameSchoolIzo, state);
+};
+
+const addRestOfMunicipality = async (state: SmdState) => {
+  addRestToSchool(
+    await getRestOfMunicipality(state),
+    state.rests.wholeMunicipalitySchoolIzo,
+    state
+  );
+};
+
+const addRestOfMunicipalityToUnmappedPoints = async (state: SmdState) => {
+  state.currentMunicipality.unmappedPoints = (await getRestOfMunicipality(state)).map(mapAddressPointForExport);
+};
+
+const getRestOfMunicipality = async (
+  state: SmdState
+): Promise<AddressPoint[]> => {
+  // get all address points for current municipality
+  return await findAddressPoints({
+    type: "wholeMunicipality",
+    municipality: {
+      code: state.currentMunicipality.founder.cityOrDistrictCode,
+      type: state.currentMunicipality.founder.municipalityType,
+    },
+  });
+};
+
+const addRestOfMunicipalityPart = async (
+  state: SmdState,
+  municipalityPartCode: number,
+  schoolIzo: string
+) => {
+  // get all address points for current municipality
+  const allPoints = await findAddressPoints({
+    type: "wholeMunicipalityPart",
+    municipalityPartCode,
+  });
+  addRestToSchool(allPoints, schoolIzo, state);
+};
+
+export const getNewMunicipalityByName = async (
+  name: string
+): Promise<MunicipalityWithFounderResult> => {
+  const { founder, errors } = await findFounder(name);
+  return getNewMunicipality(founder, errors);
+};
+
+export const getNewMunicipalityByFounderId = async (
+  founderId: number
+): Promise<MunicipalityWithFounderResult> => {
+  const { founder, errors } = await getFounderById(founderId);
+  return getNewMunicipality(founder, errors);
+};
+
+const getNewMunicipality = (
+  founder: Founder,
+  errors: SmdError[]
+): MunicipalityWithFounderResult => ({
+  municipality: {
+    municipalityName: founder ? founder.name : "Neznámá obec",
+    founder,
+    schools: [],
+    unmappedPoints: [],
+  },
+  errors,
+});
+
+export const getNewSchool = async (
+  name: string,
+  founder: Founder | null,
+  lineNumber: number,
+  onError: (params: ErrorCallbackParams) => void
+): Promise<School> => {
   let exportSchool: School = {
-    name: name,
+    name,
     izo: "",
     addresses: [],
   };
   if (founder !== null) {
-    const { school } = findSchool(name, founder.schools);
+    const { school, errors } = findSchool(name, founder.schools);
+    if (errors.length > 0) {
+      onError({ lineNumber, line: name, errors });
+    }
     if (school) {
-      school.izo = school.izo || "";
+      exportSchool.name = school.name;
+      exportSchool.izo = school.izo || "";
       if (school.locations.length > 0) {
-        const position = getAddressPointById(
+        const position = await getAddressPointById(
           school.locations[0].addressPointId
         );
         if (position !== null) {
@@ -78,169 +518,15 @@ const mapSchoolForExport = (school: School): School => ({
   name: school.name,
   izo: school.izo,
   addresses: school.addresses,
-  position: mapAddressPointForExport(school.position),
+  position: school.position ? mapAddressPointForExport(school.position) : null,
 });
 
 const cleanLine = (line: string) => {
   return line.trim().replace(/–/g, "-");
 };
 
-export const parseOrdinanceToAddressPoints = (lines: string[]) => {
-  let errorCount = 0;
-  const errorLines: string[] = [];
-  let warningCount = 0;
-  let lineNumber = 1;
-  let municipalities: Municipality[] = [];
-  let currentMunicipality: MunicipalityWithFounder = null;
-  let currentFilterMunicipality: DbMunicipality = null;
-  let currentSchool: School = null;
-
-  const reportErrors = (line: string, errors: string[]): void => {
-    errors.forEach(console.error);
-    console.error(`Invalid street definition on line ${lineNumber}: ${line}`);
-    errorCount++;
-    errorLines.push(`line ${lineNumber}: ${line}`);
-  };
-
-  lines.forEach((rawLine) => {
-    let line = cleanLine(rawLine);
-
-    if (line[0] === "#") {
-      // a new municipality
-      if (currentSchool !== null) {
-        currentMunicipality.schools.push(currentSchool);
-        currentSchool = null;
-      }
-
-      if (currentMunicipality !== null) {
-        municipalities.push(convertMunicipality(currentMunicipality));
-      }
-
-      currentMunicipality = getNewMunicipality(line.substring(1).trim());
-      currentFilterMunicipality = founderToMunicipality(
-        currentMunicipality.founder
-      );
-
-      currentSchool = null;
-    } else if (line === "") {
-      // empty line (end of school)
-      if (currentSchool !== null) {
-        currentMunicipality.schools.push(currentSchool);
-        currentSchool = null;
-      }
-    } else {
-      if (currentSchool === null) {
-        if (currentMunicipality === null) {
-          throw new Error("No municipality defined on line " + lineNumber);
-        }
-        currentSchool = getNewSchool(line, currentMunicipality.founder);
-        currentFilterMunicipality = founderToMunicipality(
-          currentMunicipality.founder
-        );
-      } else {
-        if (line[0] !== "!") {
-          if (isMunicipalitySwitch(line)) {
-            const { municipality, errors } = getSwitchMunicipality(line);
-            if (errors.length > 0) {
-              reportErrors(line, errors);
-            } else {
-              currentFilterMunicipality = municipality;
-            }
-          } else if (isWholeMunicipality(line)) {
-            const { municipality, errors } = getWholeMunicipality(line);
-            if (errors.length > 0) {
-              reportErrors(line, errors);
-            } else {
-              const addressPoints = findAddressPoints(
-                { wholeMunicipality: true, street: "", numberSpec: [] },
-                municipality
-              );
-              currentSchool.addresses.push(
-                ...filterOutSchoolAddressPoint(
-                  addressPoints,
-                  currentSchool
-                ).map(mapAddressPointForExport)
-              );
-            }
-          } else {
-            // address point
-            const { smdLines, errors } = parseLine(line);
-            if (errors.length > 0) {
-              reportErrors(line, errors);
-            } else {
-              smdLines.forEach((smdLine) => {
-                const { exists, errors } = checkStreetExists(
-                  smdLine.street,
-                  currentMunicipality.founder
-                );
-                if (errors.length > 0) {
-                  errors.map((error) => {
-                    console.error(`Line ${lineNumber}: ${error}`);
-                  });
-                  warningCount++;
-                }
-                if (exists) {
-                  let addressPoints = findAddressPoints(
-                    smdLine,
-                    currentFilterMunicipality
-                  );
-
-                  currentSchool.addresses.push(
-                    ...filterOutSchoolAddressPoint(
-                      addressPoints,
-                      currentSchool
-                    ).map(mapAddressPointForExport)
-                  );
-                }
-              });
-            }
-          }
-        }
-      }
-    }
-
-    lineNumber++;
-  });
-
-  if (currentSchool != null) {
-    if (currentMunicipality == null) {
-      currentMunicipality = getNewMunicipality("");
-    }
-    currentMunicipality.schools.push(mapSchoolForExport(currentSchool));
-  }
-
-  if (currentMunicipality != null) {
-    municipalities.push(convertMunicipality(currentMunicipality));
-  }
-
-  console.log(
-    `Parsed ${lineNumber} lines, ${errorCount} errors, ${warningCount} warnings.`
-  );
-  if (errorCount > 0) {
-    console.log("Errors:");
-    errorLines.forEach((line) => console.log(line));
-  }
-
-  return municipalities;
-};
-
-const filterOutSchoolAddressPoint = (
-  addressPoints: AddressPoint[],
-  school: School
-) => {
-  const schoolPosition = school.position;
-  return schoolPosition && isAddressPoint(schoolPosition)
-    ? (addressPoints = addressPoints.filter(
-        (ap) => ap.id !== schoolPosition.id
-      ))
-    : addressPoints;
-};
-
-export const convertMunicipality = (
-  municipality: MunicipalityWithFounder
-): Municipality => {
-  return {
-    municipalityName: municipality.municipalityName,
-    schools: municipality.schools,
-  };
-};
+export const wholeLineError = (message: string, line: string): SmdError => ({
+  message,
+  startOffset: 0,
+  endOffset: line.length + 1,
+});

@@ -1,27 +1,12 @@
 import { existsSync, mkdirSync } from "fs";
 import { tmpdir } from "os";
-import { join } from "path";
+import { dirname, join } from "path";
+import { fileURLToPath } from "url";
 import { Founder, MunicipalityType } from "../db/types";
-import { setDbConfig } from "../db/db";
 
 const appName = "text-to-map";
 
 export interface OpenDataSyncOptions {
-  tmpDir?: string;
-  dataDir?: string;
-  dbFilePath?: string;
-  dbInitFilePath?: string;
-  addressPointsAtomUrl?: string;
-  addressPointsZipFileName?: string;
-  addressPointsCsvFolderName?: string;
-  streetsAtomUrl?: string;
-  streetZipFolderName?: string;
-  streetDbfFileName?: string;
-  schoolsXmlUrl?: string;
-  schoolsXmlFileName?: string;
-}
-
-export interface OpenDataSyncOptionsNotEmpty {
   tmpDir: string;
   dataDir: string;
   dbFilePath: string;
@@ -30,11 +15,16 @@ export interface OpenDataSyncOptionsNotEmpty {
   addressPointsZipFileName: string;
   addressPointsCsvFolderName: string;
   streetsAtomUrl: string;
-  streetFolderName: string;
+  streetZipFolderName: string;
   streetDbfFileName: string;
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
+  regionsCsvUrl: string;
+  regionsSchemaUrl: string;
+  regionsCsvFileName: string;
 }
+
+export type OpenDataSyncOptionsPartial = Partial<OpenDataSyncOptions>;
 
 export const getAppDataDirPath = (): string =>
   join(
@@ -46,8 +36,8 @@ export const getAppDataDirPath = (): string =>
   );
 
 export const prepareOptions = (
-  options: OpenDataSyncOptions
-): OpenDataSyncOptionsNotEmpty => {
+  options: OpenDataSyncOptionsPartial
+): OpenDataSyncOptions => {
   const dataDir = options.dataDir ?? getAppDataDirPath();
   if (!existsSync(dataDir)) {
     mkdirSync(dataDir);
@@ -58,35 +48,34 @@ export const prepareOptions = (
     mkdirSync(tmpAppDir);
   }
 
-  return {
-    tmpDir: options.tmpDir ?? tmpAppDir,
-    dataDir: dataDir,
-    dbFilePath: options.dbFilePath ?? join(dataDir, "address_points.db"),
-    dbInitFilePath:
-      options.dbInitFilePath ?? join("src", "address_points_init.db"),
-    addressPointsAtomUrl:
-      options.addressPointsAtomUrl ??
-      "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
-    addressPointsZipFileName:
-      options.addressPointsZipFileName ?? "ruian_csv.zip",
-    addressPointsCsvFolderName: options.addressPointsCsvFolderName ?? "CSV",
-    streetsAtomUrl:
-      options.streetsAtomUrl ??
-      "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
-    streetFolderName: options.streetZipFolderName ?? "streets",
-    streetDbfFileName: options.streetDbfFileName ?? "UL_L.dbf",
-    schoolsXmlUrl:
-      options.schoolsXmlUrl ??
-      "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
-    schoolsXmlFileName: options.schoolsXmlFileName ?? "school-register.xml",
-  };
-};
+  const __filename = fileURLToPath(import.meta.url);
+  const __dirname = dirname(__filename);
 
-export const initDb = (options: OpenDataSyncOptionsNotEmpty): void => {
-  setDbConfig({
-    filePath: options.dbFilePath,
-    initFilePath: options.dbInitFilePath,
-  });
+  const defaults = {
+    tmpDir: tmpAppDir,
+    dataDir: dataDir,
+    dbFilePath: join(dataDir, "address_points.db"),
+    dbInitFilePath: join(__dirname, "..", "address_points_init.db"),
+    addressPointsAtomUrl:
+      "https://atom.cuzk.cz/RUIAN-CSV-ADR-ST/RUIAN-CSV-ADR-ST.xml",
+    addressPointsZipFileName: "ruian_csv.zip",
+    addressPointsCsvFolderName: "CSV",
+    streetsAtomUrl: "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
+    streetZipFolderName: "streets",
+    streetDbfFileName: "UL_L.dbf",
+    schoolsXmlUrl: "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
+    schoolsXmlFileName: "school-register.xml",
+    regionsCsvUrl:
+      "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
+    regionsSchemaUrl:
+      "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr-metadata.json",
+    regionsCsvFileName: "struktura_uzemi_cr.csv",
+  };
+
+  return {
+    ...defaults,
+    ...options,
+  };
 };
 
 const cityPatterns = [
@@ -122,6 +111,13 @@ export const extractMunicipalityName = (founder: Founder): string => {
   }
 
   return founder.name;
+};
+
+export const sanitizeMunicipalityName = (name: string): string => {
+  return name
+    .replace(" - ", "-")
+    .replace(/\s{2,}/g, " ")
+    .trim();
 };
 
 export const findClosestString = (str: string, arr: string[]): string => {

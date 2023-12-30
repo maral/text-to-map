@@ -1,29 +1,26 @@
-import fetch from "node-fetch";
-import {
-  createWriteStream,
-  createReadStream,
-  rmSync,
-  readdirSync,
-  existsSync,
-} from "fs";
-import { pipeline } from "stream/promises";
-import { join } from "path";
 import AdmZip from "adm-zip";
 import { parse } from "csv-parse";
+import { createReadStream, createWriteStream, readdirSync, rmSync } from "fs";
 import iconv from "iconv-lite";
-
+import fetch from "node-fetch";
+import { join } from "path";
+import { pipeline } from "stream/promises";
+import chunk from "lodash/chunk";
+import { commitAddressPoints } from "../db/address-points";
+import { SyncPart } from "../db/types";
+import { getLatestUrlFromAtomFeed } from "../utils/atom";
 import {
   OpenDataSyncOptions,
-  OpenDataSyncOptionsNotEmpty,
+  OpenDataSyncOptionsPartial,
   prepareOptions,
-  initDb,
 } from "../utils/helpers";
-import { commitAddressPoints, importParsedLine } from "../db/address-points";
-import { getLatestUrlFromAtomFeed } from "../utils/atom";
+import { runSyncPart } from "./common";
+
+const maxBufferSize = 1000;
 
 const downloadAndUnzip = async (
   url: string,
-  options: OpenDataSyncOptionsNotEmpty
+  options: OpenDataSyncOptions
 ): Promise<void> => {
   const zipFilePath = join(options.tmpDir, options.addressPointsZipFileName);
 
@@ -47,7 +44,7 @@ const downloadAndUnzip = async (
   console.log("Removed the ZIP file.");
 };
 
-const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
+const importDataToDb = async (options: OpenDataSyncOptions) => {
   const extractionFolder = getExtractionFolder(options);
 
   const files = readdirSync(extractionFolder);
@@ -59,17 +56,12 @@ const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
     "Initiating import of RUIAN data to search DB (~3 million rows to be imported)."
   );
 
-  initDb(options);
-
   for (const file of files) {
+    const rows: string[][] = [];
     const parseStream = parse({ delimiter: ";", fromLine: 2 }).on(
       "data",
-      (data) => {
-        total += importParsedLine(data);
-        if (total - next >= 100000) {
-          next += 100000;
-          console.log(`Total imported rows: ${next}`);
-        }
+      async (data) => {
+        rows.push(data);
       }
     );
 
@@ -78,37 +70,37 @@ const importDataToDb = async (options: OpenDataSyncOptionsNotEmpty) => {
       iconv.decodeStream("win1250"),
       parseStream
     );
-    total += commitAddressPoints();
+
+    const chunks = chunk(rows, maxBufferSize);
+
+    await Promise.all(
+      chunks.map(async (chunk) => {
+        total += await commitAddressPoints(chunk);
+
+        if (total - next >= 100000) {
+          next += 100000;
+          console.log(`Total imported rows: ${next}`);
+        }
+      })
+    );
   }
 
   console.log(`Import completed. Total imported rows: ${total}`);
 };
 
-const getExtractionFolder = (options: OpenDataSyncOptionsNotEmpty) =>
+const getExtractionFolder = (options: OpenDataSyncOptions) =>
   join(options.tmpDir, options.addressPointsCsvFolderName);
 
-export const downloadAndImportAllLatestAddressPoints = async (
-  options: OpenDataSyncOptions
+export const downloadAndImportAddressPoints = async (
+  options: OpenDataSyncOptionsPartial = {}
 ): Promise<void> => {
-  const completeOptions = prepareOptions(options);
-  const datasetFeedLink = await getLatestUrlFromAtomFeed(
-    completeOptions.addressPointsAtomUrl
-  );
-  const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
-  await downloadAndUnzip(zipUrl, completeOptions);
-  await importDataToDb(completeOptions);
-};
-
-export const importOnly = async (
-  options: OpenDataSyncOptions
-): Promise<void> => {
-  const completeOptions = prepareOptions(options);
-  await importDataToDb(completeOptions);
-};
-
-export const deleteDb = (options: OpenDataSyncOptions = {}) => {
-  const completeOptions = prepareOptions(options);
-  if (existsSync(completeOptions.dbFilePath)) {
-    rmSync(completeOptions.dbFilePath);
-  }
+  await runSyncPart(SyncPart.AddressPoints, [], async () => {
+    const completeOptions = prepareOptions(options);
+    const datasetFeedLink = await getLatestUrlFromAtomFeed(
+      completeOptions.addressPointsAtomUrl
+    );
+    const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
+    await downloadAndUnzip(zipUrl, completeOptions);
+    await importDataToDb(completeOptions);
+  });
 };

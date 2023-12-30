@@ -1,25 +1,28 @@
-import { Municipality as DbMunicipality } from "../db/types";
+import { AddressPoint as CzechAddressPoint } from "czech-address";
+import { Municipality as DbMunicipality, Founder } from "../db/types";
 
 export interface ProcessedSmdLines {
   smdLines: SmdLine[];
-  errors: string[];
+  errors: SmdError[];
 }
 
-export interface SmdLine {
-  street: string;
-  numberSpec: SeriesSpec[] | NegativeSeriesSpec;
-}
+export type SmdLineType =
+  | "street"
+  | "wholeMunicipalityLine"
+  | "municipalitySwitch"
+  | "municipalityPart";
 
-export interface WholeMunicipalitySmdLine extends SmdLine {
-  wholeMunicipality: true;
-  street: string;
-  numberSpec: SeriesSpec[] | NegativeSeriesSpec;
-}
-
-export const isWholeMunicipalitySmdLine = (
-  something: SmdLine | WholeMunicipalitySmdLine
-): something is WholeMunicipalitySmdLine =>
-  something.hasOwnProperty("wholeMunicipality");
+export type SmdLine =
+  | {
+      type: "street";
+      street: string;
+      numberSpec: SeriesSpec[] | NegativeSeriesSpec;
+    }
+  | {
+      type: "municipalityPart";
+      municipalityPart: string;
+      numberSpec: SeriesSpec[] | NegativeSeriesSpec;
+    };
 
 export interface SeriesSpec {
   type: SeriesType;
@@ -49,7 +52,7 @@ export interface RichNumber {
 }
 
 export interface FullStreetNumber {
-  descriptiveNumber: RichNumber;
+  descriptionNumber: RichNumber;
   orientationalNumber: RichNumber;
 }
 
@@ -66,26 +69,12 @@ export enum SeriesType {
   Even,
   Odd,
   All,
-  Descriptive,
+  Description,
 }
 
-export enum AddressPointType {
-  Descriptive, // číslo popisné
-  Registration, // číslo evidenční
-}
-
-export interface AddressPoint {
+export interface AddressPoint extends CzechAddressPoint {
   id: number;
   address: string;
-  type: AddressPointType;
-  street?: string;
-  descriptiveNumber: number;
-  orientationalNumber?: number;
-  orientationalNumberLetter?: string;
-  postalCode: string;
-  city: string;
-  district?: string;
-  municipalityPart?: string;
   lat: number;
   lng: number;
 }
@@ -110,9 +99,63 @@ export interface School {
 export interface Municipality {
   municipalityName: string;
   schools: School[];
+  unmappedPoints: ExportAddressPoint[];
 }
 
 export interface DbMunicipalityResult {
   municipality: DbMunicipality;
-  errors: string[];
+  errors: SmdError[];
+}
+
+export interface MunicipalityPartResult {
+  municipalityPartCode: number;
+  errors: SmdError[];
+}
+
+export interface MunicipalityWithFounder extends Municipality {
+  founder: Founder | null;
+}
+
+export interface MunicipalityWithFounderResult {
+  municipality: MunicipalityWithFounder;
+  errors: SmdError[];
+}
+
+export interface SmdState {
+  currentMunicipality: MunicipalityWithFounder;
+  currentFilterMunicipality: DbMunicipality;
+  currentSchool: School;
+  rests: {
+    noStreetNameSchoolIzo: string;
+    municipalityParts: {
+      municipalityPartCode: number;
+      schoolIzo: string;
+    }[];
+    wholeMunicipalitySchoolIzo: string;
+    includeUnmappedAddressPoints: boolean;
+  };
+  municipalities: Municipality[];
+}
+
+export interface ProcessLineCallbackParams {
+  lineNumber: number;
+  line: string;
+}
+
+export interface ErrorCallbackParams extends ProcessLineCallbackParams {
+  errors: SmdError[];
+}
+
+export interface ProcessLineParams {
+  line: string;
+  state: SmdState;
+  lineNumber: number;
+  onError: (params: ErrorCallbackParams) => void;
+  onWarning: (params: ErrorCallbackParams) => void;
+}
+
+export interface SmdError {
+  startOffset: number;
+  endOffset: number;
+  message: string;
 }

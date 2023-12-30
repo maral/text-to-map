@@ -4,9 +4,9 @@
     "esm": true,
   },
   "compilerOptions": {
-    "outDir": "./built",
+    "outDir": "./dist",
     "allowJs": true,
-    "module": "es6",
+    "module": "es2020",
     "moduleResolution": "Node",
     "target": "ES6",
     "allowSyntheticDefaultImports": true,

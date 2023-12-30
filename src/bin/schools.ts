@@ -1,6 +1,7 @@
-import { downloadAndImportAllSchools } from "../open-data-sync/schools";
+import { downloadAndImportSchools } from "../open-data-sync/schools";
+import { defaultBinOptions } from "./constants";
 
-downloadAndImportAllSchools({})
+downloadAndImportSchools(defaultBinOptions)
   .then(() => {
     console.log("Completed");
   })

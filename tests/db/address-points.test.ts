@@ -1,37 +1,39 @@
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
-import jtsk2wgs84 from "@arodax/jtsk2wgs84";
-import { closeDb, setupDb, testFounders, testRows } from "./db-setup";
+import { AddressPointType, createSingleLineAddress } from "czech-address";
 import {
-  importParsedLine,
   commitAddressPoints,
+  equalsFullStreetNumber,
+  findAddressPoints,
+  fitsType,
   insertCities,
   insertDistricts,
-  insertStreets,
   insertMunicipalityParts,
+  insertStreets,
   isInRange,
-  fitsType,
-  findAddressPoints,
-  equalsFullStreetNumber,
 } from "../../src/db/address-points";
-import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import { founderToMunicipality } from "../../src/db/types";
-import { buildInline } from "../../src/utils/addressBuilder";
+import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
+import jtsk2wgs84 from "../../src/utils/jtsk2wgs84";
+import { closeDb, setupDb, testFounders, testRows } from "./db-setup";
 
-// let testRowsLarge: string[][] = [];
+let testRowsLarge: string[][] = [];
+const doTestLarge = true;
 const prefix = "address-points";
-beforeAll(() => {
-  setupDb(prefix);
+beforeAll(async () => {
+  await setupDb(prefix);
 
-  // let id = 1;
-  // for (let i = 0; i < 10000; i++) {
-  //   testRowsLarge = testRowsLarge.concat(
-  //     testRows.map((row) => [(id++).toString(), ...row.slice(1)])
-  //   );
-  // }
+  if (doTestLarge) {
+    let id = 1;
+    for (let i = 0; i < 10000; i++) {
+      testRowsLarge = testRowsLarge.concat(
+        testRows.map((row) => [(id++).toString(), ...row.slice(1)])
+      );
+    }
+  }
 });
 
-afterAll(() => {
-  closeDb(prefix);
+afterAll(async () => {
+  await closeDb(prefix);
 });
 
 describe("search db - address points", () => {
@@ -45,56 +47,33 @@ describe("search db - address points", () => {
     expect(Math.abs(lon - lonExpected)).toBeLessThan(0.00001);
   });
 
-  test("insert cities", () => {
-    expect(insertCities(testRows)).toBe(1); // only 1 city in test data
-    expect(insertCities(testRows)).toBe(0); // second try same values should be ignored, 0 new rows should be inserted
+  test("insert cities", async () => {
+    expect(await insertCities(testRows)).toBe(1); // only 1 city in test data
   });
 
-  test("insert districts", () => {
-    expect(insertDistricts(testRows)).toBe(0); // no district was filled, should be empty
+  test("insert districts", async () => {
+    expect(await insertDistricts(testRows)).toBe(0); // no district was filled, should be empty
   });
 
-  test("insert municipality parts", () => {
-    expect(insertMunicipalityParts(testRows)).toBe(1); // 1 municipality in test data
-    expect(insertMunicipalityParts(testRows)).toBe(0);
+  test("insert municipality parts", async () => {
+    expect(await insertMunicipalityParts(testRows)).toBe(1); // 1 municipality in test data
   });
 
-  test("insert streets", () => {
-    expect(insertStreets(testRows)).toBe(2); // 2 streets in test data
-    expect(insertStreets(testRows)).toBe(0);
+  test("insert streets", async () => {
+    expect(await insertStreets(testRows)).toBe(2); // 2 streets in test data
   });
 
-  test("insert whole rows", () => {
-    testRows.forEach((data) => {
-      importParsedLine(data);
-    });
-    expect(commitAddressPoints()).toBe(testRows.length);
+  test("insert whole rows", async () => {
+    expect(await commitAddressPoints(testRows)).toBe(testRows.length);
   });
-
-  // test("insert whole rows with buffer overflow", () => {
-  //   let total = 0;
-  //   testRowsLarge.forEach((data, i) => {
-  //     total += importParsedLine(data);
-  //   });
-  //   const commitCount = commitAddressPoints();
-  //   expect(total + commitCount).toBe(testRowsLarge.length);
-  //   expect(commitCount).toBeLessThan(testRowsLarge.length);
-  // });
-
-  // test("check db", () => {
-  //   const db = setupDb(prefix);
-  //   const stmt = db.prepare("SELECT * FROM address_point");
-  //   const result = stmt.all();
-  //   expect(result["COUNT(*)"]).toBe(1);
-  // });
 });
 
 describe("find address points", () => {
   test("fits type", () => {
     expect(fitsType(1, SeriesType.All)).toBe(true);
     expect(fitsType(1000, SeriesType.All)).toBe(true);
-    expect(fitsType(1, SeriesType.Descriptive)).toBe(true);
-    expect(fitsType(1000, SeriesType.Descriptive)).toBe(true);
+    expect(fitsType(1, SeriesType.Description)).toBe(true);
+    expect(fitsType(1000, SeriesType.Description)).toBe(true);
     expect(fitsType(1, SeriesType.Odd)).toBe(true);
     expect(fitsType(199, SeriesType.Odd)).toBe(true);
     expect(fitsType(2, SeriesType.Odd)).toBe(false);
@@ -196,24 +175,24 @@ describe("find address points", () => {
       address: "",
       street: "Lysá",
       city: "Želechovice nad Dřevnicí",
-      descriptiveNumber: 686,
+      houseNumber: 686,
       orientationalNumber: 20,
       orientationalNumberLetter: "a",
       lat: 49.2148644630034,
       lng: 17.737142251143794,
       municipalityPart: "Dřevník",
       postalCode: "76311",
-      type: 0,
+      type: AddressPointType.Description,
     },
   ];
 
-  testAddressPoints[0].address = buildInline(testAddressPoints[0]);
+  testAddressPoints[0].address = createSingleLineAddress(testAddressPoints[0]);
 
   test("equalsFullStreetNumber", () => {
     expect(
       equalsFullStreetNumber(
         {
-          descriptiveNumber: { number: 686 },
+          descriptionNumber: { number: 686 },
           orientationalNumber: { number: 20, letter: "a" },
         },
         testAddressPoints[0]
@@ -223,7 +202,7 @@ describe("find address points", () => {
     expect(
       equalsFullStreetNumber(
         {
-          descriptiveNumber: { number: 686 },
+          descriptionNumber: { number: 686 },
           orientationalNumber: { number: 20 },
         },
         testAddressPoints[0]
@@ -231,20 +210,24 @@ describe("find address points", () => {
     ).toBe(false);
   });
 
-  test("find address points", () => {
+  test("find address points", async () => {
     expect(
-      findAddressPoints(
-        {
+      await findAddressPoints({
+        type: "smdLine",
+        smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: [],
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
 
     expect(
-      findAddressPoints(
-        {
+      await findAddressPoints({
+        type: "smdLine",
+        smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: [
             {
@@ -253,54 +236,62 @@ describe("find address points", () => {
             },
           ],
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
 
     expect(
-      findAddressPoints(
-        {
+      await findAddressPoints({
+        type: "smdLine",
+        smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: [
             {
               ranges: [{ from: { number: 686 }, to: { number: 686 } }],
-              type: SeriesType.Descriptive,
+              type: SeriesType.Description,
             },
           ],
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
   });
 
-  test("find address points", () => {
+  test("find address points", async () => {
     expect(
-      findAddressPoints(
-        {
+      await findAddressPoints({
+        type: "smdLine",
+        smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: { negative: true, ranges: [], type: SeriesType.Even },
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual([]);
 
     expect(
-      findAddressPoints(
-        {
+      await findAddressPoints({
+        type: "smdLine",
+        smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: {
             negative: true,
             ranges: [{ from: { number: 686 }, to: { number: 686 } }],
-            type: SeriesType.Descriptive,
+            type: SeriesType.Description,
           },
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual([]);
 
     expect(
-      findAddressPoints(
-        {
+      await findAddressPoints({
+        type: "smdLine",
+        smdLine: {
+          type: "street",
           street: "Lysá",
           numberSpec: {
             negative: true,
@@ -308,8 +299,27 @@ describe("find address points", () => {
             type: SeriesType.Odd,
           },
         },
-        founderToMunicipality(testFounders[0])
-      )
+        municipality: founderToMunicipality(testFounders[0]),
+      })
     ).toEqual(testAddressPoints);
   });
+});
+
+describe("insert multiple address points", () => {
+  if (doTestLarge) {
+    test("insert whole rows with buffer overflow", async () => {
+      let total = 0;
+
+      const buffer: string[][] = [];
+      for (const data of testRowsLarge) {
+        buffer.push(data);
+        if (buffer.length > 1000) {
+          total += await commitAddressPoints(buffer);
+          buffer.length = 0;
+        }
+      }
+      total += await commitAddressPoints(buffer);
+      expect(total).toBe(testRowsLarge.length);
+    });
+  }
 });

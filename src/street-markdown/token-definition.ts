@@ -1,9 +1,9 @@
 import { createToken, Lexer, TokenVocabulary } from "chevrotain";
 
-let streetNameWasMatched = false;
+let nameWasMatched = false;
 
 export const resetTokenState = (): void => {
-  streetNameWasMatched = false;
+  nameWasMatched = false;
 };
 
 export const prepareLine = (text: string) => {
@@ -13,12 +13,14 @@ export const prepareLine = (text: string) => {
     .replace(/,$/, "");
 };
 
+// this function prevents numbers that make part of the street name to be matched before the
+// street/municipality part name is completely matched
 const tokenBlockerFactory = (
   pattern: RegExp
 ): ((text: string, startOffset: number) => RegExpExecArray | null) => {
   const stickyPattern = new RegExp(pattern, "y");
   return (text: string, startOffset: number): RegExpExecArray | null => {
-    if (streetNameWasMatched) {
+    if (nameWasMatched) {
       stickyPattern.lastIndex = startOffset;
       return stickyPattern.exec(text);
     } else {
@@ -41,31 +43,40 @@ const interruptPatterns = [
   "s výjimkou",
   "kromě",
 ];
+// this pattern allows a single space or a single hyphen (without an adjacent space) between words
 const streetNamePattern = /[^ -]+([ -]?[^ -]+)*/;
-export const streetNameMatcher = (
-  text: string,
-  startOffset: number
-): RegExpExecArray | [string] | null => {
-  if (streetNameWasMatched || startOffset > 0) {
-    return null;
-  } else {
-    const result = streetNamePattern.exec(text);
-    if (result !== null) {
-      streetNameWasMatched = true;
-      const firstIndex = interruptPatterns.reduce(
-        (currentMin: number, pattern: string) => {
-          const index = text.search(new RegExp(` ${pattern}( |$)`));
-          return index >= 0 ? Math.min(index, currentMin) : currentMin;
-        },
-        Infinity
-      );
-      if (firstIndex < Infinity) {
-        return [result[0].substring(0, firstIndex).trim()];
+
+// same but with a prefix of municipality part
+const municipalityPartNamePattern = /část (obce|města) [^ -]+([ -]?[^ -]+)*/;
+
+export const nameMatcherFactory = (pattern: RegExp) => {
+  return (
+    text: string,
+    startOffset: number
+  ): RegExpExecArray | [string] | null => {
+    if (nameWasMatched || startOffset > 0) {
+      return null;
+    } else {
+      const result = pattern.exec(text);
+      if (result !== null) {
+        nameWasMatched = true;
+        const firstIndex = interruptPatterns.reduce(
+          (currentMin: number, pattern: string) => {
+            const index = text.search(new RegExp(` ${pattern}( |$)`));
+            return index >= 0 ? Math.min(index, currentMin) : currentMin;
+          },
+          Infinity
+        );
+        if (firstIndex < Infinity) {
+          return [result[0].substring(0, firstIndex).trim()];
+        }
       }
+      return result;
     }
-    return result;
-  }
+  };
 };
+
+export const streetNameMatcher = nameMatcherFactory(streetNamePattern);
 
 const MainSeparator = createToken({ name: "MainSeparator", pattern: / - / });
 const From = createToken({ name: "From", pattern: /od/ });
@@ -107,9 +118,13 @@ const Without = createToken({
   name: "Without",
   pattern: /bez|vyjma|mimo|s výjimkou|kromě/,
 });
+const MunicipalityPartName = createToken({
+  name: "MunicipalityPartName",
+  pattern: nameMatcherFactory(municipalityPartNamePattern),
+});
 const StreetName = createToken({
   name: "StreetName",
-  pattern: streetNameMatcher,
+  pattern: nameMatcherFactory(streetNamePattern),
 });
 
 const Number = createToken({
@@ -124,11 +139,11 @@ const Space = createToken({
   longer_alt: [MainSeparator, Separator],
   group: Lexer.SKIPPED,
 });
-const Colon = createToken({
-  name: "Colon",
-  pattern: /:/,
-  group: Lexer.SKIPPED,
-});
+// const Colon = createToken({
+//   name: "Colon",
+//   pattern: /:/,
+//   group: Lexer.SKIPPED,
+// });
 
 const smdTokens = [
   MainSeparator,
@@ -146,7 +161,8 @@ const smdTokens = [
   Hyphen,
   Slash,
   Space,
-  Colon,
+  // Colon,
+  MunicipalityPartName,
   StreetName,
 ];
 
@@ -188,6 +204,7 @@ export {
   Slash,
   Space,
   StreetName,
+  MunicipalityPartName,
   smdTokens,
   tokenVocabulary,
 };

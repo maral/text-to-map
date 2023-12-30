@@ -1,4 +1,3 @@
-import { resolve } from "path";
 import { writeFileSync } from "fs";
 import { createSyntaxDiagramsCode } from "chevrotain";
 import { smdParser } from "../street-markdown/smd-line-parser";

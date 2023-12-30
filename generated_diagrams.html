@@ -118,6 +118,19 @@
                 "pattern": "bez|vyjma|mimo|s výjimkou|kromě"
               },
               {
+                "type": "Option",
+                "idx": 0,
+                "definition": [
+                  {
+                    "type": "Terminal",
+                    "name": "AllType",
+                    "label": "'č.'",
+                    "idx": 0,
+                    "pattern": "(pouze |všechna )?(č(\\.|ísla)( ?o\\.)?|lichá i sudá)"
+                  }
+                ]
+              },
+              {
                 "type": "NonTerminal",
                 "name": "rangeList",
                 "idx": 0

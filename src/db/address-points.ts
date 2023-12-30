@@ -1,31 +1,30 @@
-import {
-  extractKeyValuesPairs,
-  getDb,
-  insertMultipleRows,
-  nonEmptyOrNull,
-} from "./db";
-import jtsk2wgs84 from "@arodax/jtsk2wgs84";
+import { AddressPointType, createSingleLineAddress } from "czech-address";
 import {
   AddressPoint,
-  AddressPointType,
   FullStreetNumber,
-  isNegativeSeriesSpec,
-  isRange,
-  isSeriesSpecArray,
-  isWholeMunicipalitySmdLine,
   RangeSpec,
   SeriesSpec,
   SeriesType,
+  SmdError,
   SmdLine,
-  WholeMunicipalitySmdLine,
+  isNegativeSeriesSpec,
+  isRange,
+  isSeriesSpecArray,
 } from "../street-markdown/types";
-import { Founder, Municipality, MunicipalityType } from "./types";
 import { findClosestString } from "../utils/helpers";
+import jtsk2wgs84 from "../utils/jtsk2wgs84";
+import {
+  extractKeyValuesPairs,
+  generate2DPlaceholders,
+  getKnexDb,
+  insertMultipleRows,
+  isMysql,
+  isSqlite,
+  nonEmptyOrNull,
+  rawQuery,
+} from "./db";
 import { getFounderCityCode } from "./founders";
-import { buildInline } from "../utils/addressBuilder";
-
-const buffer: string[][] = [];
-const MaxBufferSize = 1000;
+import { Founder, Municipality, MunicipalityType } from "./types";
 
 const DescriptiveType = "č.p.";
 const RegistrationType = "č.ev.";
@@ -57,34 +56,35 @@ export const Column = {
   validFrom: 18,
 };
 
-export const importParsedLine = (data: string[]) => {
-  buffer.push(data);
-  if (buffer.length >= MaxBufferSize) {
-    return commitAddressPoints();
-  }
-  return 0;
-};
+const columnNames = [
+  "id",
+  "street_code",
+  "object_type_id",
+  "descriptive_number",
+  "orientational_number",
+  "orientational_number_letter",
+  "city_code",
+  "city_district_code",
+  "municipality_part_code",
+  "prague_district_code",
+  "postal_code",
+  "jtsk_x",
+  "jtsk_y",
+  "wgs84_latitude",
+  "wgs84_longitude",
+];
 
-export const commitAddressPoints = (): number => {
+export const commitAddressPoints = async (
+  buffer: string[][]
+): Promise<number> => {
   if (buffer.length === 0) {
     return 0;
   }
-  insertCities(buffer);
-  insertDistricts(buffer);
-  insertMunicipalityParts(buffer);
-  insertStreets(buffer);
-
-  const db = getDb();
-
-  const placeHolders = new Array(buffer.length)
-    .fill("(?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)")
-    .join(", ");
-
-  const insertStatement = db.prepare(
-    `INSERT OR IGNORE INTO address_point
-      (id, street_code, object_type_id, descriptive_number, orientational_number, orientational_number_letter, city_code, city_district_code, municipality_part_code, postal_code, jtsk_x, jtsk_y, wgs84_latitude, wgs84_longitude)
-      VALUES ${placeHolders}`
-  );
+  await insertCities(buffer);
+  await insertDistricts(buffer);
+  await insertMunicipalityParts(buffer);
+  await insertStreets(buffer);
+  await insertPragueDistricts(buffer);
 
   const params: (string | null)[] = [];
   buffer.forEach((data) => {
@@ -98,7 +98,6 @@ export const commitAddressPoints = (): number => {
       );
       [latOrNull, lonOrNull] = [lat.toString(), lon.toString()];
     }
-
     params.push(
       data[Column.admCode],
       nonEmptyOrNull(data[Column.streetCode]),
@@ -109,6 +108,7 @@ export const commitAddressPoints = (): number => {
       data[Column.cityCode],
       nonEmptyOrNull(data[Column.districtCode]),
       nonEmptyOrNull(data[Column.municipalityPartCode]),
+      nonEmptyOrNull(data[Column.pragueDistrictCode]),
       data[Column.postalCode],
       nonEmptyOrNull(data[Column.xCoordinate]),
       nonEmptyOrNull(data[Column.yCoordinate]),
@@ -117,20 +117,34 @@ export const commitAddressPoints = (): number => {
     );
   });
 
-  buffer.length = 0;
-  return insertStatement.run(params).changes;
+  const placeHolders = generate2DPlaceholders(
+    columnNames.length,
+    buffer.length
+  );
+
+  const knex = getKnexDb();
+  await rawQuery(
+    `INSERT ${
+      isMysql(knex) ? "IGNORE" : ""
+    } INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${
+      !isMysql(knex) ? "ON CONFLICT (id) DO NOTHING" : ""
+    }`,
+    params
+  );
+
+  return buffer.length;
 };
 
-export const insertCities = (buffer: string[][]): number => {
-  return insertMultipleRows(
+export const insertCities = async (buffer: string[][]): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.cityCode, [Column.cityName]),
     "city",
     ["code", "name"]
   );
 };
 
-export const insertDistricts = (buffer: string[][]): number => {
-  return insertMultipleRows(
+export const insertDistricts = async (buffer: string[][]): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.districtCode, [
       Column.cityCode,
       Column.districtName,
@@ -140,18 +154,33 @@ export const insertDistricts = (buffer: string[][]): number => {
   );
 };
 
-export const insertMunicipalityParts = (buffer: string[][]): number => {
-  return insertMultipleRows(
+export const insertMunicipalityParts = async (
+  buffer: string[][]
+): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.municipalityPartCode, [
       Column.municipalityPartName,
+      Column.cityCode,
     ]),
     "municipality_part",
+    ["code", "name", "city_code"]
+  );
+};
+
+export const insertPragueDistricts = async (
+  buffer: string[][]
+): Promise<number> => {
+  return await insertMultipleRows(
+    extractKeyValuesPairs(buffer, Column.pragueDistrictCode, [
+      Column.pragueDistrictName,
+    ]),
+    "prague_district",
     ["code", "name"]
   );
 };
 
-export const insertStreets = (buffer: string[][]): number => {
-  return insertMultipleRows(
+export const insertStreets = async (buffer: string[][]): Promise<number> => {
+  return await insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.streetCode, [
       Column.cityCode,
       Column.streetName,
@@ -161,52 +190,64 @@ export const insertStreets = (buffer: string[][]): number => {
   );
 };
 
+export const areAddressPointsSynced = async (): Promise<boolean> => {
+  const result = await getKnexDb()
+    .count("*", { as: "countAll" })
+    .from("address_point")
+    .first();
+  return Number(result.countAll) >= 2900000; // total is almost 3 million
+};
+
 const addressPointSelect = `
   SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
         a.orientational_number, a.orientational_number_letter, c.name AS city_name,
-        m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
-        a.wgs84_latitude, a.wgs84_longitude
+        m.name AS municipality_part_name, p.name AS prague_district_name,
+        d.name AS district_name, a.postal_code, a.wgs84_latitude, a.wgs84_longitude
   FROM address_point a
   LEFT JOIN street s ON a.street_code = s.code
   INNER JOIN object_type o ON o.id = a.object_type_id
   INNER JOIN city c ON c.code = a.city_code
   LEFT JOIN city_district d ON a.city_district_code = d.code
+  LEFT JOIN prague_district p ON a.prague_district_code = p.code
   LEFT JOIN municipality_part m ON a.municipality_part_code = m.code`;
 
-export const getAddressPointById = (
+export const getAddressPointById = async (
   addressPointId: number
-): AddressPoint | null => {
-  const db = getDb();
-  const statement = db.prepare(
+): Promise<AddressPoint | null> => {
+  const row = await rawQuery(
     `${addressPointSelect}
-      WHERE a.id = ?`
+      WHERE a.id = ?`,
+    [addressPointId]
   );
-  const row = statement.get(addressPointId);
-  if (!row) {
+  if (row.length === 0) {
     return null;
   }
-  return rowToAddressPoint(row);
+  return rowToAddressPoint(row[0]);
 };
 
 let lastFounder: Founder | null = null;
 let allStreets: string[] = [];
 
-export const checkStreetExists = (
+export const checkStreetExists = async (
   streetName: string,
   founder: Founder
-): { exists: boolean; errors: string[] } => {
-  const db = getDb();
-  const errors = [];
+): Promise<{ exists: boolean; errors: SmdError[] }> => {
+  const knex = getKnexDb();
+  const errors: SmdError[] = [];
 
   // we check the whole city
-  const cityCode = getFounderCityCode(founder);
-  const statement = db.prepare(`
-    SELECT name AS street_name
+  const cityCode = await getFounderCityCode(founder);
+  const rowList = await rawQuery(
+    `SELECT name AS street_name
     FROM street
-    WHERE city_code = ? AND name = ? COLLATE NOCASE`);
+    WHERE city_code = ? AND name = ?  ${
+      isSqlite(knex) ? "COLLATE NOCASE" : ""
+    }`,
+    [cityCode, streetName]
+  );
 
-  const row = statement.get(cityCode, streetName);
-  if (row) {
+  if (rowList.length > 0) {
+    const row = rowList[0];
     if (row.street_name !== streetName) {
       // errors.push(
       //   `Street '${streetName}' has wrong case, correct case: '${row.street_name}'.`
@@ -216,7 +257,7 @@ export const checkStreetExists = (
   }
 
   if (lastFounder !== founder) {
-    allStreets = getAllStreets(cityCode);
+    allStreets = await getAllStreets(cityCode);
     lastFounder = founder;
   }
 
@@ -232,79 +273,99 @@ export const checkStreetExists = (
       //   `Street '${streetName}' has wrong case, correct case: '${match}'.`
       // );
     }
-    exists = true;
   } else {
     const closest = findClosestString(streetName, allStreets);
-    errors.push(
-      `Street '${streetName}' does not exist, did you mean '${closest}'?`
-    );
+    errors.push({
+      message: `Ulice '${streetName}' v této obci neexistuje, mysleli jste '${closest}'?`,
+      startOffset: 0,
+      endOffset: streetName.length + 1,
+    });
   }
   return { exists: false, errors };
 };
 
-const getAllStreets = (cityCode: number): string[] => {
-  const db = getDb();
-  const statement = db.prepare(`
-    SELECT s.name AS street_name
-    FROM street s
-    WHERE city_code = ?`);
-  const rows = statement.all(cityCode);
-  return rows.map((row) => row.street_name);
+const getAllStreets = async (cityCode: number): Promise<string[]> => {
+  const knex = getKnexDb();
+  return await knex.pluck("name").from("street").where("city_code", cityCode);
 };
 
-export const findAddressPoints = (
-  smdLine: SmdLine | WholeMunicipalitySmdLine,
-  municipality: Municipality
-): AddressPoint[] => {
-  const db = getDb();
+export type FindAddressPointsParams =
+  | {
+      type: "smdLine";
+      smdLine: SmdLine;
+      municipality: Municipality;
+      municipalityPartCode?: number;
+    }
+  | {
+      type: "wholeMunicipalityPart";
+      municipalityPartCode: number;
+    }
+  | {
+      type: "wholeMunicipality";
+      municipality: Municipality;
+    }
+  | {
+      type: "wholeMunicipalityNoStreetName";
+      municipality: Municipality;
+    };
 
-  const streetJoinCondition = isWholeMunicipalitySmdLine(smdLine)
-    ? "LEFT JOIN street s ON a.street_code = s.code"
-    : "JOIN street s ON a.street_code = s.code AND s.name = ? COLLATE NOCASE";
+export const findAddressPoints = async (
+  params: FindAddressPointsParams
+): Promise<AddressPoint[]> => {
+  const knex = getKnexDb();
 
-  const statement = db.prepare(`
-    SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
-          a.orientational_number, a.orientational_number_letter, c.name AS city_name,
-          m.name AS municipality_part_name, d.name AS district_name, a.postal_code,
-          a.wgs84_latitude, a.wgs84_longitude
+  const queryParams = getQueryParams(params);
+  const streetJoinCondition = getStreetJoinCondition(params);
+
+  const whereCondition = getWhereCondition(params);
+
+  const queryResult = await rawQuery(
+    `SELECT a.id, s.name AS street_name, o.name AS object_type_name, a.descriptive_number,
+      a.orientational_number, a.orientational_number_letter, c.name AS city_name,
+      d.name AS district_name, m.name AS municipality_part_name, p.name AS prague_district_name,
+      a.postal_code, a.wgs84_latitude, a.wgs84_longitude
     FROM address_point a
     ${streetJoinCondition}
     INNER JOIN object_type o ON o.id = a.object_type_id
     INNER JOIN city c ON c.code = a.city_code
     LEFT JOIN city_district d ON a.city_district_code = d.code
     LEFT JOIN municipality_part m ON a.municipality_part_code = m.code
-    WHERE ${getMunicipalityWhere("a", municipality)}`);
+    LEFT JOIN prague_district p ON a.prague_district_code = p.code
+    WHERE ${whereCondition}`,
+    queryParams
+  );
 
-  const params = isWholeMunicipalitySmdLine(smdLine)
-    ? [municipality.code]
-    : [smdLine.street, municipality.code];
-  const filteredAddressPoints = statement.all(...params).map(rowToAddressPoint);
+  return filterAddressPoints(queryResult.map(rowToAddressPoint), params);
+};
 
-  if (isWholeMunicipalitySmdLine(smdLine)) {
-    return filteredAddressPoints;
+export const filterAddressPoints = (
+  addressPoints: AddressPoint[],
+  params: FindAddressPointsParams
+): AddressPoint[] => {
+  if (
+    params.type === "wholeMunicipality" ||
+    params.type === "wholeMunicipalityNoStreetName" ||
+    params.type === "wholeMunicipalityPart"
+  ) {
+    return addressPoints;
   }
 
   const result: AddressPoint[] = [];
-  const numberSpec = smdLine.numberSpec;
+  const numberSpec = params.smdLine.numberSpec;
   if (isSeriesSpecArray(numberSpec)) {
     numberSpec.forEach((seriesSpec) => {
-      result.push(
-        ...filterAddressPointsByRanges(filteredAddressPoints, seriesSpec)
-      );
+      result.push(...filterAddressPointsByRanges(addressPoints, seriesSpec));
     });
 
     // when no number specs are present, we take everything
     if (numberSpec.length === 0) {
-      result.push(...filteredAddressPoints);
+      result.push(...addressPoints);
     }
   } else if (isNegativeSeriesSpec(numberSpec)) {
     // negative number spec (e.g. odd numbers except 13-17)
-    const toExclude = filterAddressPointsByRanges(
-      filteredAddressPoints,
-      numberSpec
-    );
+    const toExclude = filterAddressPointsByRanges(addressPoints, numberSpec);
     result.push(
-      ...filteredAddressPoints.filter(
+      ...addressPoints.filter(
         (addressPoint) => !toExclude.includes(addressPoint)
       )
     );
@@ -326,7 +387,7 @@ const filterAddressPointsByRanges = (
           return (
             isInRange(
               number,
-              seriesSpec.type !== SeriesType.Descriptive
+              seriesSpec.type !== SeriesType.Description
                 ? addressPoint.orientationalNumberLetter ?? null
                 : null,
               range
@@ -353,6 +414,52 @@ const filterAddressPointsByRanges = (
   }
 
   return result;
+};
+
+export const getQueryParams = (
+  params: FindAddressPointsParams
+): (string | number)[] => {
+  if (params.type === "smdLine" && params.smdLine.type === "street") {
+    return [params.smdLine.street, params.municipality.code];
+  }
+
+  if (
+    (params.type === "smdLine" && params.smdLine.type === "municipalityPart") ||
+    params.type === "wholeMunicipalityPart"
+  ) {
+    return [params.municipalityPartCode];
+  }
+
+  return [params.municipality.code];
+};
+
+export const getStreetJoinCondition = (
+  params: FindAddressPointsParams
+): string => {
+  if (params.type === "smdLine" && params.smdLine.type === "street") {
+    return `JOIN street s ON a.street_code = s.code AND s.name = ? ${
+      isSqlite(getKnexDb()) ? "COLLATE NOCASE" : ""
+    }`;
+  }
+  return "LEFT JOIN street s ON a.street_code = s.code";
+};
+
+export const getWhereCondition = (params: FindAddressPointsParams): string => {
+  if (
+    (params.type === "smdLine" && params.smdLine.type === "municipalityPart") ||
+    params.type === "wholeMunicipalityPart"
+  ) {
+    return "a.municipality_part_code = ?";
+  }
+
+  if (params.type === "wholeMunicipalityNoStreetName") {
+    return `${getMunicipalityWhere(
+      "a",
+      params.municipality
+    )} AND a.street_code IS NULL`;
+  }
+
+  return getMunicipalityWhere("a", params.municipality);
 };
 
 export const isInRange = (
@@ -386,7 +493,7 @@ export const isInRange = (
 
 export const fitsType = (number: number | null, type: SeriesType): boolean => {
   return (
-    type === SeriesType.Descriptive ||
+    type === SeriesType.Description ||
     type === SeriesType.All ||
     (type === SeriesType.Odd && number % 2 === 1) ||
     (type === SeriesType.Even && number % 2 === 0)
@@ -398,8 +505,7 @@ export const equalsFullStreetNumber = (
   addressPoint: AddressPoint
 ): boolean => {
   return (
-    fullStreetNumber.descriptiveNumber.number ===
-      addressPoint.descriptiveNumber &&
+    fullStreetNumber.descriptionNumber.number === addressPoint.houseNumber &&
     fullStreetNumber.orientationalNumber.number ===
       addressPoint.orientationalNumber &&
     ((!fullStreetNumber.orientationalNumber.letter &&
@@ -413,8 +519,8 @@ const getNumberByType = (
   type: SeriesType,
   addressPoint: AddressPoint
 ): number | null => {
-  return type === SeriesType.Descriptive
-    ? addressPoint.descriptiveNumber
+  return type === SeriesType.Description
+    ? addressPoint.houseNumber
     : addressPoint.orientationalNumber ?? null;
 };
 
@@ -427,25 +533,17 @@ const getMunicipalityWhere = (
     : `${alias}.city_district_code = ?`;
 };
 
-const createAddress = (result: any): string => {
-  const orientationalPart = result.orientational_number
-    ? `/${result.orientational_number}${
-        result.orientational_number_letter ?? ""
-      }`
-    : "";
-  return `${result.street_name} ${result.descriptive_number}${orientationalPart}, ${result.city_name}`;
-};
-
 const rowToAddressPoint = (row: any): AddressPoint => {
   const point: AddressPoint = {
     id: row.id,
     address: "",
     type:
       row.object_type_name === DescriptiveType
-        ? AddressPointType.Descriptive
+        ? AddressPointType.Description
         : AddressPointType.Registration,
-    descriptiveNumber: row.descriptive_number,
+    houseNumber: row.descriptive_number,
     city: row.city_name,
+    municipalityPart: row.municipality_part_name,
     postalCode: row.postal_code,
     lat: row.wgs84_latitude,
     lng: row.wgs84_longitude,
@@ -462,9 +560,9 @@ const rowToAddressPoint = (row: any): AddressPoint => {
   if (row.district_name !== null) {
     point.district = row.district_name;
   }
-  if (row.municipality_part_name !== null) {
-    point.municipalityPart = row.municipality_part_name;
+  if (row.prague_district_name !== null) {
+    point.pragueDistrict = row.prague_district_name;
   }
-  point.address = buildInline(point);
+  point.address = createSingleLineAddress(point);
   return point;
 };

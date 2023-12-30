@@ -1,7 +1,8 @@
-import { downloadAndImportAllLatestAddressPoints } from "../open-data-sync/address-points";
+import { downloadAndImportAddressPoints } from "../open-data-sync/address-points";
+import { defaultBinOptions } from "./constants";
 
 console.time("downloadAndImportAllLatestAddressPoints");
-downloadAndImportAllLatestAddressPoints({})
+downloadAndImportAddressPoints(defaultBinOptions)
   .then(() => {
     console.timeEnd("downloadAndImportAllLatestAddressPoints");
   })
