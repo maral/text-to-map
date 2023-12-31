@@ -1,69 +1,163 @@
-import * as turf from "@turf/turf";
-import * as graphlib from "graphlib";
-import { AddressPoint, Municipality } from "./types";
+import { Delaunay } from "d3-delaunay";
+import { Municipality } from "./types";
 
-// Replace this with your merged polygons array
-const polygons: turf.AllGeoJSON[] = [];
+import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
+import {
+  Feature,
+  FeatureCollection,
+  Point,
+  Polygon,
+  featureCollection,
+} from "@turf/helpers";
+import { toMercator, toWgs84 } from "@turf/projection";
+import union from "@turf/union";
+import voronoi from "@turf/voronoi";
 
-export const municipalityToPolygons = (municipality: Municipality) => {
-  const polygons: turf.AllGeoJSON[] = [];
-
-  municipality.schools.forEach((school, index) => {
-    const points = school.addresses.map((address) => [
-      address.lng,
-      address.lat,
-    ]);
-
-    const bbox = turf.bbox(turf.points(points));
-
-    const voronoi = turf.voronoi(turf.points(points, { index }), {
-      bbox,
-    });
-    polygons.push(voronoi);
-  });
-  return polygons;
+type PolygonProps = {
+  schools: string[];
+  index: number;
+  neighbors: Set<number>;
 };
 
-// // Create a graph
-// const graph = new graphlib.Graph();
+export const municipalityToPolygons = (municipality: Municipality) => {
+  const uniquePoints = new Map<string, Feature>();
 
-// // Add nodes to the graph
-// polygons.forEach((polygon, index) => {
-//   graph.setNode(index, { polygon: polygon, color: null });
-// });
+  for (const school of municipality.schools) {
+    for (const point of school.addresses) {
+      if (!uniquePoints.has(point.address)) {
+        uniquePoints.set(point.address, {
+          type: "Feature",
+          geometry: {
+            type: "Point",
+            coordinates: [point.lng, point.lat],
+          },
+          properties: {
+            schools: [school.izo],
+          },
+        });
+      } else {
+        uniquePoints.get(point.address).properties.schools.push(school.izo);
+      }
+    }
+  }
 
-// // Add edges between neighboring polygons
-// polygons.forEach((polygonA, indexA) => {
-//   polygons.forEach((polygonB, indexB) => {
-//     if (indexA !== indexB && turf.intersect(polygonA, polygonB)) {
-//       graph.setEdge(indexA, indexB);
-//     }
-//   });
-// });
+  const points = {
+    type: "FeatureCollection",
+    features: Array.from(uniquePoints.values()),
+  } as FeatureCollection<Point>;
 
-// // Define colors
-// const colors = ['red', 'green', 'blue', 'yellow']; // Four colors for the Four Color Theorem
+  const polygons = d3DelaunayVoronoi(points);
+  // const polygons = turfVoronoi(points);
 
-// // Implement the greedy graph coloring algorithm
-// graph.nodes().forEach((nodeId) => {
-//   const neighbors = graph.neighbors(nodeId);
-//   const usedColors = neighbors.map((neighborId) => graph.node(neighborId).color);
+  const unitedPolygons: Feature[] = [];
+  for (const school of municipality.schools) {
+    const schoolPolygons = polygons.features.filter((polygon) =>
+      polygon.properties.schools.includes(school.izo)
+    );
 
-//   for (const color of colors) {
-//     if (!usedColors.includes(color)) {
-//       graph.node(nodeId).color = color;
-//       break;
-//     }
-//   }
-// });
+    const polygonMap = new Map<number, Feature<Polygon, PolygonProps>>();
 
-// // Assign the colors to the polygons
-// const coloredPolygons = graph.nodes().map((nodeId) => {
-//   const nodeData = graph.node(nodeId);
-//   return {
-//     polygon: nodeData.polygon,
-//     color: nodeData.color,
-//   };
-// });
+    for (const polygon of schoolPolygons) {
+      polygonMap.set(polygon.properties.index, polygon);
+    }
 
-// console.log(coloredPolygons);
+    while (polygonMap.size > 0) {
+      const index = polygonMap.keys().next().value;
+      let polygon = polygonMap.get(index);
+      polygonMap.delete(index);
+      const neighbors = new Set(polygon.properties.neighbors);
+      while (neighbors.size > 0) {
+        const neighborKey = neighbors.values().next().value;
+
+        // neighbor is the polygon itself or is not in polygonMap
+        if (!polygonMap.has(neighborKey)) {
+          neighbors.delete(neighborKey);
+          continue;
+        }
+
+        const neighborPolygon = polygonMap.get(neighborKey);
+        neighbors.delete(neighborKey);
+        polygonMap.delete(neighborKey);
+        polygon = union(
+          featureCollection([polygon, neighborPolygon])
+        ) as Feature<Polygon, PolygonProps>;
+        neighborPolygon.properties.neighbors.forEach((neighbor) => {
+          neighbors.add(neighbor);
+        });
+      }
+      polygon.properties.schools = [school.izo];
+      unitedPolygons.push(polygon);
+    }
+  }
+
+  const { type } = polygons;
+  return {
+    type,
+    features: [...unitedPolygons, ...points.features],
+  };
+};
+
+function countPointsInPolygon(
+  polygon: Polygon,
+  points: FeatureCollection<Point>
+): number {
+  return points.features.filter((point) =>
+    booleanPointInPolygon(point.geometry, polygon)
+  ).length;
+}
+
+function d3DelaunayVoronoi(
+  points: FeatureCollection<Point>
+): FeatureCollection<Polygon, PolygonProps> {
+  const converted = points.features.map((p) =>
+    toMercator([p.geometry.coordinates[0], p.geometry.coordinates[1]])
+  );
+
+  const bbox = [...toMercator([-180, -85]), ...toMercator([180, 85])] as [
+    number,
+    number,
+    number,
+    number
+  ];
+
+  const delaunay = new Delaunay(Float64Array.of(...converted.flat()));
+  const voronoi = delaunay.voronoi(bbox);
+  return {
+    type: "FeatureCollection",
+    features: Array.from(voronoi.cellPolygons()).map((polygon, i) => ({
+      type: "Feature",
+      geometry: {
+        type: "Polygon",
+        coordinates: [polygon.map((p) => toWgs84(p))],
+      },
+      properties: {
+        schools: points.features[i].properties.schools,
+        index: i,
+        neighbors: new Set(voronoi.neighbors(polygon.index)),
+      },
+    })),
+  };
+}
+
+function turfVoronoi(points: FeatureCollection<Point>) {
+  const pointsMercator = toMercator(points);
+  const pointsBbox = [...toMercator([-180, -85]), ...toMercator([180, 85])] as [
+    number,
+    number,
+    number,
+    number
+  ];
+  const result = voronoi(pointsMercator, { bbox: pointsBbox });
+  const polygons = {
+    ...result,
+    features: result.features
+      .map((feature, i) => ({
+        ...feature,
+        geometry: toWgs84(feature.geometry),
+        properties: points.features[i].properties,
+      }))
+      .filter((feature) => feature !== null),
+  };
+
+  return polygons;
+}
