@@ -2,8 +2,10 @@ import AdmZip from "adm-zip";
 import { createWriteStream, existsSync, mkdirSync, rmSync } from "fs";
 import fetch from "node-fetch";
 import parseDBF from "parsedbf";
+import ShpToGeoJson from "shp-to-geojson";
 import { join } from "path";
 import { pipeline } from "stream/promises";
+import { Buffer } from "buffer";
 
 import {
   deleteStreets,
@@ -22,6 +24,10 @@ import {
   prepareOptions,
 } from "../utils/helpers";
 import { runSyncPart } from "./common";
+import { coordEach } from "@turf/meta";
+import jtsk2wgs84 from "../utils/jtsk2wgs84";
+import { FeatureCollection } from "@turf/helpers";
+import { setCityPolygonGeojson } from "../db/cities";
 
 const prepareFolders = (options: OpenDataSyncOptions) => {
   const tempFolder = getTempFolder(options);
@@ -34,11 +40,15 @@ const getTempFolder = (options: OpenDataSyncOptions) => {
   return join(options.tmpDir, options.streetZipFolderName);
 };
 
-const downloadZipAndParseDbfFile = async (
+const downloadZipAndParseFiles = async (
   url: string,
   index: number,
   options: OpenDataSyncOptions
-): Promise<DbfStreet[]> => {
+): Promise<{
+  streetData: DbfStreet[];
+  polygonData: FeatureCollection;
+  cityCode: string;
+}> => {
   const response = await fetch(url);
   if (response.status !== 200) {
     throw new Error(
@@ -50,18 +60,49 @@ const downloadZipAndParseDbfFile = async (
 
   const zip = new AdmZip(zipFilePath);
   const folderName = zip.getEntries()[0].entryName;
+  const cityCode = folderName.substring(0, 6);
   const dbfEntryName = `${folderName}${options.streetDbfFileName}`;
-  const obj = parseDBF(zip.getEntry(dbfEntryName).getData(), "win1250");
+  const streetData = parseDBF(zip.getEntry(dbfEntryName).getData(), "win1250");
+
+  const shpEntryName = `${folderName}${options.polygonShpFileName}`;
+  const polygonData = convertShpToGeoJson(zip.getEntry(shpEntryName).getData());
 
   rmSync(zipFilePath);
-  return obj;
+  return { streetData, polygonData, cityCode };
 };
 
-const importDataToDb = async (data: DbfStreet[]) => {
-  if (data.length === 0) {
-    return;
+const convertShpToGeoJson = (shpBuffer: Buffer): FeatureCollection => {
+  const shp = new ShpToGeoJson({
+    arraybuffers: {
+      shpBuffer,
+    },
+  });
+  const geoJson = shp.getGeoJson();
+  delete geoJson.bbox;
+
+  coordEach(geoJson, (currentCoord) => {
+    const [y, x] = currentCoord;
+    const { lat, lon } = jtsk2wgs84(-x, -y);
+    currentCoord[0] = lon;
+    currentCoord[1] = lat;
+  });
+
+  return geoJson;
+};
+
+const importDataToDb = async ({
+  streetData,
+  polygonData,
+  cityCode,
+}: {
+  streetData: DbfStreet[];
+  polygonData: FeatureCollection;
+  cityCode: string;
+}) => {
+  if (streetData.length > 0) {
+    await insertStreetsFromDbf(streetData);
   }
-  await insertStreetsFromDbf(data);
+  await setCityPolygonGeojson(polygonData, cityCode);
 };
 
 const attempts = 5;
@@ -110,12 +151,12 @@ export const downloadAndImportStreets = async (
       for (let i = 0; i < attempts; i++) {
         try {
           const zipLink = await getLatestUrlFromAtomFeed(link);
-          const dbfObject = await downloadZipAndParseDbfFile(
+          const data = await downloadZipAndParseFiles(
             zipLink,
             done,
             completeOptions
           );
-          await importDataToDb(dbfObject);
+          await importDataToDb(data);
           await setStreetAsSynced(link);
 
           done++;

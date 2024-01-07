@@ -4,6 +4,7 @@
     "@turf/boolean-point-in-polygon": "^7.0.0-alpha.2",
     "@turf/distance": "^6.5.0",
     "@turf/helpers": "^6.5.0",
+    "@turf/meta": "^7.0.0-alpha.110",
     "@turf/projection": "^7.0.0-alpha.2",
     "@turf/union": "^7.0.0-alpha.2",
     "@turf/voronoi": "^7.0.0-alpha.2",
@@ -24,6 +25,7 @@
     "parsedbf": "^1.1.1",
     "pg": "^8.11.1",
     "sax": "^1.2.4",
+    "shp-to-geojson": "^1.0.0",
     "typescript": "^4.9.4"
   },
   "devDependencies": {

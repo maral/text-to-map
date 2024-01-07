@@ -17,6 +17,7 @@ export interface OpenDataSyncOptions {
   streetsAtomUrl: string;
   streetZipFolderName: string;
   streetDbfFileName: string;
+  polygonShpFileName: string;
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
   regionsCsvUrl: string;
@@ -51,7 +52,7 @@ export const prepareOptions = (
   const __filename = fileURLToPath(import.meta.url);
   const __dirname = dirname(__filename);
 
-  const defaults = {
+  const defaults: OpenDataSyncOptions = {
     tmpDir: tmpAppDir,
     dataDir: dataDir,
     dbFilePath: join(dataDir, "address_points.db"),
@@ -63,6 +64,7 @@ export const prepareOptions = (
     streetsAtomUrl: "https://atom.cuzk.cz/RUIAN-OBCE-SHP/RUIAN-OBCE-SHP.xml",
     streetZipFolderName: "streets",
     streetDbfFileName: "UL_L.dbf",
+    polygonShpFileName: "OBEC_P.shp",
     schoolsXmlUrl: "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
     schoolsXmlFileName: "school-register.xml",
     regionsCsvUrl:

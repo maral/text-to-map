@@ -1,5 +1,11 @@
 import chunk from "lodash/chunk";
-import { extractKeyValuesPairs, getKnexDb, insertMultipleRows, rawQuery } from "./db";
+import {
+  extractKeyValuesPairs,
+  getKnexDb,
+  insertMultipleRows,
+  rawQuery,
+} from "./db";
+import { FeatureCollection } from "@turf/helpers";
 
 const citiesColumn = {
   cityName: 0,
@@ -53,4 +59,14 @@ export const insertCities = async (buffer: string[][]): Promise<number> => {
     "city",
     ["code", "name"]
   );
+};
+
+export const setCityPolygonGeojson = async (
+  polygon: FeatureCollection,
+  code: string
+): Promise<void> => {
+  await getKnexDb()
+    .from("city")
+    .update({ polygon_geojson: JSON.stringify(polygon) })
+    .where({ code });
 };
