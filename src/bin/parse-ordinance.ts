@@ -4,6 +4,8 @@ import {
   parseOrdinanceToAddressPoints,
 } from "../street-markdown/smd";
 import { ErrorCallbackParams } from "../street-markdown/types";
+import { municipalityToPolygons } from "../street-markdown/polygons";
+import { disconnectKnex } from "../db/db";
 
 async function main() {
   // take first node argument as a file name
@@ -43,7 +45,7 @@ async function main() {
 
   console.time("downloadAndImportAllLatestAddressPoints");
 
-  const { municipality } = await getNewMunicipalityByName("Česká Lípa");
+  // const { municipality } = await getNewMunicipalityByName("Česká Lípa");
 
   const addressPoints = await parseOrdinanceToAddressPoints({
     lines,
@@ -55,6 +57,12 @@ async function main() {
     includeUnmappedAddressPoints: true,
   });
   console.timeEnd("downloadAndImportAllLatestAddressPoints");
+
+  const polygons = addressPoints.map(
+    async (municipality) => await municipalityToPolygons(municipality)
+  );
+
+  await disconnectKnex();
 
   console.log(
     `Parsed ${lines.length} lines, ${errorCount} errors, ${warningCount} warnings.`
@@ -71,6 +79,13 @@ async function main() {
     writeFileSync(outputFileName, output);
   } else {
     console.log(JSON.stringify(addressPoints));
+  }
+
+  if (process.argv.length >= 5) {
+    const outputFileName = process.argv[4];
+    const output = JSON.stringify(polygons);
+    console.log(`Writing polygons to ${outputFileName}`);
+    writeFileSync(outputFileName, output);
   }
 }
 

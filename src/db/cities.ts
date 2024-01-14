@@ -5,7 +5,7 @@ import {
   insertMultipleRows,
   rawQuery,
 } from "./db";
-import { FeatureCollection } from "@turf/helpers";
+import { FeatureCollection, MultiPolygon, Polygon } from "@turf/helpers";
 
 const citiesColumn = {
   cityName: 0,
@@ -69,4 +69,18 @@ export const setCityPolygonGeojson = async (
     .from("city")
     .update({ polygon_geojson: JSON.stringify(polygon) })
     .where({ code });
+};
+
+export const getCityPolygonGeojsons = async (
+  cityCodes: number[]
+): Promise<Record<number, FeatureCollection<Polygon | MultiPolygon>>> => {
+  const rows = await getKnexDb()
+    .from("city")
+    .select("code", "polygon_geojson")
+    .whereIn("code", cityCodes);
+
+  return rows.reduce((acc, row) => {
+    acc[row.code] = JSON.parse(row.polygon_geojson);
+    return acc;
+  }, {});
 };

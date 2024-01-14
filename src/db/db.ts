@@ -33,7 +33,7 @@ const defaults: DbConfig = {
   dbType: SupportedDbType.sqlite,
   filePath: "address_points.db",
   initFilePath: join(__dirname, "..", "address_points_init.db"),
-  verbose: false,
+  verbose: true,
 };
 
 let _knexDb: Knex = undefined;

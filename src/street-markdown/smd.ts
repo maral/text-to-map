@@ -6,7 +6,7 @@ import {
 import { disconnectKnex } from "../db/db";
 import { findFounder, getFounderById } from "../db/founders";
 import { findSchool } from "../db/schools";
-import { Founder, founderToMunicipality } from "../db/types";
+import { Founder, MunicipalityType, founderToMunicipality } from "../db/types";
 import {
   getMunicipalityPartResult,
   getRestOfMunicipalityPart,
@@ -50,7 +50,7 @@ export const parseOrdinanceToAddressPoints = async ({
   onWarning = () => {},
   onProcessedLine = () => {},
   includeUnmappedAddressPoints = false,
-}: ParseOrdinanceProps) => {
+}: ParseOrdinanceProps): Promise<Municipality[]> => {
   try {
     const state: SmdState = {
       currentMunicipality: null,
@@ -62,6 +62,7 @@ export const parseOrdinanceToAddressPoints = async ({
         wholeMunicipalitySchoolIzo: null,
         includeUnmappedAddressPoints,
       },
+      cityCodes: [],
       municipalities: [],
       ...initialState,
     };
@@ -98,6 +99,7 @@ export const parseOrdinanceToAddressPoints = async ({
   } finally {
     await disconnectKnex();
   }
+  return [];
 };
 
 const filterOutSchoolAddressPoint = (
@@ -118,6 +120,8 @@ export const convertMunicipality = (
   return {
     municipalityName: municipality.municipalityName,
     schools: municipality.schools,
+    cityCodes: [...new Set(municipality.cityCodes)],
+    districtCodes: [...new Set(municipality.districtCodes)],
     unmappedPoints: municipality.unmappedPoints,
   };
 };
@@ -253,6 +257,11 @@ const processMunicipalitySwitchLine = async ({
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
+    if (municipality.type === MunicipalityType.City) {
+      state.currentMunicipality.cityCodes.push(municipality.code);
+    } else {
+      state.currentMunicipality.districtCodes.push(municipality.code);
+    }
     state.currentFilterMunicipality = municipality;
   }
 };
@@ -270,6 +279,11 @@ const processWholeMunicipalityLine = async ({
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
+    if (municipality.type === MunicipalityType.City) {
+      state.currentMunicipality.cityCodes.push(municipality.code);
+    } else {
+      state.currentMunicipality.districtCodes.push(municipality.code);
+    }
     const addressPoints = await findAddressPoints({
       type: "wholeMunicipality",
       municipality,
@@ -416,7 +430,9 @@ const addRestOfMunicipality = async (state: SmdState) => {
 };
 
 const addRestOfMunicipalityToUnmappedPoints = async (state: SmdState) => {
-  state.currentMunicipality.unmappedPoints = (await getRestOfMunicipality(state)).map(mapAddressPointForExport);
+  state.currentMunicipality.unmappedPoints = (
+    await getRestOfMunicipality(state)
+  ).map(mapAddressPointForExport);
 };
 
 const getRestOfMunicipality = async (
@@ -467,6 +483,14 @@ const getNewMunicipality = (
     municipalityName: founder ? founder.name : "Neznámá obec",
     founder,
     schools: [],
+    cityCodes:
+      founder.municipalityType === MunicipalityType.City
+        ? [founder.cityOrDistrictCode]
+        : [],
+    districtCodes:
+      founder.municipalityType === MunicipalityType.District
+        ? [founder.cityOrDistrictCode]
+        : [],
     unmappedPoints: [],
   },
   errors,

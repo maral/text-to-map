@@ -98,6 +98,8 @@ export interface School {
 
 export interface Municipality {
   municipalityName: string;
+  cityCodes: number[];
+  districtCodes: number[];
   schools: School[];
   unmappedPoints: ExportAddressPoint[];
 }
@@ -134,6 +136,7 @@ export interface SmdState {
     wholeMunicipalitySchoolIzo: string;
     includeUnmappedAddressPoints: boolean;
   };
+  cityCodes: number[];
   municipalities: Municipality[];
 }
 

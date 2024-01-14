@@ -1,13 +1,12 @@
 {
   "type": "module",
   "dependencies": {
-    "@turf/boolean-point-in-polygon": "^7.0.0-alpha.2",
     "@turf/distance": "^6.5.0",
     "@turf/helpers": "^6.5.0",
+    "@turf/intersect": "^6.5.0",
     "@turf/meta": "^7.0.0-alpha.110",
     "@turf/projection": "^7.0.0-alpha.2",
     "@turf/union": "^7.0.0-alpha.2",
-    "@turf/voronoi": "^7.0.0-alpha.2",
     "adm-zip": "^0.5.9",
     "better-sqlite3": "^8.0.1",
     "chevrotain": "^10.4.2",

@@ -45,7 +45,6 @@ export interface PlaceWithPosition {
   lng: number;
 }
 
-
 export const founderToMunicipality = (founder: Founder): Municipality => {
   return {
     type: founder.municipalityType,

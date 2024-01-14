@@ -4,6 +4,7 @@ import { importCities } from "./open-data-sync/cities";
 import { downloadAndImportRegions } from "./open-data-sync/regions";
 import { downloadAndImportSchools } from "./open-data-sync/schools";
 import { downloadAndImportStreets } from "./open-data-sync/streets";
+import { municipalityToPolygons } from "./street-markdown/polygons";
 import { OpenDataSyncOptionsPartial } from "./utils/helpers";
 
 export * from "./street-markdown/smd";
@@ -41,5 +42,6 @@ export {
   downloadAndImportSchools,
   downloadAndImportStreets,
   importCities,
+  municipalityToPolygons,
   initDb,
 };

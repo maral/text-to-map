@@ -1,17 +1,18 @@
 import { Delaunay } from "d3-delaunay";
 import { Municipality } from "./types";
 
-import booleanPointInPolygon from "@turf/boolean-point-in-polygon";
 import {
   Feature,
   FeatureCollection,
+  MultiPolygon,
   Point,
   Polygon,
   featureCollection,
 } from "@turf/helpers";
+import intersect from "@turf/intersect";
 import { toMercator, toWgs84 } from "@turf/projection";
 import union from "@turf/union";
-import voronoi from "@turf/voronoi";
+import { getCityPolygonGeojsons } from "../db/cities";
 
 type PolygonProps = {
   schools: string[];
@@ -19,7 +20,18 @@ type PolygonProps = {
   neighbors: Set<number>;
 };
 
-export const municipalityToPolygons = (municipality: Municipality) => {
+export const municipalityToPolygons = async (
+  municipality: Municipality
+): Promise<FeatureCollection> => {
+  const cityPolygons = await getCityPolygonGeojsons(municipality.cityCodes);
+  return createPolygons(municipality, Object.values(cityPolygons));
+};
+
+export const createPolygons = (
+  municipality: Municipality,
+  cityPolygons: FeatureCollection<Polygon | MultiPolygon>[]
+): FeatureCollection => {
+  const citiesMultipolygon = createCitiesMultipolygon(cityPolygons);
   const uniquePoints = new Map<string, Feature>();
 
   for (const school of municipality.schools) {
@@ -47,7 +59,6 @@ export const municipalityToPolygons = (municipality: Municipality) => {
   } as FeatureCollection<Point>;
 
   const polygons = d3DelaunayVoronoi(points);
-  // const polygons = turfVoronoi(points);
 
   const unitedPolygons: Feature[] = [];
   for (const school of municipality.schools) {
@@ -55,12 +66,20 @@ export const municipalityToPolygons = (municipality: Municipality) => {
       polygon.properties.schools.includes(school.izo)
     );
 
-    const polygonMap = new Map<number, Feature<Polygon, PolygonProps>>();
+    const polygonMap = new Map<
+      number,
+      Feature<Polygon | MultiPolygon, PolygonProps>
+    >();
 
     for (const polygon of schoolPolygons) {
       polygonMap.set(polygon.properties.index, polygon);
     }
 
+    // TODO: coloring of polygons
+    // - just take note of all the school IZOs in the neighboring polygons
+    // - create a graph
+    // - color the graph (using some library)
+    // - do not give an exact color, just an index of the color
     while (polygonMap.size > 0) {
       const index = polygonMap.keys().next().value;
       let polygon = polygonMap.get(index);
@@ -80,35 +99,30 @@ export const municipalityToPolygons = (municipality: Municipality) => {
         polygonMap.delete(neighborKey);
         polygon = union(
           featureCollection([polygon, neighborPolygon])
-        ) as Feature<Polygon, PolygonProps>;
+        ) as Feature<Polygon | MultiPolygon, PolygonProps>;
         neighborPolygon.properties.neighbors.forEach((neighbor) => {
           neighbors.add(neighbor);
         });
       }
-      polygon.properties.schools = [school.izo];
-      unitedPolygons.push(polygon);
+      const intersection = intersect(polygon, citiesMultipolygon);
+      if (!intersection) {
+        throw new Error("Polygon does not intersect with city borders");
+      }
+      const result = { ...intersection, properties: { schoolIzo: school.izo } };
+      unitedPolygons.push(result);
     }
   }
 
   const { type } = polygons;
   return {
     type,
-    features: [...unitedPolygons, ...points.features],
+    features: [...unitedPolygons],
   };
 };
 
-function countPointsInPolygon(
-  polygon: Polygon,
+const d3DelaunayVoronoi = (
   points: FeatureCollection<Point>
-): number {
-  return points.features.filter((point) =>
-    booleanPointInPolygon(point.geometry, polygon)
-  ).length;
-}
-
-function d3DelaunayVoronoi(
-  points: FeatureCollection<Point>
-): FeatureCollection<Polygon, PolygonProps> {
+): FeatureCollection<Polygon, PolygonProps> => {
   const converted = points.features.map((p) =>
     toMercator([p.geometry.coordinates[0], p.geometry.coordinates[1]])
   );
@@ -137,27 +151,34 @@ function d3DelaunayVoronoi(
       },
     })),
   };
-}
+};
 
-function turfVoronoi(points: FeatureCollection<Point>) {
-  const pointsMercator = toMercator(points);
-  const pointsBbox = [...toMercator([-180, -85]), ...toMercator([180, 85])] as [
-    number,
-    number,
-    number,
-    number
-  ];
-  const result = voronoi(pointsMercator, { bbox: pointsBbox });
-  const polygons = {
-    ...result,
-    features: result.features
-      .map((feature, i) => ({
-        ...feature,
-        geometry: toWgs84(feature.geometry),
-        properties: points.features[i].properties,
-      }))
-      .filter((feature) => feature !== null),
-  };
+const intersectWithCityBorders = (
+  multipolygon: Feature<Polygon | MultiPolygon>,
+  cityPolygons: FeatureCollection<Polygon | MultiPolygon>[]
+): Feature<Polygon | MultiPolygon> => {
+  const citiesMultipolygon = createCitiesMultipolygon(cityPolygons);
+  const intersection = intersect(multipolygon, citiesMultipolygon);
+  if (!intersection) {
+    throw new Error("Polygon does not intersect with city borders");
+  }
+  return intersection;
+};
 
-  return polygons;
-}
+const createCitiesMultipolygon = (
+  cityPolygons: FeatureCollection[]
+): Feature<Polygon | MultiPolygon> => {
+  const cityPolygonFeatures = cityPolygons.reduce((acc, cityPolygon) => {
+    acc.push(
+      ...cityPolygon.features.filter(
+        (f) =>
+          f.geometry.type === "Polygon" || f.geometry.type === "MultiPolygon"
+      )
+    );
+    return acc;
+  }, []);
+
+  return cityPolygonFeatures.length > 1
+    ? union(featureCollection(cityPolygonFeatures))
+    : cityPolygonFeatures[0];
+};
