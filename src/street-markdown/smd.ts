@@ -439,13 +439,21 @@ const getRestOfMunicipality = async (
   state: SmdState
 ): Promise<AddressPoint[]> => {
   // get all address points for current municipality
-  return await findAddressPoints({
+  const allPoints =  await findAddressPoints({
     type: "wholeMunicipality",
     municipality: {
       code: state.currentMunicipality.founder.cityOrDistrictCode,
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
+
+  // filter out address points already present
+  const addressPoints = state.currentMunicipality.schools.flatMap(
+    (school) => school.addresses
+  );
+  return allPoints.filter(
+    (point) => !addressPoints.some((ap) => ap.address === point.address)
+  );
 };
 
 const addRestOfMunicipalityPart = async (
