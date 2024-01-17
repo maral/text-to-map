@@ -61,6 +61,7 @@ export const createPolygons = (
   const polygons = d3DelaunayVoronoi(points);
 
   const unitedPolygons: Feature[] = [];
+  let colorIndex = 0;
   for (const school of municipality.schools) {
     const schoolPolygons = polygons.features.filter((polygon) =>
       polygon.properties.schools.includes(school.izo)
@@ -108,9 +109,13 @@ export const createPolygons = (
       if (!intersection) {
         throw new Error("Polygon does not intersect with city borders");
       }
-      const result = { ...intersection, properties: { schoolIzo: school.izo } };
+      const result = {
+        ...intersection,
+        properties: { schoolIzo: school.izo, colorIndex },
+      };
       unitedPolygons.push(result);
     }
+    colorIndex++;
   }
 
   const { type } = polygons;
@@ -151,18 +156,6 @@ const d3DelaunayVoronoi = (
       },
     })),
   };
-};
-
-const intersectWithCityBorders = (
-  multipolygon: Feature<Polygon | MultiPolygon>,
-  cityPolygons: FeatureCollection<Polygon | MultiPolygon>[]
-): Feature<Polygon | MultiPolygon> => {
-  const citiesMultipolygon = createCitiesMultipolygon(cityPolygons);
-  const intersection = intersect(multipolygon, citiesMultipolygon);
-  if (!intersection) {
-    throw new Error("Polygon does not intersect with city borders");
-  }
-  return intersection;
 };
 
 const createCitiesMultipolygon = (

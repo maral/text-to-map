@@ -58,9 +58,10 @@ async function main() {
   });
   console.timeEnd("downloadAndImportAllLatestAddressPoints");
 
-  const polygons = addressPoints.map(
-    async (municipality) => await municipalityToPolygons(municipality)
-  );
+  const polygons = [];
+  for (const municipality of addressPoints) {
+    polygons.push(await municipalityToPolygons(municipality));
+  }
 
   await disconnectKnex();
 
