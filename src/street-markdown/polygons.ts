@@ -67,54 +67,99 @@ export const createPolygons = (
       polygon.properties.schools.includes(school.izo)
     );
 
-    const polygonMap = new Map<
-      number,
-      Feature<Polygon | MultiPolygon, PolygonProps>
-    >();
+    // let schoolPolygon: Feature;
 
-    for (const polygon of schoolPolygons) {
-      polygonMap.set(polygon.properties.index, polygon);
-    }
+    // const polygonMap = new Map<
+    //   number,
+    //   Feature<Polygon | MultiPolygon, PolygonProps>
+    // >();
+
+    // for (const polygon of schoolPolygons) {
+    //   polygonMap.set(polygon.properties.index, polygon);
+    // }
 
     // TODO: coloring of polygons
     // - just take note of all the school IZOs in the neighboring polygons
     // - create a graph
     // - color the graph (using some library)
     // - do not give an exact color, just an index of the color
-    while (polygonMap.size > 0) {
-      const index = polygonMap.keys().next().value;
-      let polygon = polygonMap.get(index);
-      polygonMap.delete(index);
-      const neighbors = new Set(polygon.properties.neighbors);
-      while (neighbors.size > 0) {
-        const neighborKey = neighbors.values().next().value;
 
-        // neighbor is the polygon itself or is not in polygonMap
-        if (!polygonMap.has(neighborKey)) {
-          neighbors.delete(neighborKey);
-          continue;
-        }
+    // How this works:
+    // - take a next polygon of this school from `polygonMap`
+    // - go through `neighbors` set, one by one
+    //   - if the neighbor doesn't belong to the school, skip it
+    //   - if it belongs, add it to `polygonsToUnion` + add all its new neigbors to the `neighbors` set
+    //   - in both cases, remove the neighbor from both `neighbors` set and `polygonMap`
+    // - after no neighbors remain, create a union of all the polygons
+    // - merge the resulting united polygon into `schoolPolygon`
+    // - when all polygons were
 
-        const neighborPolygon = polygonMap.get(neighborKey);
-        neighbors.delete(neighborKey);
-        polygonMap.delete(neighborKey);
-        polygon = union(
-          featureCollection([polygon, neighborPolygon])
-        ) as Feature<Polygon | MultiPolygon, PolygonProps>;
-        neighborPolygon.properties.neighbors.forEach((neighbor) => {
-          neighbors.add(neighbor);
-        });
-      }
-      const intersection = intersect(polygon, citiesMultipolygon);
-      if (!intersection) {
-        throw new Error("Polygon does not intersect with city borders");
-      }
-      const result = {
-        ...intersection,
-        properties: { schoolIzo: school.izo, colorIndex },
-      };
-      unitedPolygons.push(result);
-    }
+    // while (polygonMap.size > 0) {
+    //   const key = polygonMap.keys().next().value;
+    //   const polygon = polygonMap.get(key);
+    //   const polygonsToUnion = [polygon];
+    //   const keys = new Set<number>([key]);
+    //   const otherKeys = new Set<number>();
+    //   polygonMap.delete(key);
+    //   const neighbors = new Set(polygon.properties.neighbors);
+    //   while (neighbors.size > 0) {
+    //     const neighborKey = neighbors.values().next().value;
+    //     neighbors.delete(neighborKey);
+
+    //     // neighbor is the polygon itself or is not in polygonMap
+    //     if (!polygonMap.has(neighborKey)) {
+    //       otherKeys.add(neighborKey);
+    //       continue;
+    //     }
+
+    //     keys.add(neighborKey);
+    //     const neighborPolygon = polygonMap.get(neighborKey);
+    //     polygonMap.delete(neighborKey);
+    //     polygonsToUnion.push(neighborPolygon);
+    //     neighborPolygon.properties.neighbors.forEach((neighbor) => {
+    //       if (!keys.has(neighbor) && !otherKeys.has(neighbor)) {
+    //         neighbors.add(neighbor);
+    //       }
+    //     });
+    //   }
+    //   const intersection = intersect(
+    //     polygonsToUnion.length > 1
+    //       ? union(featureCollection(polygonsToUnion))
+    //       : polygonsToUnion[0],
+    //     citiesMultipolygon
+    //   );
+    //   if (!intersection) {
+    //     throw new Error("Polygon does not intersect with city borders");
+    //   }
+    //   const result = {
+    //     ...intersection,
+    //     properties: {
+    //       schoolIzo: school.izo,
+    //       colorIndex,
+    //     },
+    //   };
+
+    //   if (!schoolPolygon) {
+    //     schoolPolygon = result;
+    //   } else {
+    //     schoolPolygon = union(featureCollection([schoolPolygon, result]));
+    //   }
+    // }
+
+    const schoolPolygon = intersect(
+      schoolPolygons.length > 1
+        ? union(featureCollection(schoolPolygons))
+        : schoolPolygons[0],
+      citiesMultipolygon
+    );
+
+    unitedPolygons.push({
+      ...schoolPolygon,
+      properties: {
+        schoolIzo: school.izo,
+        colorIndex,
+      },
+    });
     colorIndex++;
   }
 

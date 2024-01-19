@@ -23,9 +23,11 @@ import {
   AddressPoint,
   ErrorCallbackParams,
   ExportAddressPoint,
+  IntermediateMunicipality,
+  IntermediateSchool,
   Municipality,
   MunicipalityWithFounder,
-  MunicipalityWithFounderResult,
+  IntermediateMunicipalityResult,
   ProcessLineCallbackParams,
   ProcessLineParams,
   School,
@@ -57,9 +59,15 @@ export const parseOrdinanceToAddressPoints = async ({
       currentFilterMunicipality: null,
       currentSchool: null,
       rests: {
-        noStreetNameSchoolIzo: null,
+        noStreetNameSchool: {
+          izo: null,
+          lineNumber: null,
+        },
         municipalityParts: [],
-        wholeMunicipalitySchoolIzo: null,
+        wholeMunicipalitySchool: {
+          izo: null,
+          lineNumber: null,
+        },
         includeUnmappedAddressPoints,
       },
       cityCodes: [],
@@ -102,24 +110,19 @@ export const parseOrdinanceToAddressPoints = async ({
   return [];
 };
 
-const filterOutSchoolAddressPoint = (
-  addressPoints: AddressPoint[],
-  school: School
-) => {
-  const schoolPosition = school.position;
-  return schoolPosition && isAddressPoint(schoolPosition)
-    ? (addressPoints = addressPoints.filter(
-        (ap) => ap.id !== schoolPosition.id
-      ))
-    : addressPoints;
-};
-
 export const convertMunicipality = (
-  municipality: MunicipalityWithFounder
+  municipality: IntermediateMunicipality
 ): Municipality => {
   return {
     municipalityName: municipality.municipalityName,
-    schools: municipality.schools,
+    schools: municipality.schools.map((school) => {
+      return {
+        name: school.name,
+        izo: school.izo,
+        addresses: Array.from(school.addressMap.values()),
+        position: school.position,
+      };
+    }),
     cityCodes: [...new Set(municipality.cityCodes)],
     districtCodes: [...new Set(municipality.districtCodes)],
     unmappedPoints: municipality.unmappedPoints,
@@ -127,7 +130,7 @@ export const convertMunicipality = (
 };
 
 const processOneLine = async (params: ProcessLineParams) => {
-  const { line, state } = params;
+  const { line, lineNumber, state } = params;
 
   if (line[0] === "#") {
     await processMunicipalityLine(params);
@@ -154,20 +157,27 @@ const processOneLine = async (params: ProcessLineParams) => {
   } else if (isWholeMunicipality(line)) {
     await processWholeMunicipalityLine(params);
   } else if (isRestWithNoStreetNameLine(line)) {
-    state.rests.noStreetNameSchoolIzo = state.currentSchool.izo;
+    state.rests.noStreetNameSchool = {
+      izo: state.currentSchool.izo,
+      lineNumber,
+    };
   } else if (isRestOfMunicipalityLine(line)) {
-    state.rests.wholeMunicipalitySchoolIzo = state.currentSchool.izo;
+    state.rests.wholeMunicipalitySchool = {
+      izo: state.currentSchool.izo,
+      lineNumber,
+    };
   } else if (isRestOfMunicipalityPartLine(line)) {
     const { municipalityPartCode, errors } = await getRestOfMunicipalityPart(
       line,
       state.currentMunicipality.founder
     );
     if (errors.length > 0) {
-      params.onError({ lineNumber: params.lineNumber, line, errors });
+      params.onError({ lineNumber: lineNumber, line, errors });
     } else {
       state.rests.municipalityParts.push({
         municipalityPartCode,
         schoolIzo: state.currentSchool.izo,
+        lineNumber: lineNumber,
       });
     }
   } else {
@@ -288,11 +298,24 @@ const processWholeMunicipalityLine = async ({
       type: "wholeMunicipality",
       municipality,
     });
-    state.currentSchool.addresses.push(
-      ...filterOutSchoolAddressPoint(addressPoints, state.currentSchool).map(
-        mapAddressPointForExport
-      )
-    );
+    addAddressPointsToSchool(state.currentSchool, addressPoints, lineNumber);
+  }
+};
+
+const addAddressPointsToSchool = (
+  school: IntermediateSchool,
+  addressPoints: AddressPoint[],
+  lineNumber: number
+) => {
+  for (const point of addressPoints) {
+    if (school.addressMap.has(point.id)) {
+      school.addressMap.get(point.id).lineNumbers.push(lineNumber - 1);
+    } else {
+      school.addressMap.set(
+        point.id,
+        mapAddressPointForExport(point, lineNumber)
+      );
+    }
   }
 };
 
@@ -323,11 +346,10 @@ const processAddressPointLine = async ({
             municipality: state.currentFilterMunicipality,
           });
 
-          state.currentSchool.addresses.push(
-            ...filterOutSchoolAddressPoint(
-              addressPoints,
-              state.currentSchool
-            ).map(mapAddressPointForExport)
+          addAddressPointsToSchool(
+            state.currentSchool,
+            addressPoints,
+            lineNumber
           );
         }
       } else if (smdLine.type === "municipalityPart") {
@@ -347,11 +369,10 @@ const processAddressPointLine = async ({
             municipalityPartCode,
           });
 
-          state.currentSchool.addresses.push(
-            ...filterOutSchoolAddressPoint(
-              addressPoints,
-              state.currentSchool
-            ).map(mapAddressPointForExport)
+          addAddressPointsToSchool(
+            state.currentSchool,
+            addressPoints,
+            lineNumber
           );
         }
       }
@@ -362,15 +383,14 @@ const processAddressPointLine = async ({
 const addRestToSchool = (
   restPoints: AddressPoint[],
   schoolIzo: string,
+  lineNumber: number,
   state: SmdState
 ) => {
-  const addressPoints = state.currentMunicipality.schools.flatMap(
-    (school) => school.addresses
-  );
+  const addressPointsIds = getAllAddressPointsIds(state.currentMunicipality);
 
   // filter out address points already present
   const remainingPoints = restPoints.filter(
-    (point) => !addressPoints.some((ap) => ap.address === point.address)
+    (point) => !addressPointsIds.has(point.id)
   );
 
   // find the right school and add the remaining address points
@@ -378,25 +398,34 @@ const addRestToSchool = (
     (school) => school.izo === schoolIzo
   );
 
-  state.currentMunicipality.schools[schoolIndex].addresses.push(
-    ...remainingPoints
+  addAddressPointsToSchool(
+    state.currentMunicipality.schools[schoolIndex],
+    remainingPoints,
+    lineNumber
   );
 };
 
 const addRests = async (state: SmdState) => {
-  if (state.rests.noStreetNameSchoolIzo) {
-    await addRestWithNoStreetNameToSchool(state);
+  if (state.rests.noStreetNameSchool.izo) {
+    await addRestWithNoStreetNameToSchool(
+      state.rests.noStreetNameSchool.lineNumber,
+      state
+    );
   }
 
-  if (state.rests.wholeMunicipalitySchoolIzo) {
-    await addRestOfMunicipality(state);
+  if (state.rests.wholeMunicipalitySchool.izo) {
+    await addRestOfMunicipality(
+      state.rests.wholeMunicipalitySchool.lineNumber,
+      state
+    );
   }
 
   for (const rest of state.rests.municipalityParts) {
     await addRestOfMunicipalityPart(
       state,
       rest.municipalityPartCode,
-      rest.schoolIzo
+      rest.schoolIzo,
+      rest.lineNumber
     );
   }
 
@@ -404,12 +433,15 @@ const addRests = async (state: SmdState) => {
     await addRestOfMunicipalityToUnmappedPoints(state);
   }
 
-  state.rests.noStreetNameSchoolIzo = null;
-  state.rests.wholeMunicipalitySchoolIzo = null;
+  state.rests.noStreetNameSchool.izo = null;
+  state.rests.wholeMunicipalitySchool.izo = null;
   state.rests.municipalityParts = [];
 };
 
-const addRestWithNoStreetNameToSchool = async (state: SmdState) => {
+const addRestWithNoStreetNameToSchool = async (
+  lineNumber: number,
+  state: SmdState
+) => {
   // get all address points without street name for current municipality
   const pointsNoStreetName = await findAddressPoints({
     type: "wholeMunicipalityNoStreetName",
@@ -418,13 +450,19 @@ const addRestWithNoStreetNameToSchool = async (state: SmdState) => {
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
-  addRestToSchool(pointsNoStreetName, state.rests.noStreetNameSchoolIzo, state);
+  addRestToSchool(
+    pointsNoStreetName,
+    state.rests.noStreetNameSchool.izo,
+    lineNumber,
+    state
+  );
 };
 
-const addRestOfMunicipality = async (state: SmdState) => {
+const addRestOfMunicipality = async (lineNumber: number, state: SmdState) => {
   addRestToSchool(
     await getRestOfMunicipality(state),
-    state.rests.wholeMunicipalitySchoolIzo,
+    state.rests.wholeMunicipalitySchool.izo,
+    lineNumber,
     state
   );
 };
@@ -439,7 +477,7 @@ const getRestOfMunicipality = async (
   state: SmdState
 ): Promise<AddressPoint[]> => {
   // get all address points for current municipality
-  const allPoints =  await findAddressPoints({
+  const allPoints = await findAddressPoints({
     type: "wholeMunicipality",
     municipality: {
       code: state.currentMunicipality.founder.cityOrDistrictCode,
@@ -448,37 +486,34 @@ const getRestOfMunicipality = async (
   });
 
   // filter out address points already present
-  const addressPoints = state.currentMunicipality.schools.flatMap(
-    (school) => school.addresses
-  );
-  return allPoints.filter(
-    (point) => !addressPoints.some((ap) => ap.address === point.address)
-  );
+  const addressPointsIds = getAllAddressPointsIds(state.currentMunicipality);
+  return allPoints.filter((point) => !addressPointsIds.has(point.id));
 };
 
 const addRestOfMunicipalityPart = async (
   state: SmdState,
   municipalityPartCode: number,
-  schoolIzo: string
+  schoolIzo: string,
+  lineNumber: number
 ) => {
   // get all address points for current municipality
   const allPoints = await findAddressPoints({
     type: "wholeMunicipalityPart",
     municipalityPartCode,
   });
-  addRestToSchool(allPoints, schoolIzo, state);
+  addRestToSchool(allPoints, schoolIzo, lineNumber, state);
 };
 
 export const getNewMunicipalityByName = async (
   name: string
-): Promise<MunicipalityWithFounderResult> => {
+): Promise<IntermediateMunicipalityResult> => {
   const { founder, errors } = await findFounder(name);
   return getNewMunicipality(founder, errors);
 };
 
 export const getNewMunicipalityByFounderId = async (
   founderId: number
-): Promise<MunicipalityWithFounderResult> => {
+): Promise<IntermediateMunicipalityResult> => {
   const { founder, errors } = await getFounderById(founderId);
   return getNewMunicipality(founder, errors);
 };
@@ -486,7 +521,7 @@ export const getNewMunicipalityByFounderId = async (
 const getNewMunicipality = (
   founder: Founder,
   errors: SmdError[]
-): MunicipalityWithFounderResult => ({
+): IntermediateMunicipalityResult => ({
   municipality: {
     municipalityName: founder ? founder.name : "Neznámá obec",
     founder,
@@ -509,7 +544,7 @@ export const getNewSchool = async (
   founder: Founder | null,
   lineNumber: number,
   onError: (params: ErrorCallbackParams) => void
-): Promise<School> => {
+): Promise<IntermediateSchool> => {
   let exportSchool: School = {
     name,
     izo: "",
@@ -533,23 +568,38 @@ export const getNewSchool = async (
       }
     }
   }
-  return exportSchool;
+  return { ...exportSchool, addressMap: new Map<number, ExportAddressPoint>() };
+};
+
+const getAllAddressPointsIds = (
+  municipality: IntermediateMunicipality
+): Set<number> => {
+  const addressPointsIds = new Set<number>();
+
+  for (const school of municipality.schools) {
+    for (const id of school.addressMap.keys()) {
+      addressPointsIds.add(id);
+    }
+  }
+  return addressPointsIds;
 };
 
 const mapAddressPointForExport = (
-  addressPoint: AddressPoint | ExportAddressPoint
+  addressPoint: AddressPoint | ExportAddressPoint,
+  lineNumber?: number
 ): ExportAddressPoint => {
   return {
     address: addressPoint.address,
     lat: addressPoint.lat,
     lng: addressPoint.lng,
+    ...(lineNumber ? { lineNumbers: [lineNumber - 1] } : {}),
   };
 };
 
-const mapSchoolForExport = (school: School): School => ({
-  name: school.name,
-  izo: school.izo,
-  addresses: school.addresses,
+const mapSchoolForExport = (
+  school: IntermediateSchool
+): IntermediateSchool => ({
+  ...school,
   position: school.position ? mapAddressPointForExport(school.position) : null,
 });
 

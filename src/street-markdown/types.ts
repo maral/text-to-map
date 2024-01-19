@@ -83,6 +83,7 @@ export interface ExportAddressPoint {
   address: string;
   lat: number;
   lng: number;
+  lineNumbers?: number[];
 }
 
 export const isAddressPoint = (
@@ -94,6 +95,10 @@ export interface School {
   izo: string;
   position?: AddressPoint | ExportAddressPoint;
   addresses: ExportAddressPoint[];
+}
+
+export interface IntermediateSchool extends School {
+  addressMap: Map<number, ExportAddressPoint>;
 }
 
 export interface Municipality {
@@ -118,22 +123,33 @@ export interface MunicipalityWithFounder extends Municipality {
   founder: Founder | null;
 }
 
-export interface MunicipalityWithFounderResult {
-  municipality: MunicipalityWithFounder;
+export interface IntermediateMunicipality extends MunicipalityWithFounder {
+  schools: IntermediateSchool[];
+}
+
+export interface IntermediateMunicipalityResult {
+  municipality: IntermediateMunicipality;
   errors: SmdError[];
 }
 
 export interface SmdState {
-  currentMunicipality: MunicipalityWithFounder;
+  currentMunicipality: IntermediateMunicipality;
   currentFilterMunicipality: DbMunicipality;
-  currentSchool: School;
+  currentSchool: IntermediateSchool;
   rests: {
-    noStreetNameSchoolIzo: string;
+    noStreetNameSchool: {
+      izo: string;
+      lineNumber: number;
+    };
     municipalityParts: {
       municipalityPartCode: number;
       schoolIzo: string;
+      lineNumber: number;
     }[];
-    wholeMunicipalitySchoolIzo: string;
+    wholeMunicipalitySchool: {
+      izo: string;
+      lineNumber: number;
+    };
     includeUnmappedAddressPoints: boolean;
   };
   cityCodes: number[];
