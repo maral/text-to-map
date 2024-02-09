@@ -470,7 +470,7 @@ const addRestOfMunicipality = async (lineNumber: number, state: SmdState) => {
 const addRestOfMunicipalityToUnmappedPoints = async (state: SmdState) => {
   state.currentMunicipality.unmappedPoints = (
     await getRestOfMunicipality(state)
-  ).map(mapAddressPointForExport);
+  ).map((point) => mapAddressPointForExport(point));
 };
 
 const getRestOfMunicipality = async (
@@ -592,7 +592,7 @@ const mapAddressPointForExport = (
     address: addressPoint.address,
     lat: addressPoint.lat,
     lng: addressPoint.lng,
-    ...(lineNumber ? { lineNumbers: [lineNumber - 1] } : {}),
+    ...(lineNumber !== undefined ? { lineNumbers: [lineNumber - 1] } : {}),
   };
 };
 
