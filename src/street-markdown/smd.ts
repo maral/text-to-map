@@ -120,14 +120,16 @@ export const convertMunicipality = (
         name: school.name,
         izo: school.izo,
         addresses: Array.from(school.addressMap.values()).filter(
-          (point) => point.lat !== null && point.lng !== null
+          (point) => point.lat !== 0 && point.lng !== 0
         ),
         position: school.position,
       };
     }),
     cityCodes: [...new Set(municipality.cityCodes)],
     districtCodes: [...new Set(municipality.districtCodes)],
-    unmappedPoints: municipality.unmappedPoints,
+    unmappedPoints: municipality.unmappedPoints.filter(
+      (point) => point.lat !== 0 && point.lng !== 0
+    ),
   };
 };
 
