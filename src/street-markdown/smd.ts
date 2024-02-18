@@ -590,8 +590,8 @@ const mapAddressPointForExport = (
 ): ExportAddressPoint => {
   return {
     address: addressPoint.address,
-    lat: addressPoint.lat,
-    lng: addressPoint.lng,
+    lat: roundToNDecimalPlaces(addressPoint.lat, 6),
+    lng: roundToNDecimalPlaces(addressPoint.lng, 6),
     ...(lineNumber !== undefined ? { lineNumbers: [lineNumber - 1] } : {}),
   };
 };
@@ -612,3 +612,13 @@ export const wholeLineError = (message: string, line: string): SmdError => ({
   startOffset: 0,
   endOffset: line.length + 1,
 });
+
+const roundToNDecimalPlaces = (
+  toRound: number,
+  decimalPlaces: number
+): number => {
+  return (
+    Math.round(toRound * Math.pow(10, decimalPlaces)) /
+    Math.pow(10, decimalPlaces)
+  );
+};

@@ -13,6 +13,7 @@ import intersect from "@turf/intersect";
 import { toMercator, toWgs84 } from "@turf/projection";
 import union from "@turf/union";
 import { getCityPolygonGeojsons } from "../db/cities";
+import truncate from "@turf/truncate";
 
 type PolygonProps = {
   schools: string[];
@@ -75,7 +76,9 @@ export const createPolygons = (
 
   const unitedPolygons: Feature[] = [];
   let colorIndex = 0;
-  for (const school of [...municipality.schools, { izo: "unmapped" }]) {
+  const unmapped =
+    municipality.unmappedPoints.length > 0 ? [{ izo: "unmapped" }] : [];
+  for (const school of [...municipality.schools, ...unmapped]) {
     const schoolPolygons = polygons.features.filter((polygon) =>
       polygon.properties.schools.includes(school.izo)
     );
@@ -98,10 +101,10 @@ export const createPolygons = (
   }
 
   const { type } = polygons;
-  return {
+  return truncate({
     type,
     features: [...unitedPolygons],
-  };
+  });
 };
 
 const d3DelaunayVoronoi = (
