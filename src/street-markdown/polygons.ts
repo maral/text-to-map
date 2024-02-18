@@ -1,5 +1,5 @@
 import { Delaunay } from "d3-delaunay";
-import { Municipality } from "./types";
+import { ExportAddressPoint, Municipality } from "./types";
 
 import {
   Feature,
@@ -21,6 +21,8 @@ type PolygonProps = {
   neighbors: Set<number>;
 };
 
+const unmappedIzo = "unmapped";
+
 export const municipalityToPolygons = async (
   municipality: Municipality
 ): Promise<FeatureCollection> => {
@@ -38,16 +40,7 @@ export const createPolygons = (
   for (const school of municipality.schools) {
     for (const point of school.addresses) {
       if (!uniquePoints.has(point.address)) {
-        uniquePoints.set(point.address, {
-          type: "Feature",
-          geometry: {
-            type: "Point",
-            coordinates: [point.lng, point.lat],
-          },
-          properties: {
-            schools: [school.izo],
-          },
-        });
+        addPoint(uniquePoints, point, school.izo);
       } else {
         uniquePoints.get(point.address).properties.schools.push(school.izo);
       }
@@ -55,16 +48,7 @@ export const createPolygons = (
   }
 
   for (const point of municipality.unmappedPoints) {
-    uniquePoints.set(point.address, {
-      type: "Feature",
-      geometry: {
-        type: "Point",
-        coordinates: [point.lng, point.lat],
-      },
-      properties: {
-        schools: ["unmapped"],
-      },
-    });
+    addPoint(uniquePoints, point, unmappedIzo);
   }
 
   const points = {
@@ -77,7 +61,7 @@ export const createPolygons = (
   const unitedPolygons: Feature[] = [];
   let colorIndex = 0;
 
-  for (const school of [...municipality.schools, { izo: "unmapped" }]) {
+  for (const school of [...municipality.schools, { izo: unmappedIzo }]) {
     const schoolPolygons = polygons.features.filter((polygon) =>
       polygon.properties.schools.includes(school.izo)
     );
@@ -97,7 +81,7 @@ export const createPolygons = (
       ...schoolPolygon,
       properties: {
         schoolIzo: school.izo,
-        colorIndex: school.izo === "unmapped" ? -1 : colorIndex,
+        colorIndex: school.izo === unmappedIzo ? -1 : colorIndex,
       },
     });
     colorIndex++;
@@ -110,12 +94,32 @@ export const createPolygons = (
   });
 };
 
+const addPoint = (
+  uniquePoints: Map<string, Feature>,
+  point: ExportAddressPoint,
+  schoolIzo: string
+) => {
+  if (point.lat === null || point.lng === null) {
+    return;
+  }
+  uniquePoints.set(point.address, {
+    type: "Feature",
+    geometry: {
+      type: "Point",
+      coordinates: [point.lng, point.lat],
+    },
+    properties: {
+      schools: [schoolIzo],
+    },
+  });
+};
+
 const d3DelaunayVoronoi = (
   points: FeatureCollection<Point>
 ): FeatureCollection<Polygon, PolygonProps> => {
-  const converted = points.features.map((p) =>
-    toMercator([p.geometry.coordinates[0], p.geometry.coordinates[1]])
-  );
+  const converted = points.features.map((p) => {
+    return toMercator([p.geometry.coordinates[0], p.geometry.coordinates[1]]);
+  });
 
   const bbox = [...toMercator([-180, -85]), ...toMercator([180, 85])] as [
     number,

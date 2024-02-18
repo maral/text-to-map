@@ -119,7 +119,9 @@ export const convertMunicipality = (
       return {
         name: school.name,
         izo: school.izo,
-        addresses: Array.from(school.addressMap.values()),
+        addresses: Array.from(school.addressMap.values()).filter(
+          (point) => point.lat !== null && point.lng !== null
+        ),
         position: school.position,
       };
     }),
