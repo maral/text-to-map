@@ -76,12 +76,15 @@ export const createPolygons = (
 
   const unitedPolygons: Feature[] = [];
   let colorIndex = 0;
-  const unmapped =
-    municipality.unmappedPoints.length > 0 ? [{ izo: "unmapped" }] : [];
-  for (const school of [...municipality.schools, ...unmapped]) {
+
+  for (const school of [...municipality.schools, { izo: "unmapped" }]) {
     const schoolPolygons = polygons.features.filter((polygon) =>
       polygon.properties.schools.includes(school.izo)
     );
+
+    if (schoolPolygons.length === 0) {
+      continue;
+    }
 
     const schoolPolygon = intersect(
       schoolPolygons.length > 1
