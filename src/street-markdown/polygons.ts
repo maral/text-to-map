@@ -53,6 +53,19 @@ export const createPolygons = (
     }
   }
 
+  for (const point of municipality.unmappedPoints) {
+    uniquePoints.set(point.address, {
+      type: "Feature",
+      geometry: {
+        type: "Point",
+        coordinates: [point.lng, point.lat],
+      },
+      properties: {
+        schools: ["unmapped"],
+      },
+    });
+  }
+
   const points = {
     type: "FeatureCollection",
     features: Array.from(uniquePoints.values()),
@@ -62,7 +75,7 @@ export const createPolygons = (
 
   const unitedPolygons: Feature[] = [];
   let colorIndex = 0;
-  for (const school of municipality.schools) {
+  for (const school of [...municipality.schools, { izo: "unmapped" }]) {
     const schoolPolygons = polygons.features.filter((polygon) =>
       polygon.properties.schools.includes(school.izo)
     );
@@ -78,7 +91,7 @@ export const createPolygons = (
       ...schoolPolygon,
       properties: {
         schoolIzo: school.izo,
-        colorIndex,
+        colorIndex: school.izo === "unmapped" ? -1 : colorIndex,
       },
     });
     colorIndex++;
