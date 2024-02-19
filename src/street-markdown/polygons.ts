@@ -132,15 +132,15 @@ const d3DelaunayVoronoi = (
   const voronoi = delaunay.voronoi(bbox);
   return {
     type: "FeatureCollection",
-    features: Array.from(voronoi.cellPolygons()).map((polygon, i) => ({
+    features: Array.from(voronoi.cellPolygons()).map((polygon) => ({
       type: "Feature",
       geometry: {
         type: "Polygon",
         coordinates: [polygon.map((p) => toWgs84(p))],
       },
       properties: {
-        schools: points.features[i].properties.schools,
-        index: i,
+        schools: points.features[polygon.index].properties.schools,
+        index: polygon.index,
         neighbors: new Set(voronoi.neighbors(polygon.index)),
       },
     })),
