@@ -24,16 +24,14 @@ import {
   ErrorCallbackParams,
   ExportAddressPoint,
   IntermediateMunicipality,
+  IntermediateMunicipalityResult,
   IntermediateSchool,
   Municipality,
-  MunicipalityWithFounder,
-  IntermediateMunicipalityResult,
   ProcessLineCallbackParams,
   ProcessLineParams,
   School,
   SmdError,
   SmdState,
-  isAddressPoint,
 } from "./types";
 
 interface ParseOrdinanceProps {
@@ -122,11 +120,18 @@ export const convertMunicipality = (
         addresses: Array.from(school.addressMap.values()).filter(
           (point) => point.lat !== 0 && point.lng !== 0
         ),
+        isWholeMunicipality: school.isWholeMunicipality,
         position: school.position,
       };
     }),
+    cityOrDistrictCode: municipality.founder.cityOrDistrictCode,
+    municipalityType:
+      municipality.founder.municipalityType === MunicipalityType.City
+        ? "city"
+        : "district",
     cityCodes: [...new Set(municipality.cityCodes)],
     districtCodes: [...new Set(municipality.districtCodes)],
+    wholeMunicipalityPoints: municipality.wholeMunicipalityPoints,
     unmappedPoints: municipality.unmappedPoints.filter(
       (point) => point.lat !== 0 && point.lng !== 0
     ),
@@ -298,11 +303,29 @@ const processWholeMunicipalityLine = async ({
     } else {
       state.currentMunicipality.districtCodes.push(municipality.code);
     }
-    const addressPoints = await findAddressPoints({
-      type: "wholeMunicipality",
-      municipality,
-    });
-    addAddressPointsToSchool(state.currentSchool, addressPoints, lineNumber);
+    if (
+      state.currentMunicipality.founder.cityOrDistrictCode ===
+        municipality.code &&
+      state.currentMunicipality.founder.municipalityType === municipality.type
+    ) {
+      // whole municipality, since there is higher likelyhood of multiple schools having
+      // the whole municipality area, we will add the address points to the municipality
+      if (state.currentMunicipality.wholeMunicipalityPoints.length === 0) {
+        state.currentMunicipality.wholeMunicipalityPoints = (
+          await findAddressPoints({
+            type: "wholeMunicipality",
+            municipality,
+          })
+        ).map((point) => mapAddressPointForExport(point));
+      }
+      state.currentSchool.isWholeMunicipality = true;
+    } else {
+      const addressPoints = await findAddressPoints({
+        type: "wholeMunicipality",
+        municipality,
+      });
+      addAddressPointsToSchool(state.currentSchool, addressPoints, lineNumber);
+    }
   }
 };
 
@@ -480,6 +503,10 @@ const addRestOfMunicipalityToUnmappedPoints = async (state: SmdState) => {
 const getRestOfMunicipality = async (
   state: SmdState
 ): Promise<AddressPoint[]> => {
+  if (state.currentMunicipality.wholeMunicipalityPoints.length > 0) {
+    return [];
+  }
+
   // get all address points for current municipality
   const allPoints = await findAddressPoints({
     type: "wholeMunicipality",
@@ -530,6 +557,9 @@ const getNewMunicipality = (
     municipalityName: founder ? founder.name : "Neznámá obec",
     founder,
     schools: [],
+    cityOrDistrictCode: founder ? founder.cityOrDistrictCode : 0,
+    municipalityType:
+      founder.municipalityType === MunicipalityType.City ? "city" : "district",
     cityCodes:
       founder.municipalityType === MunicipalityType.City
         ? [founder.cityOrDistrictCode]
@@ -538,6 +568,7 @@ const getNewMunicipality = (
       founder.municipalityType === MunicipalityType.District
         ? [founder.cityOrDistrictCode]
         : [],
+    wholeMunicipalityPoints: [],
     unmappedPoints: [],
   },
   errors,
@@ -552,6 +583,7 @@ export const getNewSchool = async (
   let exportSchool: School = {
     name,
     izo: "",
+    isWholeMunicipality: false,
     addresses: [],
   };
   if (founder !== null) {
@@ -567,7 +599,7 @@ export const getNewSchool = async (
           school.locations[0].addressPointId
         );
         if (position !== null) {
-          exportSchool.position = position;
+          exportSchool.position = mapAddressPointForExport(position);
         }
       }
     }

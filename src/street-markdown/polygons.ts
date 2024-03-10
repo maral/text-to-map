@@ -21,20 +21,20 @@ type PolygonProps = {
   neighbors: Set<number>;
 };
 
-const unmappedIzo = "unmapped";
-
 export const municipalityToPolygons = async (
   municipality: Municipality
 ): Promise<FeatureCollection> => {
   const cityPolygons = await getCityPolygonGeojsons(municipality.cityCodes);
-  return createPolygons(municipality, Object.values(cityPolygons));
+  return createPolygons(municipality, cityPolygons);
 };
 
 export const createPolygons = (
   municipality: Municipality,
-  cityPolygons: FeatureCollection<Polygon | MultiPolygon>[]
+  cityPolygons: Record<number, FeatureCollection<Polygon | MultiPolygon>>
 ): FeatureCollection => {
-  const citiesMultipolygon = createCitiesMultipolygon(cityPolygons);
+  const citiesMultipolygon = createCitiesMultipolygon(
+    Object.values(cityPolygons)
+  );
   const uniquePoints = new Map<string, Feature>();
 
   for (const school of municipality.schools) {
@@ -47,10 +47,6 @@ export const createPolygons = (
     }
   }
 
-  for (const point of municipality.unmappedPoints) {
-    addPoint(uniquePoints, point, unmappedIzo);
-  }
-
   const points = {
     type: "FeatureCollection",
     features: Array.from(uniquePoints.values()),
@@ -61,10 +57,18 @@ export const createPolygons = (
   const unitedPolygons: Feature[] = [];
   let colorIndex = 0;
 
-  for (const school of [...municipality.schools, { izo: unmappedIzo }]) {
-    const schoolPolygons = polygons.features.filter((polygon) =>
-      polygon.properties.schools.includes(school.izo)
-    );
+  for (const school of municipality.schools) {
+    const schoolPolygons: Feature<Polygon | MultiPolygon>[] =
+      polygons.features.filter((polygon) =>
+        polygon.properties.schools.includes(school.izo)
+      );
+
+    if (school.isWholeMunicipality) {
+      // TODO: in future add support for districts
+      schoolPolygons.push(
+        ...cityPolygons[municipality.cityOrDistrictCode].features
+      );
+    }
 
     if (schoolPolygons.length === 0) {
       continue;
@@ -81,7 +85,7 @@ export const createPolygons = (
       ...schoolPolygon,
       properties: {
         schoolIzo: school.izo,
-        colorIndex: school.izo === unmappedIzo ? -1 : colorIndex,
+        colorIndex,
       },
     });
     colorIndex++;

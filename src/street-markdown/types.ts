@@ -94,6 +94,7 @@ export interface School {
   name: string;
   izo: string;
   position?: AddressPoint | ExportAddressPoint;
+  isWholeMunicipality: boolean;
   addresses: ExportAddressPoint[];
 }
 
@@ -103,9 +104,12 @@ export interface IntermediateSchool extends School {
 
 export interface Municipality {
   municipalityName: string;
+  cityOrDistrictCode: number;
+  municipalityType: "city" | "district";
   cityCodes: number[];
   districtCodes: number[];
   schools: School[];
+  wholeMunicipalityPoints: ExportAddressPoint[];
   unmappedPoints: ExportAddressPoint[];
 }
 
