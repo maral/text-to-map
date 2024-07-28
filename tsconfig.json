@@ -10,6 +10,8 @@
     "moduleResolution": "Node",
     "target": "ES6",
     "allowSyntheticDefaultImports": true,
+    "inlineSourceMap": true,
+    "inlineSources": true,
     "esModuleInterop": true,
     "typeRoots": [
       "src/@types",

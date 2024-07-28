@@ -1,12 +1,15 @@
 import AdmZip from "adm-zip";
+import { Buffer } from "buffer";
 import { createWriteStream, existsSync, mkdirSync, rmSync } from "fs";
 import fetch from "node-fetch";
 import parseDBF from "parsedbf";
-import ShpToGeoJson from "shp-to-geojson";
 import { join } from "path";
+import ShpToGeoJson from "shp-to-geojson";
 import { pipeline } from "stream/promises";
-import { Buffer } from "buffer";
 
+import { FeatureCollection } from "@turf/helpers";
+import { coordEach } from "@turf/meta";
+import { setCityPolygonGeojson } from "../db/cities";
 import {
   deleteStreets,
   getAllSyncedStreets,
@@ -23,11 +26,8 @@ import {
   OpenDataSyncOptionsPartial,
   prepareOptions,
 } from "../utils/helpers";
-import { runSyncPart } from "./common";
-import { coordEach } from "@turf/meta";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
-import { FeatureCollection } from "@turf/helpers";
-import { setCityPolygonGeojson } from "../db/cities";
+import { runSyncPart } from "./common";
 
 const prepareFolders = (options: OpenDataSyncOptions) => {
   const tempFolder = getTempFolder(options);
@@ -47,6 +47,7 @@ const downloadZipAndParseFiles = async (
 ): Promise<{
   streetData: DbfStreet[];
   polygonData: FeatureCollection;
+  districtsPolygonData?: FeatureCollection;
   cityCode: string;
 }> => {
   const response = await fetch(url);
@@ -67,14 +68,30 @@ const downloadZipAndParseFiles = async (
   const shpEntryName = `${folderName}${options.polygonShpFileName}`;
   const polygonData = convertShpToGeoJson(zip.getEntry(shpEntryName).getData());
 
+  const districtShpEntryName = `${folderName}${options.districtPolygonShpFileName}`;
+  const districtShpEntry = zip.getEntry(districtShpEntryName);
+
+  let districtsPolygonData: FeatureCollection = undefined;
+  if (districtShpEntry !== null) {
+    const districtDbfEntryName = `${folderName}${options.districtPolygonDbfFileName}`;
+    districtsPolygonData = convertShpToGeoJson(
+      districtShpEntry.getData(),
+      zip.getEntry(districtDbfEntryName).getData()
+    );
+  }
+
   rmSync(zipFilePath);
-  return { streetData, polygonData, cityCode };
+  return { streetData, polygonData, districtsPolygonData, cityCode };
 };
 
-const convertShpToGeoJson = (shpBuffer: Buffer): FeatureCollection => {
+const convertShpToGeoJson = (
+  shpBuffer: Buffer,
+  dbfBuffer?: Buffer
+): FeatureCollection => {
   const shp = new ShpToGeoJson({
     arraybuffers: {
       shpBuffer,
+      ...(dbfBuffer ? { dbfBuffer } : {}),
     },
   });
   const geoJson = shp.getGeoJson();
@@ -92,17 +109,19 @@ const convertShpToGeoJson = (shpBuffer: Buffer): FeatureCollection => {
 
 const importDataToDb = async ({
   streetData,
-  polygonData,
   cityCode,
+  polygonData,
+  districtsPolygonData,
 }: {
   streetData: DbfStreet[];
-  polygonData: FeatureCollection;
   cityCode: string;
+  polygonData: FeatureCollection;
+  districtsPolygonData?: FeatureCollection;
 }) => {
   if (streetData.length > 0) {
     await insertStreetsFromDbf(streetData);
   }
-  await setCityPolygonGeojson(polygonData, cityCode);
+  await setCityPolygonGeojson(cityCode, polygonData, districtsPolygonData);
 };
 
 const attempts = 5;
@@ -170,6 +189,7 @@ export const downloadAndImportStreets = async (
             console.error(
               `Error connecting to CUZK servers, retrying in ${waitTime} seconds...`
             );
+            console.log(error);
             await wait(waitTime * 1000);
           } else {
             throw error;

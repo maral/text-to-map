@@ -1,3 +1,5 @@
+import { FeatureCollection, Polygon, MultiPolygon } from "@turf/helpers";
+
 export interface SchoolLocation {
   id?: number;
   schoolIzo?: number;
@@ -17,7 +19,7 @@ export interface Founder {
   ico: string;
   originalType?: number;
   municipalityType: MunicipalityType;
-  cityOrDistrictCode?: number;
+  municipalityCode?: number;
   schools: School[];
 }
 
@@ -48,7 +50,7 @@ export interface PlaceWithPosition {
 export const founderToMunicipality = (founder: Founder): Municipality => {
   return {
     type: founder.municipalityType,
-    code: founder.cityOrDistrictCode,
+    code: founder.municipalityCode,
   };
 };
 
@@ -65,3 +67,8 @@ export enum SyncPart {
   Streets = "streets",
   Cities = "cities",
 }
+
+export type PolygonsByCodes = Record<
+  number,
+  FeatureCollection<Polygon | MultiPolygon>
+>;

@@ -1,10 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
-import {
-  getNewMunicipalityByName,
-  parseOrdinanceToAddressPoints,
-} from "../street-markdown/smd";
+import { parseOrdinanceToAddressPoints } from "../street-markdown/smd";
 import { ErrorCallbackParams } from "../street-markdown/types";
-import { municipalityToPolygons } from "../street-markdown/polygons";
+import { municipalitiesToPolygons } from "../street-markdown/polygons";
 import { disconnectKnex } from "../db/db";
 
 async function main() {
@@ -27,7 +24,7 @@ async function main() {
     line,
     errors,
   }: ErrorCallbackParams): void => {
-    errors.forEach((error) => console.error(error));
+    errors.forEach((error) => console.error(error.message));
     console.error(`Invalid street definition on line ${lineNumber}: ${line}`);
     errorCount++;
     errorLines.push(`line ${lineNumber}: ${line}`);
@@ -43,11 +40,11 @@ async function main() {
     warningCount++;
   };
 
-  console.time("downloadAndImportAllLatestAddressPoints");
+  console.time("parseOrdinanceToAddressPoints");
 
   // const { municipality } = await getNewMunicipalityByName("Česká Lípa");
 
-  const addressPoints = await parseOrdinanceToAddressPoints({
+  const municipalities = await parseOrdinanceToAddressPoints({
     lines,
     initialState: {
       // currentMunicipality: municipality,
@@ -56,38 +53,36 @@ async function main() {
     onWarning: reportWarnings,
     includeUnmappedAddressPoints: true,
   });
-  console.timeEnd("downloadAndImportAllLatestAddressPoints");
-
-  const polygons = [];
-  for (const municipality of addressPoints) {
-    polygons.push(await municipalityToPolygons(municipality));
-  }
-
-  await disconnectKnex();
+  console.timeEnd("parseOrdinanceToAddressPoints");
 
   console.log(
     `Parsed ${lines.length} lines, ${errorCount} errors, ${warningCount} warnings.`
   );
-  if (errorCount > 0) {
-    console.log("Errors:");
-    errorLines.forEach((line) => console.log(line));
-  }
+  // if (errorCount > 0) {
+  //   console.log("Errors:");
+  //   errorLines.forEach((line) => console.log(line));
+  // }
 
   if (process.argv.length >= 4) {
     const outputFileName = process.argv[3];
-    const output = JSON.stringify(addressPoints);
+    const output = JSON.stringify(municipalities);
     console.log(`Writing output to ${outputFileName}`);
     writeFileSync(outputFileName, output);
   } else {
-    console.log(JSON.stringify(addressPoints));
+    console.log(JSON.stringify(municipalities));
   }
 
   if (process.argv.length >= 5) {
+    console.time("municipalityToPolygons");
+    const polygons = await municipalitiesToPolygons(municipalities);
+    console.timeEnd("municipalityToPolygons");
+
     const outputFileName = process.argv[4];
     const output = JSON.stringify(polygons);
     console.log(`Writing polygons to ${outputFileName}`);
     writeFileSync(outputFileName, output);
   }
+  await disconnectKnex();
 }
 
 main();

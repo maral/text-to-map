@@ -124,7 +124,7 @@ export const testFounders: Founder[] = [
     municipalityType: MunicipalityType.City,
     schools: testSchools,
     originalType: 261,
-    cityOrDistrictCode: 500011,
+    municipalityCode: 500011,
   },
 ];
 

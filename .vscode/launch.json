@@ -1,0 +1,12 @@
+{
+    "configurations": [
+        {
+            "name": "Attach to process",
+            "type": "node",
+            "request": "attach",
+            "port": 9229,
+            "skipFiles": [
+            ],
+        }
+    ]
+}

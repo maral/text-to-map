@@ -1,6 +1,7 @@
 import { readFileSync, writeFileSync } from "fs";
-import { municipalityToPolygons } from "../street-markdown/polygons";
+import { municipalitiesToPolygons } from "../street-markdown/polygons";
 import { disconnectKnex } from "../db/db";
+import { Municipality } from "../street-markdown/types";
 
 async function main() {
   // take first node argument as a file name
@@ -11,8 +12,11 @@ async function main() {
 
   const fileName = process.argv[2];
   const fileContent = readFileSync(fileName);
-  const json = JSON.parse(fileContent.toString());
-  const municipalityPolygons = await municipalityToPolygons(json[0]);
+  const json = JSON.parse(fileContent.toString()) as Municipality[];
+
+  const municipalityPolygons = await municipalitiesToPolygons(json);
+
+  console.log(`Processed ${json.length} municipalities`);
   await disconnectKnex();
 
   const output = JSON.stringify(municipalityPolygons);

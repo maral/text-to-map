@@ -6,6 +6,7 @@ import {
   rawQuery,
 } from "./db";
 import { FeatureCollection, MultiPolygon, Polygon } from "@turf/helpers";
+import { PolygonsByCodes } from "./types";
 
 const citiesColumn = {
   cityName: 0,
@@ -62,25 +63,75 @@ export const insertCities = async (buffer: string[][]): Promise<number> => {
 };
 
 export const setCityPolygonGeojson = async (
+  code: string,
   polygon: FeatureCollection,
-  code: string
+  districtsPolygon?: FeatureCollection
 ): Promise<void> => {
   await getKnexDb()
     .from("city")
-    .update({ polygon_geojson: JSON.stringify(polygon) })
+    .update({
+      polygon_geojson: JSON.stringify(polygon),
+      ...(districtsPolygon
+        ? { districts_polygon_geojson: JSON.stringify(districtsPolygon) }
+        : {}),
+    })
     .where({ code });
 };
 
-export const getCityPolygonGeojsons = async (
-  cityCodes: number[]
-): Promise<Record<number, FeatureCollection<Polygon | MultiPolygon>>> => {
-  const rows = await getKnexDb()
+export const getCityPolygons = async (
+  cityCodes: Set<number>
+): Promise<PolygonsByCodes> => {
+  if (cityCodes.size === 0) {
+    return {};
+  }
+  const cityRows = await getKnexDb()
     .from("city")
     .select("code", "polygon_geojson")
-    .whereIn("code", cityCodes);
+    .whereIn("code", Array.from(cityCodes));
 
-  return rows.reduce((acc, row) => {
+  return cityRows.reduce((acc, row) => {
     acc[row.code] = JSON.parse(row.polygon_geojson);
     return acc;
   }, {});
+};
+
+export const getDistrictPolygons = async (
+  districtCodes: Set<number>
+): Promise<PolygonsByCodes> => {
+  if (districtCodes.size === 0) {
+    return {};
+  }
+  const cityCodes = (
+    await getKnexDb()
+      .from("city_district")
+      .select("city_code")
+      .whereIn("code", Array.from(districtCodes))
+      .groupBy("city_code")
+  ).map((row) => row.city_code);
+
+  const cityRows = await getKnexDb()
+    .from("city")
+    .select("code", "districts_polygon_geojson")
+    .whereIn("code", cityCodes);
+
+  const districtPolygons: PolygonsByCodes = {};
+  for (const row of cityRows) {
+    if (row.districts_polygon_geojson) {
+      const polygons = JSON.parse(
+        row.districts_polygon_geojson
+      ) as FeatureCollection<Polygon | MultiPolygon>;
+      for (const feature of polygons.features) {
+        if (districtCodes.has(Number(feature.properties.KOD))) {
+          districtPolygons[feature.properties.KOD] = {
+            type: "FeatureCollection",
+            features: [
+              { ...feature, properties: { code: feature.properties.KOD } },
+            ],
+          };
+        }
+      }
+    }
+  }
+
+  return districtPolygons;
 };

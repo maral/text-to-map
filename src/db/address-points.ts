@@ -312,8 +312,6 @@ export type FindAddressPointsParams =
 export const findAddressPoints = async (
   params: FindAddressPointsParams
 ): Promise<AddressPoint[]> => {
-  const knex = getKnexDb();
-
   const queryParams = getQueryParams(params);
   const streetJoinCondition = getStreetJoinCondition(params);
 

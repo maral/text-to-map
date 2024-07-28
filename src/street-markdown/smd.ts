@@ -124,7 +124,7 @@ export const convertMunicipality = (
         position: school.position,
       };
     }),
-    cityOrDistrictCode: municipality.founder.cityOrDistrictCode,
+    code: municipality.founder.municipalityCode,
     municipalityType:
       municipality.founder.municipalityType === MunicipalityType.City
         ? "city"
@@ -276,11 +276,6 @@ const processMunicipalitySwitchLine = async ({
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   } else {
-    if (municipality.type === MunicipalityType.City) {
-      state.currentMunicipality.cityCodes.push(municipality.code);
-    } else {
-      state.currentMunicipality.districtCodes.push(municipality.code);
-    }
     state.currentFilterMunicipality = municipality;
   }
 };
@@ -304,7 +299,7 @@ const processWholeMunicipalityLine = async ({
       state.currentMunicipality.districtCodes.push(municipality.code);
     }
     if (
-      state.currentMunicipality.founder.cityOrDistrictCode ===
+      state.currentMunicipality.founder.municipalityCode ===
         municipality.code &&
       state.currentMunicipality.founder.municipalityType === municipality.type
     ) {
@@ -332,7 +327,8 @@ const processWholeMunicipalityLine = async ({
 const addAddressPointsToSchool = (
   school: IntermediateSchool,
   addressPoints: AddressPoint[],
-  lineNumber: number
+  lineNumber: number,
+  municipalityCode?: number
 ) => {
   for (const point of addressPoints) {
     if (school.addressMap.has(point.id)) {
@@ -340,7 +336,7 @@ const addAddressPointsToSchool = (
     } else {
       school.addressMap.set(
         point.id,
-        mapAddressPointForExport(point, lineNumber)
+        mapAddressPointForExport(point, lineNumber, municipalityCode)
       );
     }
   }
@@ -376,7 +372,11 @@ const processAddressPointLine = async ({
           addAddressPointsToSchool(
             state.currentSchool,
             addressPoints,
-            lineNumber
+            lineNumber,
+            state.currentMunicipality.code !==
+              state.currentFilterMunicipality.code
+              ? state.currentFilterMunicipality.code
+              : undefined
           );
         }
       } else if (smdLine.type === "municipalityPart") {
@@ -473,7 +473,7 @@ const addRestWithNoStreetNameToSchool = async (
   const pointsNoStreetName = await findAddressPoints({
     type: "wholeMunicipalityNoStreetName",
     municipality: {
-      code: state.currentMunicipality.founder.cityOrDistrictCode,
+      code: state.currentMunicipality.founder.municipalityCode,
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
@@ -511,7 +511,7 @@ const getRestOfMunicipality = async (
   const allPoints = await findAddressPoints({
     type: "wholeMunicipality",
     municipality: {
-      code: state.currentMunicipality.founder.cityOrDistrictCode,
+      code: state.currentMunicipality.founder.municipalityCode,
       type: state.currentMunicipality.founder.municipalityType,
     },
   });
@@ -557,16 +557,16 @@ const getNewMunicipality = (
     municipalityName: founder ? founder.name : "Neznámá obec",
     founder,
     schools: [],
-    cityOrDistrictCode: founder ? founder.cityOrDistrictCode : 0,
+    code: founder ? founder.municipalityCode : 0,
     municipalityType:
       founder.municipalityType === MunicipalityType.City ? "city" : "district",
     cityCodes:
       founder.municipalityType === MunicipalityType.City
-        ? [founder.cityOrDistrictCode]
+        ? [founder.municipalityCode]
         : [],
     districtCodes:
       founder.municipalityType === MunicipalityType.District
-        ? [founder.cityOrDistrictCode]
+        ? [founder.municipalityCode]
         : [],
     wholeMunicipalityPoints: [],
     unmappedPoints: [],
@@ -622,13 +622,15 @@ const getAllAddressPointsIds = (
 
 const mapAddressPointForExport = (
   addressPoint: AddressPoint | ExportAddressPoint,
-  lineNumber?: number
+  lineNumber?: number,
+  municipalityCode?: number
 ): ExportAddressPoint => {
   return {
     address: addressPoint.address,
     lat: roundToNDecimalPlaces(addressPoint.lat, 6),
     lng: roundToNDecimalPlaces(addressPoint.lng, 6),
     ...(lineNumber !== undefined ? { lineNumbers: [lineNumber - 1] } : {}),
+    ...(municipalityCode !== undefined ? { municipalityCode } : {}),
   };
 };
 

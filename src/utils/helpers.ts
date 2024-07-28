@@ -18,6 +18,8 @@ export interface OpenDataSyncOptions {
   streetZipFolderName: string;
   streetDbfFileName: string;
   polygonShpFileName: string;
+  districtPolygonShpFileName: string;
+  districtPolygonDbfFileName: string;
   schoolsXmlUrl: string;
   schoolsXmlFileName: string;
   regionsCsvUrl: string;
@@ -65,6 +67,8 @@ export const prepareOptions = (
     streetZipFolderName: "streets",
     streetDbfFileName: "UL_L.dbf",
     polygonShpFileName: "OBEC_P.shp",
+    districtPolygonShpFileName: "MOMC_P.shp",
+    districtPolygonDbfFileName: "MOMC_P.dbf",
     schoolsXmlUrl: "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
     schoolsXmlFileName: "school-register.xml",
     regionsCsvUrl:

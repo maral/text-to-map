@@ -59,11 +59,11 @@ export interface FullStreetNumber {
 export const isFullStreetNumber = (
   something: RangeSpec | FullStreetNumber
 ): something is FullStreetNumber =>
-  something.hasOwnProperty("orientationNumber");
+  something.hasOwnProperty("orientationalNumber");
 
 export const isRange = (
   something: RangeSpec | FullStreetNumber
-): something is RangeSpec => !something.hasOwnProperty("orientationNumber");
+): something is RangeSpec => !something.hasOwnProperty("orientationalNumber");
 
 export enum SeriesType {
   Even,
@@ -84,6 +84,8 @@ export interface ExportAddressPoint {
   lat: number;
   lng: number;
   lineNumbers?: number[];
+  // defined if the point is in a different municipality, except a whole municipality for the same school
+  municipalityCode?: number;
 }
 
 export const isAddressPoint = (
@@ -104,7 +106,7 @@ export interface IntermediateSchool extends School {
 
 export interface Municipality {
   municipalityName: string;
-  cityOrDistrictCode: number;
+  code: number;
   municipalityType: "city" | "district";
   cityCodes: number[];
   districtCodes: number[];
