@@ -126,7 +126,11 @@ export const sanitizeMunicipalityName = (name: string): string => {
     .trim();
 };
 
-export const findClosestString = (str: string, arr: string[]): string => {
+export const findClosestString = (
+  str: string,
+  arr: string[],
+  maxDistance?: number
+): string | null => {
   let closestStr = "";
   let closestDistance = Number.MAX_SAFE_INTEGER;
 
@@ -143,6 +147,10 @@ export const findClosestString = (str: string, arr: string[]): string => {
     if (closestDistance === 0) {
       break;
     }
+  }
+
+  if (maxDistance !== undefined && closestDistance > maxDistance) {
+    return "";
   }
 
   return closestStr;

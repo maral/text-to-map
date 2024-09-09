@@ -67,7 +67,8 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
 
 export const findSchool = (
   name: string,
-  schools: School[]
+  schools: School[],
+  maxDistance?: number
 ): { school: School | null; errors: SmdError[] } => {
   if (schools.length === 0) {
     return {
@@ -76,17 +77,20 @@ export const findSchool = (
     };
   }
 
-  let school: School | null = null;
   const errors: SmdError[] = [];
 
-  school = schools.find((school) => school.name === name);
-  if (school) {
-    return { school, errors };
+  const exactSchool = schools.find((school) => school.name === name);
+  if (exactSchool) {
+    return { school: exactSchool, errors };
   }
 
   const namesList = schools.map((school) => school.name);
-  const bestMatch = findClosestString(name, namesList);
-  school = schools.find((school) => bestMatch === school.name);
+  const bestMatch = findClosestString(name, namesList, maxDistance);
+  if (bestMatch === null) {
+    errors.push(wholeLineError(`Škola s názvem '${name}' neexistuje.`, name));
+    return { school: null, errors };
+  }
+  const closestSchool = schools.find((school) => bestMatch === school.name);
 
   errors.push(
     wholeLineError(
@@ -95,7 +99,7 @@ export const findSchool = (
     )
   );
 
-  return { school, errors };
+  return { school: closestSchool, errors };
 };
 
 const filterOutDuplicates = (schools: School[]): School[] => {

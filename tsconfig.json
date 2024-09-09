@@ -8,7 +8,7 @@
     "allowJs": true,
     "module": "es2020",
     "moduleResolution": "Node",
-    "target": "ES6",
+    "target": "ES2020",
     "allowSyntheticDefaultImports": true,
     "inlineSourceMap": true,
     "inlineSources": true,

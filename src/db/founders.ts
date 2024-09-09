@@ -337,7 +337,8 @@ const getBaseFounderQuery = () => {
     )
     .from("founder as f")
     .leftJoin("city as c", "c.code", "f.city_code")
-    .leftJoin("city_district as d", "d.code", "f.city_district_code");
+    .leftJoin("city_district as d", "d.code", "f.city_district_code")
+    .orderBy("f.founder_type_code");
 };
 
 export const getFounderById = async (
@@ -357,6 +358,29 @@ export const findFounder = async (
   nameWithHashtag: string
 ): Promise<{ founder: Founder; errors: SmdError[] }> => {
   const errors: SmdError[] = [];
+
+  // special case where we search for a city instead of a founder
+  if (nameWithHashtag[1] === "#") {
+    const cityName = nameWithHashtag.substring(2).trim();
+    const result = await getKnexDb()
+      .select("code")
+      .from("city")
+      .where("name", cityName)
+      .first();
+
+    return {
+      founder: {
+        name: cityName,
+        ico: "00000000",
+        originalType: cityTypeCode,
+        municipalityType: MunicipalityType.City,
+        municipalityCode: result.code,
+        schools: await getSchoolsByCityCode(result.code),
+      },
+      errors,
+    };
+  }
+
   const name = extractFounderName(nameWithHashtag);
 
   const result = await getBaseFounderQuery()
@@ -455,17 +479,19 @@ const resultToFounder = async (result: any): Promise<Founder> => {
       result.founder_type_code === cityTypeCode
         ? result.city_code
         : result.city_district_code,
-    schools: await getSchoolsByFounderId(parseInt(result.id)),
+    schools: await getSchoolsByCityCode(result.city_code),
   };
 };
 
-const getSchoolsByFounderId = async (founderId: number): Promise<School[]> => {
+// in case of cities, load all schools in the city, not just the ones connected to the founder
+const getSchoolsByCityCode = async (cityCode: number): Promise<School[]> => {
   const result = await getKnexDb()
     .select("s.izo", "s.redizo", "s.name", "s.capacity", "sl.address_point_id")
     .from("school as s")
     .join("school_founder as sf", "s.izo", "sf.school_izo")
     .join("school_location as sl", "s.izo", "sl.school_izo")
-    .where("sf.founder_id", founderId);
+    .join("founder as f", "sf.founder_id", "f.id")
+    .where("f.city_code", cityCode);
 
   return result.map((row) => ({
     izo: String(row.izo),

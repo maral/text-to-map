@@ -1,5 +1,5 @@
 import { Delaunay } from "d3-delaunay";
-import { ExportAddressPoint, Municipality, School } from "./types";
+import { Area, ExportAddressPoint, Municipality } from "./types";
 
 import {
   Feature,
@@ -10,14 +10,18 @@ import {
   featureCollection,
 } from "@turf/helpers";
 import intersect from "@turf/intersect";
+import { booleanIntersects } from "@turf/boolean-intersects";
+import Graph from "graphology";
+import { color } from "graphology-color";
 import { toMercator, toWgs84 } from "@turf/projection";
 import union from "@turf/union";
 import { getCityPolygons, getDistrictPolygons } from "../db/cities";
 import truncate from "@turf/truncate";
 import { PolygonsByCodes } from "../db/types";
+import difference from "@turf/difference";
 
 type PolygonProps = {
-  schools: string[];
+  areaIndexes: number[];
   index: number;
   neighbors: Set<number>;
 };
@@ -29,12 +33,108 @@ export const municipalitiesToPolygons = async (
   const cityPolygons = await getCityPolygons(cityCodes);
   const districtPolygons = await getDistrictPolygons(districtCodes);
 
-  const extraSchools = new Map<number, School[]>();
+  if (
+    Object.keys(cityPolygons).length === 0 &&
+    Object.keys(districtPolygons).length === 0
+  ) {
+    console.log("No polygons found for given municipalities.");
+    return {};
+  }
+
+  // municipalityCode -> areas
+  const extraAreas = getExtraAreas(municipalities);
+
+  const collectionMap = new Map<
+    number,
+    FeatureCollection<Polygon | MultiPolygon>
+  >();
+  // areaIndex -> polygon
+  const extraPolygonsMap = new Map<number, Feature<Polygon | MultiPolygon>[]>();
 
   for (const municipality of municipalities) {
-    for (const school of municipality.schools) {
+    const { featureCollection, extraPolygons } = createPolygons(
+      municipality,
+      extraAreas.get(municipality.code) ?? [],
+      getMunicipalityPolygons(municipality, cityPolygons, districtPolygons)
+    );
+    collectionMap.set(municipality.code, featureCollection);
+    if (extraAreas.has(municipality.code)) {
+      for (const [areaIndex, extraPolygon] of extraPolygons) {
+        if (!extraPolygonsMap.has(areaIndex)) {
+          extraPolygonsMap.set(areaIndex, []);
+        }
+        extraPolygonsMap.get(areaIndex).push(extraPolygon);
+      }
+    }
+  }
+
+  addExtraPolygons(collectionMap, extraPolygonsMap);
+
+  findColoring(collectionMap);
+
+  const result: Record<number, FeatureCollection> = {};
+  for (const [municipalityCode, collection] of collectionMap) {
+    result[municipalityCode] = collection;
+  }
+  return result;
+};
+
+const findColoring = (collectionMap: Map<number, FeatureCollection>) => {
+  // here do the coloring
+  // put all the features in one array
+  const allFeatures = Array.from(collectionMap.values()).reduce(
+    (acc, collection) => {
+      acc.push(...collection.features);
+      return acc;
+    },
+    []
+  );
+
+  const graph = new Graph();
+  allFeatures.forEach((feature) => {
+    graph.addNode(feature.properties.areaIndex);
+  });
+
+  for (const feature1 of allFeatures) {
+    console.log(
+      `Area ${feature1.properties.areaIndex}: ${feature1.properties.schoolIzos}`
+    );
+    for (const feature2 of allFeatures) {
+      if (
+        feature1.properties.areaIndex !== feature2.properties.areaIndex &&
+        booleanIntersects(feature1, feature2)
+      ) {
+        graph.addEdge(
+          feature1.properties.areaIndex,
+          feature2.properties.areaIndex
+        );
+      }
+    }
+  }
+
+  color(graph);
+
+  graph.forEachNode((node) => {
+    console.log(graph.getNodeAttribute(node, "color"));
+  });
+
+  allFeatures.forEach((feature) => {
+    feature.properties.colorIndex = graph.getNodeAttribute(
+      feature.properties.areaIndex,
+      "color"
+    );
+  });
+};
+
+const getExtraAreas = (municipalities: Municipality[]): Map<number, Area[]> => {
+  // municipalityCode -> areas
+  const extraAreas = new Map<number, Area[]>();
+
+  for (const municipality of municipalities) {
+    for (const area of municipality.areas) {
+      // municipalityCode -> points
       const extraPoints = new Map<number, ExportAddressPoint[]>();
-      for (const point of school.addresses) {
+      for (const point of area.addresses) {
         if (point.municipalityCode) {
           if (!extraPoints.has(point.municipalityCode)) {
             extraPoints.set(point.municipalityCode, []);
@@ -45,44 +145,29 @@ export const municipalitiesToPolygons = async (
       }
 
       for (const [municipalityCode, points] of extraPoints) {
-        if (!extraSchools.has(municipalityCode)) {
-          extraSchools.set(municipalityCode, []);
+        if (!extraAreas.has(municipalityCode)) {
+          extraAreas.set(municipalityCode, []);
         }
 
-        extraSchools.get(municipalityCode).push({
-          ...school,
+        extraAreas.get(municipalityCode).push({
+          ...area,
           addresses: points,
         });
       }
     }
   }
+  return extraAreas;
+};
 
-  const collectionMap = new Map<number, FeatureCollection>();
-  // schoolIzo -> polygon
-  const extraPolygonsMap = new Map<string, Feature[]>();
-
-  for (const municipality of municipalities) {
-    const { featureCollection, extraPolygons } = createPolygons(
-      municipality,
-      extraSchools.get(municipality.code) ?? [],
-      getMunicipalityPolygons(municipality, cityPolygons, districtPolygons)
-    );
-    collectionMap.set(municipality.code, featureCollection);
-    if (extraSchools.has(municipality.code)) {
-      for (const [izo, extraPolygon] of extraPolygons) {
-        if (!extraPolygonsMap.has(izo)) {
-          extraPolygonsMap.set(izo, []);
-        }
-        extraPolygonsMap.get(izo).push(extraPolygon);
-      }
-    }
-  }
-
+const addExtraPolygons = (
+  collectionMap: Map<number, FeatureCollection<Polygon | MultiPolygon>>,
+  extraPolygonsMap: Map<number, Feature<Polygon | MultiPolygon>[]>
+) => {
   for (const collection of collectionMap.values()) {
     for (let i = 0; i < collection.features.length; i++) {
       const feature = collection.features[i];
-      if (extraPolygonsMap.has(feature.properties.schoolIzo)) {
-        const polygons = extraPolygonsMap.get(feature.properties.schoolIzo);
+      if (extraPolygonsMap.has(feature.properties.areaIndex)) {
+        const polygons = extraPolygonsMap.get(feature.properties.areaIndex);
         const newPolygon = union(featureCollection([...polygons, feature]));
         const newFeature = {
           ...newPolygon,
@@ -92,12 +177,6 @@ export const municipalitiesToPolygons = async (
       }
     }
   }
-
-  const result: Record<number, FeatureCollection> = {};
-  for (const [municipalityCode, collection] of collectionMap) {
-    result[municipalityCode] = collection;
-  }
-  return result;
 };
 
 const getMunicipalityPolygons = (
@@ -110,6 +189,29 @@ const getMunicipalityPolygons = (
   for (const cityCode of municipality.cityCodes) {
     if (cityPolygons[cityCode]) {
       polygons[cityCode] = cityPolygons[cityCode];
+
+      if (
+        municipality.municipalityType === "city" &&
+        Object.keys(districtPolygons).length > 0 &&
+        municipality.municipalityName !== "Brno"
+      ) {
+        let cityPolygon = extractPolygonFromCollection(cityPolygons[cityCode]);
+        // subtract all district polygons from city polygon
+        for (const [districtCode, districtPolygon] of Object.entries(
+          districtPolygons
+        )) {
+          if (municipality.districtCodes.includes(parseInt(districtCode))) {
+            continue;
+          }
+          cityPolygon = difference(
+            featureCollection([
+              cityPolygon,
+              extractPolygonFromCollection(districtPolygon),
+            ])
+          );
+        }
+        polygons[cityCode] = featureCollection([cityPolygon]);
+      }
     }
   }
 
@@ -124,32 +226,30 @@ const getMunicipalityPolygons = (
 
 export const createPolygons = (
   municipality: Municipality,
-  extraSchools: School[],
+  extraAreas: Area[],
   municipalityPolygons: Record<
     number,
     FeatureCollection<Polygon | MultiPolygon>
   >
 ): {
-  featureCollection: FeatureCollection;
-  extraPolygons: Map<string, Feature>;
+  featureCollection: FeatureCollection<Polygon | MultiPolygon>;
+  extraPolygons: Map<number, Feature<Polygon | MultiPolygon>>;
 } => {
   const municipalitiesMultipolygon = createMunicipalitiesMultipolygon(
     Object.values(municipalityPolygons)
   );
   const uniquePoints = new Map<string, Feature>();
-  const allSchools = [...municipality.schools, ...extraSchools];
-  const extraSchoolIzos = new Set(extraSchools.map((school) => school.izo));
+  const allAreas = [...municipality.areas, ...extraAreas];
+  const extraAreasIndexes = new Set(extraAreas.map((area) => area.index));
 
-  for (const school of allSchools) {
-    const points = [...school.addresses];
-    if (school.isWholeMunicipality && extraSchoolIzos.size > 0) {
-      points.push(...municipality.wholeMunicipalityPoints);
-    }
+  for (const area of allAreas) {
+    const points = [...area.addresses];
+
     for (const point of points) {
       if (!uniquePoints.has(point.address)) {
-        addPoint(uniquePoints, point, school.izo);
+        addPoint(uniquePoints, point, area.index);
       } else {
-        uniquePoints.get(point.address).properties.schools.push(school.izo);
+        uniquePoints.get(point.address).properties.areaIndexes.push(area.index);
       }
     }
   }
@@ -161,19 +261,15 @@ export const createPolygons = (
 
   const polygons = d3DelaunayVoronoi(points);
 
-  const unitedPolygons: Feature[] = [];
-  const extraPolygons = new Map<string, Feature>();
+  const unitedPolygons: Feature<Polygon | MultiPolygon>[] = [];
+  const extraPolygons = new Map<number, Feature<Polygon | MultiPolygon>>();
   let colorIndex = 0;
 
-  for (const school of allSchools) {
+  for (const area of allAreas) {
     const schoolPolygons: Feature<Polygon | MultiPolygon>[] =
       polygons.features.filter((polygon) =>
-        polygon.properties.schools.includes(school.izo)
+        polygon.properties.areaIndexes.includes(area.index)
       );
-
-    if (school.isWholeMunicipality && extraSchoolIzos.size === 0) {
-      schoolPolygons.push(...municipalityPolygons[municipality.code].features);
-    }
 
     if (schoolPolygons.length === 0) {
       continue;
@@ -189,12 +285,13 @@ export const createPolygons = (
     const feature = {
       ...schoolPolygon,
       properties: {
-        schoolIzo: school.izo,
+        areaIndex: area.index,
+        schoolIzos: area.schools.map((school) => school.izo),
         colorIndex,
       },
     };
-    if (extraSchoolIzos.has(school.izo)) {
-      extraPolygons.set(school.izo, feature);
+    if (extraAreasIndexes.has(area.index)) {
+      extraPolygons.set(area.index, feature);
     } else {
       unitedPolygons.push(feature);
     }
@@ -213,7 +310,7 @@ export const createPolygons = (
 const addPoint = (
   uniquePoints: Map<string, Feature>,
   point: ExportAddressPoint,
-  schoolIzo: string
+  areaIndex: number
 ) => {
   if (point.lat === null || point.lng === null) {
     return;
@@ -225,7 +322,7 @@ const addPoint = (
       coordinates: [point.lng, point.lat],
     },
     properties: {
-      schools: [schoolIzo],
+      areaIndexes: [areaIndex],
     },
   });
 };
@@ -255,7 +352,7 @@ const d3DelaunayVoronoi = (
         coordinates: [polygon.map((p) => toWgs84(p))],
       },
       properties: {
-        schools: points.features[polygon.index].properties.schools,
+        areaIndexes: points.features[polygon.index].properties.areaIndexes,
         index: polygon.index,
         neighbors: new Set(voronoi.neighbors(polygon.index)),
       },
@@ -279,9 +376,9 @@ const createMunicipalitiesMultipolygon = (
     []
   );
 
-  return municipalityPolygonFeatures.length > 1
-    ? union(featureCollection(municipalityPolygonFeatures))
-    : municipalityPolygonFeatures[0];
+  return extractPolygonFromCollection(
+    featureCollection(municipalityPolygonFeatures)
+  );
 };
 
 const extractMunicipalityCodes = (municipalities: Municipality[]) => {
@@ -296,3 +393,8 @@ const extractMunicipalityCodes = (municipalities: Municipality[]) => {
     { cityCodes: new Set<number>(), districtCodes: new Set<number>() }
   );
 };
+
+const extractPolygonFromCollection = (
+  collection: FeatureCollection<Polygon | MultiPolygon>
+): Feature<Polygon | MultiPolygon> =>
+  collection.features.length > 1 ? union(collection) : collection.features[0];

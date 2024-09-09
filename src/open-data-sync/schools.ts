@@ -4,10 +4,15 @@ import { join } from "path";
 import sax, { Tag } from "sax";
 
 import { pipeline } from "stream/promises";
-import { disconnectKnex } from "../db/db";
 import { insertFounders } from "../db/founders";
 import { insertSchools } from "../db/schools";
-import { Founder, MunicipalityType, School, SchoolLocation, SyncPart } from "../db/types";
+import {
+  Founder,
+  MunicipalityType,
+  School,
+  SchoolLocation,
+  SyncPart,
+} from "../db/types";
 import {
   OpenDataSyncOptions,
   OpenDataSyncOptionsPartial,
@@ -15,9 +20,7 @@ import {
 } from "../utils/helpers";
 import { runSyncPart } from "./common";
 
-const downloadXml = async (
-  options: OpenDataSyncOptions
-): Promise<void> => {
+const downloadXml = async (options: OpenDataSyncOptions): Promise<void> => {
   if (existsSync(getXmlFilePath(options))) {
     return;
   }
@@ -346,18 +349,24 @@ const getXmlFilePath = (options: OpenDataSyncOptionsPartial): string => {
 export const downloadAndImportSchools = async (
   options: OpenDataSyncOptionsPartial = {},
   saveFoundersToCsv: boolean = false,
-  saveSchoolsWithoutRuianToCsv: boolean = false,
+  saveSchoolsWithoutRuianToCsv: boolean = false
 ) => {
   await runSyncPart(SyncPart.Schools, [SyncPart.AddressPoints], async () => {
     const runOptions = prepareOptions(options);
 
     await downloadXml(runOptions);
-    await importDataToDb(runOptions, saveFoundersToCsv, saveSchoolsWithoutRuianToCsv);
+    await importDataToDb(
+      runOptions,
+      saveFoundersToCsv,
+      saveSchoolsWithoutRuianToCsv
+    );
     deleteSchoolsXmlFile(runOptions);
   });
 };
 
-export const deleteSchoolsXmlFile = (options: OpenDataSyncOptionsPartial = {}) => {
+export const deleteSchoolsXmlFile = (
+  options: OpenDataSyncOptionsPartial = {}
+) => {
   const runOptions = prepareOptions(options);
 
   if (existsSync(getXmlFilePath(runOptions))) {

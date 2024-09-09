@@ -104,14 +104,24 @@ export interface IntermediateSchool extends School {
   addressMap: Map<number, ExportAddressPoint>;
 }
 
+export interface Area {
+  index: number;
+  schools: School[];
+  addresses: ExportAddressPoint[];
+}
+
+export interface IntermediateArea extends Area {
+  addressMap: Map<number, ExportAddressPoint>;
+  allSchoolsAdded: boolean;
+}
+
 export interface Municipality {
   municipalityName: string;
   code: number;
   municipalityType: "city" | "district";
   cityCodes: number[];
   districtCodes: number[];
-  schools: School[];
-  wholeMunicipalityPoints: ExportAddressPoint[];
+  areas: Area[];
   unmappedPoints: ExportAddressPoint[];
 }
 
@@ -130,7 +140,7 @@ export interface MunicipalityWithFounder extends Municipality {
 }
 
 export interface IntermediateMunicipality extends MunicipalityWithFounder {
-  schools: IntermediateSchool[];
+  areas: IntermediateArea[];
 }
 
 export interface IntermediateMunicipalityResult {
@@ -141,24 +151,25 @@ export interface IntermediateMunicipalityResult {
 export interface SmdState {
   currentMunicipality: IntermediateMunicipality;
   currentFilterMunicipality: DbMunicipality;
-  currentSchool: IntermediateSchool;
+  currentArea: IntermediateArea;
+  schoolsCompleted: boolean;
+  areaCount: number;
   rests: {
-    noStreetNameSchool: {
-      izo: string;
+    noStreetNameArea: {
+      areaIndex: number;
       lineNumber: number;
     };
     municipalityParts: {
       municipalityPartCode: number;
-      schoolIzo: string;
+      areaIndex: number;
       lineNumber: number;
     }[];
-    wholeMunicipalitySchool: {
-      izo: string;
+    wholeMunicipalityArea: {
+      areaIndex: number;
       lineNumber: number;
     };
     includeUnmappedAddressPoints: boolean;
   };
-  cityCodes: number[];
   municipalities: Municipality[];
 }
 

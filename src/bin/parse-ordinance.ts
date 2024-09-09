@@ -1,5 +1,8 @@
 import { readFileSync, writeFileSync } from "fs";
-import { parseOrdinanceToAddressPoints } from "../street-markdown/smd";
+import {
+  getNewMunicipalityByFounderId,
+  parseOrdinanceToAddressPoints,
+} from "../street-markdown/smd";
 import { ErrorCallbackParams } from "../street-markdown/types";
 import { municipalitiesToPolygons } from "../street-markdown/polygons";
 import { disconnectKnex } from "../db/db";
@@ -42,7 +45,7 @@ async function main() {
 
   console.time("parseOrdinanceToAddressPoints");
 
-  // const { municipality } = await getNewMunicipalityByName("Česká Lípa");
+  // const { municipality } = await getNewMunicipalityByFounderId(2016); // ostrava something
 
   const municipalities = await parseOrdinanceToAddressPoints({
     lines,
