@@ -96,9 +96,6 @@ const findColoring = (collectionMap: Map<number, FeatureCollection>) => {
   });
 
   for (const feature1 of allFeatures) {
-    console.log(
-      `Area ${feature1.properties.areaIndex}: ${feature1.properties.schoolIzos}`
-    );
     for (const feature2 of allFeatures) {
       if (
         feature1.properties.areaIndex !== feature2.properties.areaIndex &&
@@ -113,10 +110,6 @@ const findColoring = (collectionMap: Map<number, FeatureCollection>) => {
   }
 
   color(graph);
-
-  graph.forEachNode((node) => {
-    console.log(graph.getNodeAttribute(node, "color"));
-  });
 
   allFeatures.forEach((feature) => {
     feature.properties.colorIndex = graph.getNodeAttribute(

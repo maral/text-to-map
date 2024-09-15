@@ -96,8 +96,6 @@ export interface School {
   name: string;
   izo: string;
   position?: AddressPoint | ExportAddressPoint;
-  isWholeMunicipality: boolean;
-  addresses: ExportAddressPoint[];
 }
 
 export interface IntermediateSchool extends School {

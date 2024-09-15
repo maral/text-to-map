@@ -441,14 +441,14 @@ const addRestToArea = (
 };
 
 const addRests = async (state: SmdState) => {
-  if (state.rests.noStreetNameArea.areaIndex) {
+  if (state.rests.noStreetNameArea.areaIndex !== null) {
     await addRestWithNoStreetNameToSchool(
       state.rests.noStreetNameArea.lineNumber,
       state
     );
   }
 
-  if (state.rests.wholeMunicipalityArea.areaIndex) {
+  if (state.rests.wholeMunicipalityArea.areaIndex !== null) {
     await addRestOfMunicipality(
       state.rests.wholeMunicipalityArea.lineNumber,
       state
@@ -593,8 +593,6 @@ export const getNewSchool = async ({
   let exportSchool: School = {
     name,
     izo: "",
-    isWholeMunicipality: false,
-    addresses: [],
   };
   if (founder !== null) {
     const { school, errors } = findSchool(
