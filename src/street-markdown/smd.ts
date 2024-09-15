@@ -434,7 +434,7 @@ const addRestToArea = (
   );
 
   addAddressPointsToArea(
-    state.currentMunicipality.areas[areaIndex],
+    state.currentMunicipality.areas.find((area) => area.index === areaIndex),
     remainingPoints,
     lineNumber
   );
@@ -531,7 +531,6 @@ const addRestOfMunicipalityPart = async (
   areaIndex: number,
   lineNumber: number
 ) => {
-  // get all address points for current municipality
   const allPoints = await findAddressPoints({
     type: "wholeMunicipalityPart",
     municipalityPartCode,
