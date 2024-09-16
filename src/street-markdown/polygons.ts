@@ -52,6 +52,9 @@ export const municipalitiesToPolygons = async (
   const extraPolygonsMap = new Map<number, Feature<Polygon | MultiPolygon>[]>();
 
   for (const municipality of municipalities) {
+    if (municipality.areas.length === 0) {
+      continue;
+    }
     const { featureCollection, extraPolygons } = createPolygons(
       municipality,
       extraAreas.get(municipality.code) ?? [],
