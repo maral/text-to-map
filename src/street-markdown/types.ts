@@ -182,6 +182,7 @@ export interface ErrorCallbackParams extends ProcessLineCallbackParams {
 
 export interface ProcessLineParams {
   line: string;
+  rawLine: string;
   state: SmdState;
   lineNumber: number;
   onError: (params: ErrorCallbackParams) => void;

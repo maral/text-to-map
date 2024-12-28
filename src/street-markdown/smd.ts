@@ -81,6 +81,7 @@ export const parseOrdinanceToAddressPoints = async ({
       const line = cleanLine(rawLine);
       await processOneLine({
         line,
+        rawLine: rawLine.trim(),
         state,
         lineNumber,
         onError,
@@ -237,7 +238,7 @@ const processEmptyLine = ({ state }: ProcessLineParams) => {
 };
 
 const processFirstSchoolLine = async ({
-  line,
+  rawLine,
   lineNumber,
   state,
   onError,
@@ -245,11 +246,11 @@ const processFirstSchoolLine = async ({
   if (state.currentMunicipality === null) {
     onError({
       lineNumber,
-      line,
+      line: rawLine,
       errors: [
         wholeLineError(
           "Definici školy musí předcházet definice zřizovatele (uvozená '#', např. '# Strakonice').",
-          line
+          rawLine
         ),
       ],
     });
@@ -259,7 +260,7 @@ const processFirstSchoolLine = async ({
     index: state.areaCount++,
     schools: [
       await getNewSchool({
-        name: line,
+        name: rawLine,
         founder: state.currentMunicipality.founder,
         lineNumber,
         required: true,
