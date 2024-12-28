@@ -6,7 +6,10 @@ import fetch from "node-fetch";
 import { join } from "path";
 import { pipeline } from "stream/promises";
 import chunk from "lodash/chunk";
-import { commitAddressPoints } from "../db/address-points";
+import {
+  commitAddressPoints,
+  removeDeprecatedAddressPoints,
+} from "../db/address-points";
 import { SyncPart } from "../db/types";
 import { getLatestUrlFromAtomFeed } from "../utils/atom";
 import {
@@ -56,12 +59,15 @@ const importDataToDb = async (options: OpenDataSyncOptions) => {
     "Initiating import of RUIAN data to search DB (~3 million rows to be imported)."
   );
 
-  for (const file of files) {
+  const allIds = new Set<number>();
+
+  for (const [i, file] of files.entries()) {
     const rows: string[][] = [];
     const parseStream = parse({ delimiter: ";", fromLine: 2 }).on(
       "data",
       async (data) => {
         rows.push(data);
+        allIds.add(parseInt(data[0]));
       }
     );
 
@@ -83,7 +89,11 @@ const importDataToDb = async (options: OpenDataSyncOptions) => {
         }
       })
     );
+
+    console.log(`${i + 1}/${files.length} files imported.`);
   }
+
+  await removeDeprecatedAddressPoints(allIds);
 
   console.log(`Import completed. Total imported rows: ${total}`);
 };
@@ -100,7 +110,7 @@ export const downloadAndImportAddressPoints = async (
       completeOptions.addressPointsAtomUrl
     );
     const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
-    await downloadAndUnzip(zipUrl, completeOptions);
+    // await downloadAndUnzip(zipUrl, completeOptions);
     await importDataToDb(completeOptions);
   });
 };

@@ -1,3 +1,5 @@
+import { roundToNDecimalPlaces } from "./helpers";
+
 export interface ConversionResult {
   jtsk_x: number;
   jtsk_y: number;
@@ -98,11 +100,4 @@ export default function jtsk2wgs84(
     lon: roundToNDecimalPlaces((L / Math.PI) * 180, 6),
     altitude: Math.round(h * 100) / 100,
   };
-}
-
-function roundToNDecimalPlaces(toRound: number, decimalPlaces: number): number {
-  return (
-    Math.round(toRound * Math.pow(10, decimalPlaces)) /
-    Math.pow(10, decimalPlaces)
-  );
 }

@@ -239,3 +239,13 @@ const levenshteinDistance = (str1: string, str2: string): number => {
 
   return matrix[str2.length][str1.length];
 };
+
+export function roundToNDecimalPlaces(
+  toRound: number,
+  decimalPlaces: number
+): number {
+  return (
+    Math.round(toRound * Math.pow(10, decimalPlaces)) /
+    Math.pow(10, decimalPlaces)
+  );
+}

@@ -11,7 +11,7 @@ import {
   isRange,
   isSeriesSpecArray,
 } from "../street-markdown/types";
-import { findClosestString } from "../utils/helpers";
+import { findClosestString, roundToNDecimalPlaces } from "../utils/helpers";
 import jtsk2wgs84 from "../utils/jtsk2wgs84";
 import {
   extractKeyValuesPairs,
@@ -25,6 +25,7 @@ import {
 } from "./db";
 import { getFounderCityCode } from "./founders";
 import { Founder, Municipality, MunicipalityType } from "./types";
+import chunk from "lodash/chunk";
 
 const DescriptiveType = "č.p.";
 const RegistrationType = "č.ev.";
@@ -86,7 +87,7 @@ export const commitAddressPoints = async (
   await insertStreets(buffer);
   await insertPragueDistricts(buffer);
 
-  const params: (string | null)[] = [];
+  const params: Record<string, (string | null)[]> = {};
   buffer.forEach((data) => {
     let latOrNull: string, lonOrNull: string;
     latOrNull = null;
@@ -98,7 +99,7 @@ export const commitAddressPoints = async (
       );
       [latOrNull, lonOrNull] = [lat.toString(), lon.toString()];
     }
-    params.push(
+    params[data[Column.admCode]] = [
       data[Column.admCode],
       nonEmptyOrNull(data[Column.streetCode]),
       ObjectTypes[data[Column.objectType]],
@@ -113,9 +114,35 @@ export const commitAddressPoints = async (
       nonEmptyOrNull(data[Column.xCoordinate]),
       nonEmptyOrNull(data[Column.yCoordinate]),
       latOrNull,
-      lonOrNull
-    );
+      lonOrNull,
+    ];
   });
+
+  // find already existing rows
+  const existingRows = await rawQuery(
+    `SELECT * FROM address_point WHERE id IN (${buffer
+      .map((data) => data[Column.admCode])
+      .join(",")})`
+  );
+
+  const queries = [];
+  for (const row of existingRows) {
+    const toInsert = params[row.id];
+    const values = Object.values(row);
+    if (!toInsert.every((v, i) => valuesEqual(v, values[i]))) {
+      // update those whose values differ
+      queries.push(
+        rawQuery(
+          `UPDATE address_point SET ${columnNames
+            .map((c) => `${c} = ?`)
+            .join(", ")} WHERE id = ?`,
+          [...toInsert, row.id]
+        )
+      );
+    }
+  }
+
+  await Promise.all(queries);
 
   const placeHolders = generate2DPlaceholders(
     columnNames.length,
@@ -129,11 +156,40 @@ export const commitAddressPoints = async (
     } INTO address_point (${columnNames.join(",")}) VALUES ${placeHolders} ${
       !isMysql(knex) ? "ON CONFLICT (id) DO NOTHING" : ""
     }`,
-    params
+    Object.values(params).flat()
   );
 
   return buffer.length;
 };
+
+export async function removeDeprecatedAddressPoints(
+  allIds: Set<number>
+): Promise<void> {
+  const knex = getKnexDb();
+  const existingIds = await knex.pluck("id").from("address_point");
+  const toRemove = existingIds.filter((id) => !allIds.has(id));
+  const chunks = chunk(toRemove, 1000);
+  for (const chunk of chunks) {
+    await knex("address_point").whereIn("id", chunk).delete();
+  }
+  console.log(`Removed ${toRemove.length} deprecated address points.`);
+}
+
+function valuesEqual(a: any, b: any): boolean {
+  return sanitizeValue(a) === sanitizeValue(b);
+}
+
+function sanitizeValue(value: any): any {
+  if (value === null) {
+    return null;
+  }
+  value = value.toString();
+
+  if (/\d+\.\d+/.test(value)) {
+    return roundToNDecimalPlaces(parseFloat(value), 6).toString();
+  }
+  return value;
+}
 
 export const insertCities = async (buffer: string[][]): Promise<number> => {
   return await insertMultipleRows(
