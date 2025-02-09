@@ -598,7 +598,7 @@ export const getNewSchool = async ({
     const { school, errors } = findSchool(
       name,
       founder.schools,
-      required ? undefined : 15
+      required ? undefined : 4
     );
     if (errors.length > 0) {
       onError({ lineNumber, line: name, errors });
