@@ -32,9 +32,10 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
       school.redizo,
       school.name,
       school.capacity.toString(),
+      school.type.toString(),
     ]),
     "school",
-    ["izo", "redizo", "name", "capacity"]
+    ["izo", "redizo", "name", "capacity", "type"]
   );
 
   const locations = toInsert

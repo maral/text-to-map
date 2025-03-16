@@ -11,6 +11,7 @@ import {
   MunicipalityType,
   School,
   SchoolLocation,
+  SchoolType,
   SyncPart,
 } from "../db/types";
 import {
@@ -51,7 +52,8 @@ enum XMLState {
   FounderIco,
 }
 
-const SCHOOL_TYPE_PRIMARY = "B00";
+const SCHOOL_TYPE_KINDERGARTEN = "A00";
+const SCHOOL_TYPE_ELEMENTARY = "B00";
 
 const createNewSchool = (): School => {
   return {
@@ -75,7 +77,11 @@ const getMunicipalityType = (founderType: string): MunicipalityType => {
     : MunicipalityType.Other;
 };
 
-type SchoolAddress = { izo: string; address: string[]; isPrimary: boolean };
+type SchoolAddress = {
+  izo: string;
+  address: string[];
+  type: SchoolType;
+};
 
 const processSchoolRegisterXml = async (
   options: OpenDataSyncOptions
@@ -84,11 +90,12 @@ const processSchoolRegisterXml = async (
   founders: Map<string, Founder>;
   schoolsWithoutRuian: SchoolAddress[];
 }> => {
-  let currentSchool: School;
-  let isCurrentSchoolPrimary: boolean;
+  let currentSchools: School[];
+  let currentRedizo: string;
+  let currentName: string;
   let currentIzo: string;
   let currentIco: string;
-  let currentType: string;
+  let currentType: SchoolType | null = null;
   let currentCapacity: number;
   let currentLocations: SchoolLocation[] = [];
   let state: XMLState = XMLState.None;
@@ -109,8 +116,11 @@ const processSchoolRegisterXml = async (
       .on("opentag", (tag: Tag) => {
         switch (tag.name) {
           case "PravniSubjekt":
-            currentSchool = createNewSchool();
-            isCurrentSchoolPrimary = false;
+            currentSchools = [];
+            currentRedizo = "";
+            currentName = "";
+            currentIzo = "";
+            currentCapacity = 0;
             isRuianCodeMissing = false;
             break;
           case "RedIzo":
@@ -156,19 +166,19 @@ const processSchoolRegisterXml = async (
       .on("closetag", (tagName: string) => {
         switch (tagName) {
           case "PravniSubjekt":
-            if (isCurrentSchoolPrimary) {
-              schools.push(currentSchool);
+            if (currentSchools.length > 0) {
+              schools.push(...currentSchools);
               currentFounders.forEach((founder) => {
                 const key = founder.name + founder.ico;
                 if (founders.has(key)) {
-                  founders.get(key).schools.push(currentSchool);
+                  founders.get(key).schools.push(...currentSchools);
                 } else {
                   founders.set(key, {
                     name: founder.name,
                     ico: founder.ico,
                     originalType: founder.type,
                     municipalityType: getMunicipalityType(founder.type),
-                    schools: [currentSchool],
+                    schools: [...currentSchools],
                   });
                 }
               });
@@ -181,7 +191,7 @@ const processSchoolRegisterXml = async (
             if (currentFounderIco === "" || currentFounderName === "") {
               currentFounders.push({
                 ico: currentIco,
-                name: currentSchool.name,
+                name: currentName,
                 type: "224", // s.r.o (not all are those, but we don't need to differentiate here)
               });
             } else {
@@ -197,19 +207,25 @@ const processSchoolRegisterXml = async (
 
             break;
           case "SkolaZarizeni":
-            if (currentType === SCHOOL_TYPE_PRIMARY) {
-              currentSchool.izo = currentIzo;
-              currentSchool.locations = currentLocations;
-              currentSchool.capacity = currentCapacity;
+            if (currentType !== null) {
+              currentSchools.push({
+                izo: currentIzo,
+                name: currentName,
+                redizo: currentRedizo,
+                capacity: currentCapacity,
+                type: currentType,
+                locations: currentLocations,
+              });
             }
             currentLocations = [];
+            currentType = null;
             break;
           case "SkolaMistoVykonuCinnosti":
             if (isRuianCodeMissing) {
               schoolsWithoutRuian.push({
                 izo: currentIzo,
                 address: currentAddress,
-                isPrimary: currentType === SCHOOL_TYPE_PRIMARY,
+                type: currentType,
               });
             }
             break;
@@ -235,9 +251,9 @@ const processSchoolRegisterXml = async (
       .on("text", (text: string) => {
         switch (state) {
           case XMLState.RedIzo:
-            currentSchool.redizo = text;
+            currentRedizo = text;
           case XMLState.SchoolName:
-            currentSchool.name = text;
+            currentName = text;
             break;
           case XMLState.Izo:
             currentIzo = text;
@@ -246,9 +262,10 @@ const processSchoolRegisterXml = async (
             currentIco = text;
             break;
           case XMLState.SchoolType:
-            currentType = text;
-            if (text === SCHOOL_TYPE_PRIMARY) {
-              isCurrentSchoolPrimary = true;
+            if (text === SCHOOL_TYPE_KINDERGARTEN) {
+              currentType = SchoolType.Kindergarten;
+            } else if (text === SCHOOL_TYPE_ELEMENTARY) {
+              currentType = SchoolType.Elementary;
             }
             break;
           case XMLState.RuianCode:
@@ -326,11 +343,13 @@ const importDataToDb = async (
     var csv = createWriteStream(csvFile, {
       flags: "a",
     });
-    csv.write("IZO;Je základní;adresa1;adresa2;adresa3\n");
+    csv.write("IZO;Je mateřská;Je základní;adresa1;adresa2;adresa3\n");
     schoolsWithoutRuian.forEach((schoolAddress) => {
       csv.write(
         `#${schoolAddress.izo};${
-          schoolAddress.isPrimary ? "TRUE" : "FALSE"
+          schoolAddress.type === SchoolType.Kindergarten ? "TRUE" : "FALSE"
+        };${
+          schoolAddress.type === SchoolType.Elementary ? "TRUE" : "FALSE"
         };${schoolAddress.address.join(";")}\n`
       );
     });

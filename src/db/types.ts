@@ -6,11 +6,17 @@ export interface SchoolLocation {
   addressPointId: number;
 }
 
+export enum SchoolType {
+  Kindergarten = 0,
+  Elementary = 1,
+}
+
 export interface School {
   name: string;
   izo: string;
   redizo: string;
   capacity: number;
+  type?: SchoolType;
   locations: SchoolLocation[];
 }
 
