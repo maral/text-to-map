@@ -2,12 +2,8 @@ import { AddressPoint as CzechAddressPoint } from "czech-address";
 import {
   Municipality as DbMunicipality,
   Founder,
+  SchoolType,
 } from "../db/types";
-
-export enum SchoolType {
-  Kindergarten = 0,
-  Elementary = 1,
-}
 
 export interface ProcessedSmdLines {
   smdLines: SmdLine[];
