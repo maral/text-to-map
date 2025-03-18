@@ -513,6 +513,7 @@ const getSchoolsByCityCode = async (
         addressPointId: parseInt(row.address_point_id),
       },
     ],
+    type: schoolType,
   }));
 };
 
