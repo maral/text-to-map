@@ -1,14 +1,12 @@
 import { FeatureCollection, Polygon, MultiPolygon } from "@turf/helpers";
 
+import { SchoolType } from "../street-markdown/types";
+export { SchoolType };
+
 export interface SchoolLocation {
   id?: number;
   schoolIzo?: number;
   addressPointId: number;
-}
-
-export enum SchoolType {
-  Kindergarten = 0,
-  Elementary = 1,
 }
 
 export interface School {

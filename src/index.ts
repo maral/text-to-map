@@ -9,7 +9,6 @@ import { OpenDataSyncOptionsPartial } from "./utils/helpers";
 
 export * from "./street-markdown/smd";
 export * from "./street-markdown/types";
-export { SchoolType } from "./db/types";
 
 /**
  * Download and import all open data to SQLite DB. The DB file will be located
