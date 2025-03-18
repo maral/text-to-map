@@ -6,15 +6,22 @@ import {
 import { ErrorCallbackParams } from "../street-markdown/types";
 import { municipalitiesToPolygons } from "../street-markdown/polygons";
 import { disconnectKnex } from "../db/db";
+import { SchoolType } from "../db/types";
 
 async function main() {
   // take first node argument as a file name
-  if (process.argv.length < 3) {
+  if (process.argv.length < 4) {
     console.error("Missing file name argument");
     process.exit(1);
   }
 
-  const fileName = process.argv[2];
+  if (process.argv[2] !== "zs" && process.argv[2] !== "ms") {
+    console.error("Invalid school type argument, must be one of 'zs' or 'ms'");
+    process.exit(1);
+  }
+  const schoolType =
+    process.argv[2] === "zs" ? SchoolType.Elementary : SchoolType.Kindergarten;
+  const fileName = process.argv[3];
   const fileContent = readFileSync(fileName);
   const lines = fileContent.toString().split("\n");
 
@@ -49,6 +56,7 @@ async function main() {
 
   const municipalities = await parseOrdinanceToAddressPoints({
     lines,
+    schoolType,
     initialState: {
       // currentMunicipality: municipality,
     },
@@ -66,8 +74,8 @@ async function main() {
   //   errorLines.forEach((line) => console.log(line));
   // }
 
-  if (process.argv.length >= 4) {
-    const outputFileName = process.argv[3];
+  if (process.argv.length >= 5) {
+    const outputFileName = process.argv[4];
     const output = JSON.stringify(municipalities);
     console.log(`Writing output to ${outputFileName}`);
     writeFileSync(outputFileName, output);
@@ -75,12 +83,12 @@ async function main() {
     console.log(JSON.stringify(municipalities));
   }
 
-  if (process.argv.length >= 5) {
+  if (process.argv.length >= 6) {
     console.time("municipalityToPolygons");
     const polygons = await municipalitiesToPolygons(municipalities);
     console.timeEnd("municipalityToPolygons");
 
-    const outputFileName = process.argv[4];
+    const outputFileName = process.argv[5];
     const output = JSON.stringify(polygons);
     console.log(`Writing polygons to ${outputFileName}`);
     writeFileSync(outputFileName, output);

@@ -6,7 +6,12 @@ import {
 import { disconnectKnex } from "../db/db";
 import { findFounder, getFounderById } from "../db/founders";
 import { findSchool } from "../db/schools";
-import { Founder, MunicipalityType, founderToMunicipality } from "../db/types";
+import {
+  Founder,
+  MunicipalityType,
+  SchoolType,
+  founderToMunicipality,
+} from "../db/types";
 import {
   getMunicipalityPartResult,
   getRestOfMunicipalityPart,
@@ -42,6 +47,7 @@ interface ParseOrdinanceProps {
   onWarning?: (params: ErrorCallbackParams) => void;
   onProcessedLine?: (params: ProcessLineCallbackParams) => void;
   includeUnmappedAddressPoints: boolean;
+  schoolType: SchoolType;
 }
 
 export const parseOrdinanceToAddressPoints = async ({
@@ -51,6 +57,7 @@ export const parseOrdinanceToAddressPoints = async ({
   onWarning = () => {},
   onProcessedLine = () => {},
   includeUnmappedAddressPoints = false,
+  schoolType,
 }: ParseOrdinanceProps): Promise<Municipality[]> => {
   try {
     const state: SmdState = {
@@ -86,6 +93,7 @@ export const parseOrdinanceToAddressPoints = async ({
         lineNumber,
         onError,
         onWarning,
+        schoolType,
       });
       onProcessedLine({ lineNumber, line });
       lineNumber++;
@@ -203,6 +211,7 @@ const processMunicipalityLine = async ({
   line,
   lineNumber,
   state,
+  schoolType,
   onError,
 }: ProcessLineParams) => {
   if (state.currentArea !== null) {
@@ -211,7 +220,10 @@ const processMunicipalityLine = async ({
 
   await completeCurrentMunicipality(state);
 
-  const { municipality, errors } = await getNewMunicipalityByName(line);
+  const { municipality, errors } = await getNewMunicipalityByName(
+    line,
+    schoolType
+  );
   if (errors.length > 0) {
     onError({ lineNumber, line, errors });
   }
@@ -540,16 +552,18 @@ const addRestOfMunicipalityPart = async (
 };
 
 export const getNewMunicipalityByName = async (
-  name: string
+  name: string,
+  schoolType: SchoolType
 ): Promise<IntermediateMunicipalityResult> => {
-  const { founder, errors } = await findFounder(name);
+  const { founder, errors } = await findFounder(name, schoolType);
   return getNewMunicipality(founder, errors);
 };
 
 export const getNewMunicipalityByFounderId = async (
-  founderId: number
+  founderId: number,
+  schoolType: SchoolType
 ): Promise<IntermediateMunicipalityResult> => {
-  const { founder, errors } = await getFounderById(founderId);
+  const { founder, errors } = await getFounderById(founderId, schoolType);
   return getNewMunicipality(founder, errors);
 };
 

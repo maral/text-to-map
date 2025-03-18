@@ -1,5 +1,9 @@
 import { AddressPoint as CzechAddressPoint } from "czech-address";
-import { Municipality as DbMunicipality, Founder } from "../db/types";
+import {
+  Municipality as DbMunicipality,
+  Founder,
+  SchoolType,
+} from "../db/types";
 
 export interface ProcessedSmdLines {
   smdLines: SmdLine[];
@@ -185,6 +189,7 @@ export interface ProcessLineParams {
   rawLine: string;
   state: SmdState;
   lineNumber: number;
+  schoolType: SchoolType;
   onError: (params: ErrorCallbackParams) => void;
   onWarning: (params: ErrorCallbackParams) => void;
 }

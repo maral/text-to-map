@@ -16,7 +16,7 @@ export interface School {
   izo: string;
   redizo: string;
   capacity: number;
-  type?: SchoolType;
+  type: SchoolType;
   locations: SchoolLocation[];
 }
 

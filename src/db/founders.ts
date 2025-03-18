@@ -17,6 +17,7 @@ import {
   MunicipalityWithPosition,
   PlaceWithPosition,
   School,
+  SchoolType,
 } from "./types";
 
 const cityTypeCode = 261;
@@ -342,10 +343,11 @@ const getBaseFounderQuery = () => {
 };
 
 export const getFounderById = async (
-  id: number
+  id: number,
+  schoolType: SchoolType
 ): Promise<{ founder: Founder; errors: SmdError[] }> => {
   const result = await getBaseFounderQuery().where("f.id", id).first();
-  const founder = await resultToFounder(result);
+  const founder = await resultToFounder(result, schoolType);
   return {
     founder: founder ?? null,
     errors: founder
@@ -355,7 +357,8 @@ export const getFounderById = async (
 };
 
 export const findFounder = async (
-  nameWithHashtag: string
+  nameWithHashtag: string,
+  schoolType: SchoolType
 ): Promise<{ founder: Founder; errors: SmdError[] }> => {
   const errors: SmdError[] = [];
 
@@ -375,7 +378,7 @@ export const findFounder = async (
         originalType: cityTypeCode,
         municipalityType: MunicipalityType.City,
         municipalityCode: result.code,
-        schools: await getSchoolsByCityCode(result.code),
+        schools: await getSchoolsByCityCode(result.code, schoolType),
       },
       errors,
     };
@@ -389,7 +392,7 @@ export const findFounder = async (
     .orWhere("d.name", name)
     .first();
   if (result) {
-    return { founder: await resultToFounder(result), errors };
+    return { founder: await resultToFounder(result, schoolType), errors };
   } else {
     const allFounderNames = await getAllFounderNames();
     const namesList = allFounderNames
@@ -435,7 +438,7 @@ export const findFounder = async (
       .where("id", bestMatchRow.id)
       .first();
     return {
-      founder: await resultToFounder(founder),
+      founder: await resultToFounder(founder, schoolType),
       errors,
     };
   }
@@ -466,7 +469,10 @@ interface FounderNames {
   municipalityName: string;
 }
 
-const resultToFounder = async (result: any): Promise<Founder> => {
+const resultToFounder = async (
+  result: any,
+  schoolType: SchoolType
+): Promise<Founder> => {
   return {
     name: result.name,
     ico: result.ico,
@@ -479,19 +485,23 @@ const resultToFounder = async (result: any): Promise<Founder> => {
       result.founder_type_code === cityTypeCode
         ? result.city_code
         : result.city_district_code,
-    schools: await getSchoolsByCityCode(result.city_code),
+    schools: await getSchoolsByCityCode(result.city_code, schoolType),
   };
 };
 
 // in case of cities, load all schools in the city, not just the ones connected to the founder
-const getSchoolsByCityCode = async (cityCode: number): Promise<School[]> => {
+const getSchoolsByCityCode = async (
+  cityCode: number,
+  schoolType: SchoolType
+): Promise<School[]> => {
   const result = await getKnexDb()
     .select("s.izo", "s.redizo", "s.name", "s.capacity", "sl.address_point_id")
     .from("school as s")
     .join("school_founder as sf", "s.izo", "sf.school_izo")
     .join("school_location as sl", "s.izo", "sl.school_izo")
     .join("founder as f", "sf.founder_id", "f.id")
-    .where("f.city_code", cityCode);
+    .where("f.city_code", cityCode)
+    .where("s.type", schoolType);
 
   return result.map((row) => ({
     izo: String(row.izo),

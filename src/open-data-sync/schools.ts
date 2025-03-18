@@ -55,16 +55,6 @@ enum XMLState {
 const SCHOOL_TYPE_KINDERGARTEN = "A00";
 const SCHOOL_TYPE_ELEMENTARY = "B00";
 
-const createNewSchool = (): School => {
-  return {
-    name: "",
-    redizo: "",
-    izo: "",
-    capacity: 0,
-    locations: [],
-  };
-};
-
 const getCorrectFounderType = (founderType: string): string => {
   return founderType === "" ? "101" : founderType;
 };
