@@ -4,7 +4,11 @@ import {
   getAddressPointById,
 } from "../db/address-points";
 import { disconnectKnex } from "../db/db";
-import { findFounder, getFounderById } from "../db/founders";
+import {
+  findFounder,
+  getFounderById,
+  getFounderCityCode,
+} from "../db/founders";
 import { findSchool } from "../db/schools";
 import {
   Founder,
@@ -175,7 +179,7 @@ const processOneLine = async (params: ProcessLineParams) => {
   }
 
   if (isMunicipalitySwitch(line)) {
-    processMunicipalitySwitchLine(params);
+    await processMunicipalitySwitchLine(params);
   } else if (isWholeMunicipality(line)) {
     await processWholeMunicipalityLine(params);
   } else if (isRestWithNoStreetNameLine(line)) {
@@ -414,7 +418,10 @@ const processAddressPointLine = async ({
           await getMunicipalityPartResult(
             smdLine.municipalityPart,
             line,
-            state.currentMunicipality.founder
+            await getFounderCityCode(
+              state.currentFilterMunicipality.type,
+              state.currentFilterMunicipality.code
+            )
           );
         if (errors.length > 0) {
           onWarning({ lineNumber, line, errors });

@@ -14,6 +14,7 @@ import {
   insertDistricts,
   insertStreets,
 } from "../../src/db/address-points";
+import { SchoolType } from "../../src/db/types";
 
 const prefix = "schools";
 beforeAll(async () => {
@@ -46,25 +47,34 @@ describe("search db - schools", () => {
   });
 
   test("find founder by founder name", async () => {
-    const result = await findFounder("Město Želechovice nad Dřevnicí");
+    const result = await findFounder(
+      "Město Želechovice nad Dřevnicí",
+      SchoolType.Elementary
+    );
     expect(result.founder).toEqual(testFounders[0]);
     expect(result.errors).toHaveLength(0);
   });
 
   test("find founder by municipality name", async () => {
-    const result = await findFounder("Želechovice nad Dřevnicí");
+    const result = await findFounder(
+      "Želechovice nad Dřevnicí",
+      SchoolType.Elementary
+    );
     expect(result.founder).toEqual(testFounders[0]);
     expect(result.errors).toHaveLength(0);
   });
 
   test("find founder by similar name", async () => {
-    const result = await findFounder("Želehovice nad Dřevnicí");
+    const result = await findFounder(
+      "Želehovice nad Dřevnicí",
+      SchoolType.Elementary
+    );
     expect(result.founder).toEqual(testFounders[0]);
     expect(result.errors).toHaveLength(1);
   });
 
   test("find at least some founder even when very different name", async () => {
-    const result = await findFounder("Město Ostrava");
+    const result = await findFounder("Město Ostrava", SchoolType.Elementary);
     expect(result.founder).toEqual(testFounders[0]);
     expect(result.errors).toHaveLength(1);
   });

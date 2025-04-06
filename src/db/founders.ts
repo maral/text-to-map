@@ -445,21 +445,21 @@ export const findFounder = async (
 };
 
 let cachedCityCode: number = null;
-let cityCodeFounder: Founder = null;
-export const getFounderCityCode = async (founder: Founder): Promise<number> => {
-  if (founder.municipalityType === MunicipalityType.District) {
-    if (cityCodeFounder !== founder) {
-      cityCodeFounder = founder;
+let lastCode: number = null;
+export const getFounderCityCode = async (
+  type: MunicipalityType,
+  code: number
+): Promise<number> => {
+  if (type === MunicipalityType.District) {
+    if (lastCode !== code) {
+      lastCode = code;
       cachedCityCode = (
-        await getKnexDb()
-          .from("city_district")
-          .where("code", founder.municipalityCode)
-          .first()
+        await getKnexDb().from("city_district").where("code", code).first()
       ).city_code;
     }
     return cachedCityCode;
   } else {
-    return founder.municipalityCode;
+    return code;
   }
 };
 
@@ -539,10 +539,9 @@ const getAllFounderNames = async (): Promise<FounderNames[]> => {
 
 export const findMunicipalityPartByName = async (
   name: string,
-  founder: Founder
+  cityCode: number
 ): Promise<MunicipalityPartResult> => {
   const errors: SmdError[] = [];
-  const cityCode = await getFounderCityCode(founder);
   const result = await getKnexDb()
     .first("code")
     .from("municipality_part")
@@ -582,11 +581,20 @@ export const findMunicipalityByNameAndType = async (
           .select("code")
           .from("city_district")
           .where("name", name)
-          .andWhere("city_code", await getFounderCityCode(founder));
+          .andWhere(
+            "city_code",
+            await getFounderCityCode(
+              founder.municipalityType,
+              founder.municipalityCode
+            )
+          );
 
   if (result.length > 0) {
     if (result.length > 1) {
-      const cityCode = await getFounderCityCode(founder);
+      const cityCode = await getFounderCityCode(
+        founder.municipalityType,
+        founder.municipalityCode
+      );
       const positions = await getKnexDb()
         .select("city_code", "wgs84_latitude", "wgs84_longitude")
         .from("address_point")

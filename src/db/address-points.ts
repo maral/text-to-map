@@ -292,7 +292,10 @@ export const checkStreetExists = async (
   const errors: SmdError[] = [];
 
   // we check the whole city
-  const cityCode = await getFounderCityCode(founder);
+  const cityCode = await getFounderCityCode(
+    founder.municipalityType,
+    founder.municipalityCode
+  );
   const rowList = await rawQuery(
     `SELECT name AS street_name
     FROM street

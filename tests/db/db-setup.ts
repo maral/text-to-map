@@ -1,7 +1,12 @@
 import { rmSync } from "fs";
 import { Knex } from "knex";
 import { SupportedDbType, disconnectKnex, initDb } from "../../src/db/db";
-import { Founder, MunicipalityType, School } from "../../src/db/types";
+import {
+  Founder,
+  MunicipalityType,
+  School,
+  SchoolType,
+} from "../../src/db/types";
 
 const testDbPath = "test-db.db";
 
@@ -94,6 +99,7 @@ export const testRows = [
 
 export const testSchools: School[] = [
   {
+    type: SchoolType.Elementary,
     izo: "044940998",
     redizo: "600001733",
     name: "Církevní základní škola a mateřská škola Přemysla Pittra",
@@ -105,6 +111,7 @@ export const testSchools: School[] = [
     ],
   },
   {
+    type: SchoolType.Elementary,
     izo: "042962358",
     redizo: "600001741",
     name: "Základní škola a Mateřská škola Sluníčko s.r.o.",

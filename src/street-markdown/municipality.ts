@@ -1,6 +1,7 @@
 import {
   findMunicipalityByNameAndType,
   findMunicipalityPartByName,
+  getFounderCityCode,
 } from "../db/founders";
 import { Founder, MunicipalityType } from "../db/types";
 import { DbMunicipalityResult, MunicipalityPartResult } from "./types";
@@ -84,7 +85,11 @@ export const getRestOfMunicipalityPart = async (
     };
   }
   const { name } = match.groups;
-  return await getMunicipalityPartResult(name, line, founder);
+  return await getMunicipalityPartResult(
+    name,
+    line,
+    await getFounderCityCode(founder.municipalityType, founder.municipalityCode)
+  );
 };
 
 export const getWholeMunicipality = async (
@@ -138,11 +143,11 @@ const getMunicipalityResult = async (
 export const getMunicipalityPartResult = async (
   name: string,
   line: string,
-  founder: Founder
+  cityCode: number
 ): Promise<MunicipalityPartResult> => {
   const { municipalityPartCode, errors } = await findMunicipalityPartByName(
     name,
-    founder
+    cityCode
   );
 
   const startOffset = line.indexOf(name);
