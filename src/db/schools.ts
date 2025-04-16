@@ -11,6 +11,12 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
   const existingIzo = (await knex.select("izo").from("school")).map(
     (row) => row.izo
   );
+  const schoolsWithoutLocationIzos = (
+    await knex("school")
+      .leftJoin("school_location", "school.izo", "school_location.school_izo")
+      .whereNull("school_location.school_izo")
+      .select("school.izo")
+  ).map((row) => row.izo);
 
   const toInsert = uniqueSchools.filter(
     (school) => !existingIzo.includes(school.izo)
@@ -18,6 +24,12 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
   const toUpdate = uniqueSchools.filter((school) =>
     existingIzo.includes(school.izo)
   );
+  const toInsertLocation = [
+    ...toInsert,
+    ...toUpdate.filter((school) =>
+      schoolsWithoutLocationIzos.includes(school.izo)
+    ),
+  ];
 
   for (const school of toUpdate) {
     await knex.from("school").where("izo", school.izo).update({
@@ -38,7 +50,7 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
     ["izo", "redizo", "name", "capacity", "type"]
   );
 
-  const locations = toInsert
+  const locations = toInsertLocation
     .filter((school) => school.locations.length > 0)
     .map((school) => [
       school.izo,

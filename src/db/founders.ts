@@ -23,6 +23,17 @@ import {
 const cityTypeCode = 261;
 const cityDistrictTypeCode = 263;
 
+const schoolsOutsideTheirFounderMunicipality = [
+  "181042096",
+  "107516306",
+  "181147246",
+  "150076924",
+  "107583992",
+  "181024161",
+  "181064588",
+  "107629062",
+];
+
 export const insertFounders = async (founders: Founder[]): Promise<number> => {
   let insertedFounders = 0;
   const schoolFounderConnectionData = [];
@@ -52,10 +63,13 @@ export const insertFounders = async (founders: Founder[]): Promise<number> => {
       } else {
         const { name, code } = result;
         if (name !== extractedMunicipalityName) {
-          console.log(
-            `izo: ${school.izo}, extracted: ${extractedMunicipalityName}, RUIAN: ${name}`
-          );
-          differingSchools.push(school);
+          // also filter out known exceptions
+          if (!schoolsOutsideTheirFounderMunicipality.includes(school.izo)) {
+            console.log(
+              `izo: ${school.izo}, extracted: ${extractedMunicipalityName}, RUIAN: ${name}`
+            );
+            differingSchools.push(school);
+          }
         }
         // store municipalityCode even if the names don't match, we will use it later
         municipalityCode = parseInt(code);
