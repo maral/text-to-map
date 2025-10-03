@@ -7,7 +7,7 @@ import {
   resetTokenState,
   prepareLine,
 } from "./token-definition";
-import { ProcessedSmdLines, SmdError, SmdLine } from "./types";
+import { ProcessedSmdLines, SmdError } from "./types";
 
 const printLexingResultInfo = (lexingResult: ILexingResult) => {
   const tokens = lexingResult.tokens.map(
