@@ -83,7 +83,6 @@ export const municipalitiesToPolygons = async (
 };
 
 const findColoring = (collectionMap: Map<number, FeatureCollection>) => {
-  // here do the coloring
   // put all the features in one array
   const allFeatures = Array.from(collectionMap.values()).reduce(
     (acc, collection) => {
@@ -92,6 +91,13 @@ const findColoring = (collectionMap: Map<number, FeatureCollection>) => {
     },
     []
   );
+
+  if (allFeatures.length <= 5) {
+    allFeatures.forEach((feature, index) => {
+      feature.properties.colorIndex = index;
+    });
+    return;
+  }
 
   const graph = new Graph();
   allFeatures.forEach((feature) => {
