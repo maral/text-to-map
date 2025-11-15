@@ -57,6 +57,7 @@
     "polygons": "tsx src/bin/polygons.ts",
     "schools": "tsx src/bin/schools.ts",
     "streets": "tsx src/bin/streets.ts",
+    "streets:no-cache": "tsx src/bin/streets.ts --no-cache",
     "diagrams": "tsx src/bin/generate-syntax-diagrams.ts",
     "clear-all": "tsx src/bin/clear-all.ts",
     "init-db": "tsx src/bin/init-db.ts",

@@ -1,8 +1,12 @@
 import { downloadAndImportStreets } from "../open-data-sync/streets";
 import { defaultBinOptions } from "./constants";
 
+// Parse command line arguments
+const args = process.argv.slice(2);
+const noCache = args.includes('--no-cache');
+
 console.time("downloadAndImportAllStreets");
-downloadAndImportStreets(defaultBinOptions)
+downloadAndImportStreets(defaultBinOptions, noCache)
   .then(() => {
     console.timeEnd("downloadAndImportAllStreets");
   })

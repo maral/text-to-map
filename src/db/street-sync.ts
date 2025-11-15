@@ -35,3 +35,7 @@ export const insertStreetsFromDbf = async (
     ["code", "city_code", "name"]
   );
 };
+
+export const clearStreetSyncTable = async (): Promise<void> => {
+  await getKnexDb()("street_sync").del();
+};

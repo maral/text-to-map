@@ -11,6 +11,7 @@ import { FeatureCollection } from "@turf/helpers";
 import { coordEach } from "@turf/meta";
 import { setCityPolygonGeojson } from "../db/cities";
 import {
+  clearStreetSyncTable,
   deleteStreets,
   getAllSyncedStreets,
   insertStreetsFromDbf,
@@ -63,7 +64,10 @@ const downloadZipAndParseFiles = async (
   const folderName = zip.getEntries()[0].entryName;
   const cityCode = folderName.substring(0, 6);
   const dbfEntryName = `${folderName}${options.streetDbfFileName}`;
-  const streetData = parseDBF(zip.getEntry(dbfEntryName).getData(), "win1250");
+  const streetData = parseDBF<DbfStreet>(
+    zip.getEntry(dbfEntryName).getData(),
+    "win1250"
+  );
 
   const shpEntryName = `${folderName}${options.polygonShpFileName}`;
   const polygonData = convertShpToGeoJson(zip.getEntry(shpEntryName).getData());
@@ -97,14 +101,14 @@ const convertShpToGeoJson = (
   const geoJson = shp.getGeoJson();
   delete geoJson.bbox;
 
-  coordEach(geoJson, (currentCoord) => {
+  coordEach(geoJson as any, (currentCoord) => {
     const [y, x] = currentCoord;
     const { lat, lon } = jtsk2wgs84(-x, -y);
     currentCoord[0] = lon;
     currentCoord[1] = lat;
   });
 
-  return geoJson;
+  return geoJson as FeatureCollection;
 };
 
 const importDataToDb = async ({
@@ -127,7 +131,8 @@ const importDataToDb = async ({
 const attempts = 5;
 
 export const downloadAndImportStreets = async (
-  options: OpenDataSyncOptionsPartial = {}
+  options: OpenDataSyncOptionsPartial = {},
+  noCache: boolean = false
 ): Promise<void> => {
   await runSyncPart(SyncPart.Streets, [SyncPart.AddressPoints], async () => {
     console.log(
@@ -136,6 +141,12 @@ export const downloadAndImportStreets = async (
 
     const completeOptions = prepareOptions(options);
     prepareFolders(completeOptions);
+
+    // Clear street sync table if no-cache flag is set
+    if (noCache) {
+      console.log("Clearing street sync cache...");
+      await clearStreetSyncTable();
+    }
 
     const allDatasetFeedLinks = await getAllUrlsFromAtomFeed(
       completeOptions.streetsAtomUrl

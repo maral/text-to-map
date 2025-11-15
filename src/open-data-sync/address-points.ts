@@ -110,7 +110,7 @@ export const downloadAndImportAddressPoints = async (
       completeOptions.addressPointsAtomUrl
     );
     const zipUrl = await getLatestUrlFromAtomFeed(datasetFeedLink);
-    // await downloadAndUnzip(zipUrl, completeOptions);
+    await downloadAndUnzip(zipUrl, completeOptions);
     await importDataToDb(completeOptions);
   });
 };
