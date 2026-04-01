@@ -4,40 +4,25 @@ import { findClosestString } from "../utils/helpers";
 import { getKnexDb, insertMultipleRows } from "./db";
 import { School } from "./types";
 
+const BATCH_SIZE = 500;
+
 export const insertSchools = async (schools: School[]): Promise<number> => {
   const knex = getKnexDb();
 
   const uniqueSchools = filterOutDuplicates(schools);
-  const existingIzo = (await knex.select("izo").from("school")).map(
-    (row) => row.izo
-  );
-  const schoolsWithoutLocationIzos = (
+
+  // Fetch all existing schools with their current location in one query
+  const existing: { izo: string; name: string; capacity: number; address_point_id: number | null }[] =
     await knex("school")
       .leftJoin("school_location", "school.izo", "school_location.school_izo")
-      .whereNull("school_location.school_izo")
-      .select("school.izo")
-  ).map((row) => row.izo);
+      .select("school.izo", "school.name", "school.capacity", "school_location.address_point_id");
 
-  const toInsert = uniqueSchools.filter(
-    (school) => !existingIzo.includes(school.izo)
-  );
-  const toUpdate = uniqueSchools.filter((school) =>
-    existingIzo.includes(school.izo)
-  );
-  const toInsertLocation = [
-    ...toInsert,
-    ...toUpdate.filter((school) =>
-      schoolsWithoutLocationIzos.includes(school.izo)
-    ),
-  ];
+  const existingMap = new Map(existing.map((r) => [r.izo, r]));
 
-  for (const school of toUpdate) {
-    await knex.from("school").where("izo", school.izo).update({
-      name: school.name,
-      capacity: school.capacity,
-    });
-  }
+  const toInsert = uniqueSchools.filter((s) => !existingMap.has(s.izo));
+  const toUpdate = uniqueSchools.filter((s) => existingMap.has(s.izo));
 
+  // --- Insert new schools ---
   const insertedSchools = await insertMultipleRows(
     toInsert.map((school) => [
       school.izo,
@@ -50,27 +35,64 @@ export const insertSchools = async (schools: School[]): Promise<number> => {
     ["izo", "redizo", "name", "capacity", "type"]
   );
 
-  const locations = toInsertLocation
-    .filter((school) => school.locations.length > 0)
-    .map((school) => [
-      school.izo,
-      school.locations[0].addressPointId.toString(), // add only first location
-    ]);
+  // --- Update existing schools (name + capacity) in batches ---
+  const toUpdateFields = toUpdate.filter((s) => {
+    const row = existingMap.get(s.izo);
+    return row.name !== s.name || Number(row.capacity) !== s.capacity;
+  });
+
+  for (let i = 0; i < toUpdateFields.length; i += BATCH_SIZE) {
+    const batch = toUpdateFields.slice(i, i + BATCH_SIZE);
+    await Promise.all(
+      batch.map((s) =>
+        knex("school").where("izo", s.izo).update({ name: s.name, capacity: s.capacity })
+      )
+    );
+  }
+
+  // --- Handle locations ---
+  // New schools and existing schools without any location need an insert
+  const toInsertLocation = [
+    ...toInsert,
+    ...toUpdate.filter((s) => existingMap.get(s.izo).address_point_id === null),
+  ].filter((s) => s.locations.length > 0);
+
+  // Existing schools whose first location changed need a delete + insert
+  // Guard against reordering: only update if the old RUIAN is gone entirely from the new locations
+  const toUpdateLocation = toUpdate.filter((s) => {
+    const row = existingMap.get(s.izo);
+    const newRuians = s.locations.map((l) => l.addressPointId);
+    return (
+      row.address_point_id !== null &&
+      newRuians.length > 0 &&
+      !newRuians.includes(row.address_point_id)
+    );
+  });
+
+  // Delete outdated locations in batches
+  for (let i = 0; i < toUpdateLocation.length; i += BATCH_SIZE) {
+    const batch = toUpdateLocation.slice(i, i + BATCH_SIZE);
+    await knex("school_location")
+      .whereIn(
+        "school_izo",
+        batch.map((s) => s.izo)
+      )
+      .delete();
+  }
 
   let insertedLocations = 0;
 
-  // plus filter out duplicate locations (same address id + izo)
-  for (const location of locations) {
+  for (const school of [...toInsertLocation, ...toUpdateLocation]) {
     try {
       insertedLocations += await insertMultipleRows(
-        [location],
+        [[school.izo, school.locations[0].addressPointId.toString()]],
         "school_location",
         ["school_izo", "address_point_id"],
         true
       );
     } catch (error) {
       console.log(
-        `Cannot add location with RUIAN code ${location[1]} (school IZO = ${location[0]}): code does not exist.`
+        `Cannot add location with RUIAN code ${school.locations[0].addressPointId} (school IZO = ${school.izo}): code does not exist.`
       );
     }
   }

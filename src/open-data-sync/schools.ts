@@ -1,11 +1,14 @@
 import { createReadStream, createWriteStream, existsSync, rmSync } from "fs";
 import fetch from "node-fetch";
 import { join } from "path";
-import sax, { Tag } from "sax";
+import parser from "stream-json";
+import Pick from "stream-json/filters/Pick";
+import StreamArray from "stream-json/streamers/StreamArray";
 
 import { pipeline } from "stream/promises";
 import { insertFounders } from "../db/founders";
 import { insertSchools } from "../db/schools";
+import { getKnexDb } from "../db/db";
 import {
   Founder,
   MunicipalityType,
@@ -21,36 +24,21 @@ import {
 } from "../utils/helpers";
 import { runSyncPart } from "./common";
 
-const downloadXml = async (options: OpenDataSyncOptions): Promise<void> => {
-  if (existsSync(getXmlFilePath(options))) {
+const downloadJsonld = async (options: OpenDataSyncOptions): Promise<void> => {
+  if (existsSync(getJsonldFilePath(options))) {
     return;
   }
 
-  console.log("Downloading a large XML file with school data...");
-  const response = await fetch(options.schoolsXmlUrl);
+  console.log("Downloading a large JSON-LD file with school data...");
+  const response = await fetch(options.schoolsJsonldUrl);
   if (response.status !== 200) {
     throw new Error(
-      `The XML file could not be downloaded. HTTP Code: ${response.status}`
+      `The JSON-LD file could not be downloaded. HTTP Code: ${response.status}`
     );
   }
-  await pipeline(response.body, createWriteStream(getXmlFilePath(options)));
+  await pipeline(response.body, createWriteStream(getJsonldFilePath(options)));
   console.log("Finished downloading.");
 };
-
-enum XMLState {
-  None,
-  RedIzo,
-  SchoolName,
-  Izo,
-  Ico,
-  SchoolType,
-  Capacity,
-  RuianCode,
-  Address,
-  FounderName,
-  FounderType,
-  FounderIco,
-}
 
 const SCHOOL_TYPE_KINDERGARTEN = "A00";
 const SCHOOL_TYPE_ELEMENTARY = "B00";
@@ -73,223 +61,114 @@ type SchoolAddress = {
   type: SchoolType;
 };
 
-const processSchoolRegisterXml = async (
+const processSchoolRegisterJsonld = async (
   options: OpenDataSyncOptions
 ): Promise<{
   schools: School[];
   founders: Map<string, Founder>;
   schoolsWithoutRuian: SchoolAddress[];
 }> => {
-  let currentSchools: School[];
-  let currentRedizo: string;
-  let currentName: string;
-  let currentIzo: string;
-  let currentIco: string;
-  let currentType: SchoolType | null = null;
-  let currentCapacity: number;
-  let currentLocations: SchoolLocation[] = [];
-  let state: XMLState = XMLState.None;
-  let currentFounders = [];
-  let currentFounderIco: string;
-  let currentFounderName: string;
-  let currentFounderType: string;
-  let isRuianCodeSet = false;
-  let isRuianCodeMissing = false;
-  let currentAddress = [];
   const founders = new Map<string, Founder>();
   const schools: School[] = [];
   const schoolsWithoutRuian: SchoolAddress[] = [];
 
-  const streamPromise = new Promise<void>((resolve, reject) => {
-    const saxStream = sax
-      .createStream(true)
-      .on("opentag", (tag: Tag) => {
-        switch (tag.name) {
-          case "PravniSubjekt":
-            currentSchools = [];
-            currentRedizo = "";
-            currentName = "";
-            currentIzo = "";
-            currentCapacity = 0;
-            isRuianCodeMissing = false;
-            break;
-          case "RedIzo":
-            state = XMLState.RedIzo;
-            break;
-          case "RedPlnyNazev":
-            state = XMLState.SchoolName;
-            break;
-          case "IZO":
-            state = XMLState.Izo;
-            break;
-          case "ICO":
-            state = XMLState.Ico;
-            break;
-          case "SkolaDruhTyp":
-            state = XMLState.SchoolType;
-            break;
-          case "SkolaKapacita":
-            state = XMLState.Capacity;
-            break;
-          case "MistoRUAINKod":
-            isRuianCodeSet = false;
-            currentAddress = [];
-            state = XMLState.RuianCode;
-            break;
-          case "ZrizNazev":
-            state = XMLState.FounderName;
-            break;
-          case "ZrizPravniForma":
-            state = XMLState.FounderType;
-            break;
-          case "MistoAdresa1":
-          case "MistoAdresa2":
-          case "MistoAdresa3":
-            state = XMLState.Address;
-            break;
-          case "ZrizDatumNarozeni":
-          case "ZrizICO":
-            state = XMLState.FounderIco;
-            break;
+  const stream = createReadStream(getJsonldFilePath(options))
+    .pipe(parser())
+    .pipe(new Pick({ filter: "list" }))
+    .pipe(new StreamArray());
+
+  for await (const { value: entity } of stream) {
+    const redizo: string = entity.redIzo ?? "";
+    const ico: string = entity.ico ?? "";
+    const entityName: string = entity.uplnyNazev ?? "";
+    const currentSchools: School[] = [];
+
+    for (const school of entity.skolyAZarizeni ?? []) {
+      const type =
+        school.druh === SCHOOL_TYPE_KINDERGARTEN
+          ? SchoolType.Kindergarten
+          : school.druh === SCHOOL_TYPE_ELEMENTARY
+          ? SchoolType.Elementary
+          : null;
+
+      if (type === null) continue;
+
+      const capacityEntry =
+        school.kapacity?.find((k) => k.mernaJednotka === "01") ??
+        school.kapacity?.[0];
+      const capacity: number = capacityEntry?.nejvyssiPovolenyPocet ?? 0;
+      const allPlaces = school.mistaVyuky ?? [];
+      const locationsWithRuian = allPlaces.filter(
+        (p) => p.adresa?.kodRUIAN != null
+      );
+      // Prefer the main building (IDmista matches school IZO), fall back to first available
+      const mainPlace =
+        locationsWithRuian.find((p) => p.IDmista === school.izo) ??
+        locationsWithRuian[0];
+
+      const locations: SchoolLocation[] = mainPlace
+        ? [{ addressPointId: mainPlace.adresa.kodRUIAN }]
+        : [];
+
+      if (!mainPlace && allPlaces.length > 0) {
+        const addr = allPlaces[0].adresa ?? {};
+        const addressParts = [
+          addr.ulice,
+          addr.cisloDomovni?.toString(),
+          addr.obec,
+        ].filter(Boolean);
+        schoolsWithoutRuian.push({ izo: school.izo, address: addressParts, type });
+      }
+
+      currentSchools.push({
+        izo: school.izo,
+        name: entityName || school.uplnyNazev || "",
+        redizo,
+        capacity,
+        type,
+        locations,
+      });
+    }
+
+    schools.push(...currentSchools);
+
+    for (const z of entity.zrizovatele ?? []) {
+      let founderIco: string;
+      let founderName: string;
+      let founderType: string;
+
+      if (z.druhOsoby === "PO") {
+        founderIco = z.Ico ?? "";
+        founderName = z.nazevOsoby ?? "";
+        founderType = getCorrectFounderType(z.pravniForma ?? "");
+      } else {
+        founderIco = z.datumNarozeni ?? "";
+        founderName = z.nazevOsoby ?? "";
+        founderType = getCorrectFounderType("");
+      }
+
+      if (founderIco === "" || founderName === "") {
+        founderIco = ico;
+        founderName = entityName;
+        founderType = "224";
+      }
+
+      if (currentSchools.length > 0) {
+        const key = founderName + founderIco;
+        if (founders.has(key)) {
+          founders.get(key).schools.push(...currentSchools);
+        } else {
+          founders.set(key, {
+            name: founderName,
+            ico: founderIco,
+            originalType: parseInt(founderType),
+            municipalityType: getMunicipalityType(founderType),
+            schools: [...currentSchools],
+          });
         }
-      })
-      .on("closetag", (tagName: string) => {
-        switch (tagName) {
-          case "PravniSubjekt":
-            if (currentSchools.length > 0) {
-              schools.push(...currentSchools);
-              currentFounders.forEach((founder) => {
-                const key = founder.name + founder.ico;
-                if (founders.has(key)) {
-                  founders.get(key).schools.push(...currentSchools);
-                } else {
-                  founders.set(key, {
-                    name: founder.name,
-                    ico: founder.ico,
-                    originalType: founder.type,
-                    municipalityType: getMunicipalityType(founder.type),
-                    schools: [...currentSchools],
-                  });
-                }
-              });
-            }
-            currentIco = "";
-            currentFounders = [];
-            break;
-
-          case "Zrizovatel":
-            if (currentFounderIco === "" || currentFounderName === "") {
-              currentFounders.push({
-                ico: currentIco,
-                name: currentName,
-                type: "224", // s.r.o (not all are those, but we don't need to differentiate here)
-              });
-            } else {
-              currentFounders.push({
-                ico: currentFounderIco,
-                name: currentFounderName,
-                type: getCorrectFounderType(currentFounderType),
-              });
-            }
-            currentFounderIco = "";
-            currentFounderName = "";
-            currentFounderType = "";
-
-            break;
-          case "SkolaZarizeni":
-            if (currentType !== null) {
-              currentSchools.push({
-                izo: currentIzo,
-                name: currentName,
-                redizo: currentRedizo,
-                capacity: currentCapacity,
-                type: currentType,
-                locations: currentLocations,
-              });
-            }
-            currentLocations = [];
-            currentType = null;
-            break;
-          case "SkolaMistoVykonuCinnosti":
-            if (isRuianCodeMissing) {
-              schoolsWithoutRuian.push({
-                izo: currentIzo,
-                address: currentAddress,
-                type: currentType,
-              });
-            }
-            break;
-          case "MistoRUAINKod":
-            isRuianCodeMissing = !isRuianCodeSet;
-          case "RedPlnyNazev":
-          case "RedIzo":
-          case "ICO":
-          case "IZO":
-          case "SkolaDruhTyp":
-          case "SkolaKapacita":
-          case "ZrizNazev":
-          case "ZrizICO":
-          case "ZrizDatumNarozeni":
-          case "ZrizPravniForma":
-          case "MistoAdresa1":
-          case "MistoAdresa2":
-          case "MistoAdresa3":
-            state = XMLState.None;
-            break;
-        }
-      })
-      .on("text", (text: string) => {
-        switch (state) {
-          case XMLState.RedIzo:
-            currentRedizo = text;
-          case XMLState.SchoolName:
-            currentName = text;
-            break;
-          case XMLState.Izo:
-            currentIzo = text;
-            break;
-          case XMLState.Ico:
-            currentIco = text;
-            break;
-          case XMLState.SchoolType:
-            if (text === SCHOOL_TYPE_KINDERGARTEN) {
-              currentType = SchoolType.Kindergarten;
-            } else if (text === SCHOOL_TYPE_ELEMENTARY) {
-              currentType = SchoolType.Elementary;
-            }
-            break;
-          case XMLState.RuianCode:
-            isRuianCodeSet = true;
-            currentLocations.push({
-              addressPointId: parseInt(text),
-            });
-            break;
-          case XMLState.Address:
-            currentAddress.push(text);
-            break;
-          case XMLState.FounderName:
-            currentFounderName = text;
-            break;
-          case XMLState.FounderIco:
-            currentFounderIco = text;
-            break;
-          case XMLState.FounderType:
-            currentFounderType = text;
-            break;
-          case XMLState.Capacity:
-            currentCapacity = parseInt(text);
-            break;
-        }
-      })
-      .on("error", reject)
-      .on("end", resolve);
-
-    // wanted to use 'await pipeline(createReadStream(getXmlFilePath(options)), saxStream)'
-    // but the program would quit spontaneously after finishing stream - using Promise instead.
-    createReadStream(getXmlFilePath(options)).pipe(saxStream);
-  });
-
-  await streamPromise;
+      }
+    }
+  }
 
   return { schools, founders, schoolsWithoutRuian };
 };
@@ -300,7 +179,7 @@ const importDataToDb = async (
   saveSchoolsWithoutRuianToCsv: boolean = false
 ) => {
   const { schools, founders, schoolsWithoutRuian } =
-    await processSchoolRegisterXml(options);
+    await processSchoolRegisterJsonld(options);
 
   if (saveFoundersToCsv) {
     const csvFile = "founders.csv";
@@ -346,13 +225,48 @@ const importDataToDb = async (
     csv.end();
   }
 
-  await insertSchools(schools);
+  const knex = getKnexDb();
+  const schoolsBefore = (await knex("school").count("izo as count").first()).count as number;
+  const foundersBefore = (await knex("founder").count("id as count").first()).count as number;
 
+  // Compute change stats before inserting (uses same logic as insertSchools)
+  const existingSnap: { izo: string; name: string; capacity: number; address_point_id: number | null }[] =
+    await knex("school")
+      .leftJoin("school_location", "school.izo", "school_location.school_izo")
+      .select("school.izo", "school.name", "school.capacity", "school_location.address_point_id");
+  const existingSnapMap = new Map(existingSnap.map((r) => [r.izo, r]));
+  const statsFieldUpdates = schools.filter((s) => {
+    const row = existingSnapMap.get(s.izo);
+    return row && (row.name !== s.name || row.capacity !== s.capacity);
+  }).length;
+  const statsLocationUpdates = schools.filter((s) => {
+    const row = existingSnapMap.get(s.izo);
+    const newRuians = s.locations.map((l) => l.addressPointId);
+    return row && row.address_point_id !== null && newRuians.length > 0 && !newRuians.includes(row.address_point_id);
+  }).length;
+
+  await insertSchools(schools);
   await insertFounders(Array.from(founders.values()));
+
+  const schoolsAfter = (await knex("school").count("izo as count").first()).count as number;
+  const foundersAfter = (await knex("founder").count("id as count").first()).count as number;
+
+  const kindergartens = schools.filter((s) => s.type === SchoolType.Kindergarten).length;
+  const elementary = schools.filter((s) => s.type === SchoolType.Elementary).length;
+
+  console.log(`\n=== School sync statistics ===`);
+  console.log(`Schools parsed:         ${schools.length} (${kindergartens} kindergartens, ${elementary} elementary)`);
+  console.log(`Founders parsed:        ${founders.size}`);
+  console.log(`New schools inserted:   ${schoolsAfter - schoolsBefore}`);
+  console.log(`New founders inserted:  ${foundersAfter - foundersBefore}`);
+  console.log(`Field updates:          ${statsFieldUpdates} (name/capacity changed)`);
+  console.log(`Location updates:       ${statsLocationUpdates} (first location changed)`);
+  console.log(`Total schools in DB:    ${schoolsAfter}`);
+  console.log(`Total founders in DB:   ${foundersAfter}`);
 };
 
-const getXmlFilePath = (options: OpenDataSyncOptionsPartial): string => {
-  return join(options.tmpDir, options.schoolsXmlFileName);
+const getJsonldFilePath = (options: OpenDataSyncOptionsPartial): string => {
+  return join(options.tmpDir, options.schoolsJsonldFileName);
 };
 
 export const downloadAndImportSchools = async (
@@ -363,22 +277,22 @@ export const downloadAndImportSchools = async (
   await runSyncPart(SyncPart.Schools, [SyncPart.AddressPoints], async () => {
     const runOptions = prepareOptions(options);
 
-    await downloadXml(runOptions);
+    await downloadJsonld(runOptions);
     await importDataToDb(
       runOptions,
       saveFoundersToCsv,
       saveSchoolsWithoutRuianToCsv
     );
-    deleteSchoolsXmlFile(runOptions);
+    deleteSchoolsJsonldFile(runOptions);
   });
 };
 
-export const deleteSchoolsXmlFile = (
+export const deleteSchoolsJsonldFile = (
   options: OpenDataSyncOptionsPartial = {}
 ) => {
   const runOptions = prepareOptions(options);
 
-  if (existsSync(getXmlFilePath(runOptions))) {
-    rmSync(getXmlFilePath(runOptions));
+  if (existsSync(getJsonldFilePath(runOptions))) {
+    rmSync(getJsonldFilePath(runOptions));
   }
 };

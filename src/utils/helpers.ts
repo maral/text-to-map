@@ -20,8 +20,8 @@ export interface OpenDataSyncOptions {
   polygonShpFileName: string;
   districtPolygonShpFileName: string;
   districtPolygonDbfFileName: string;
-  schoolsXmlUrl: string;
-  schoolsXmlFileName: string;
+  schoolsJsonldUrl: string;
+  schoolsJsonldFileName: string;
   regionsCsvUrl: string;
   regionsSchemaUrl: string;
   regionsCsvFileName: string;
@@ -69,8 +69,8 @@ export const prepareOptions = (
     polygonShpFileName: "OBEC_P.shp",
     districtPolygonShpFileName: "MOMC_P.shp",
     districtPolygonDbfFileName: "MOMC_P.dbf",
-    schoolsXmlUrl: "https://rejstriky.msmt.cz/opendata/vrejcelk.xml",
-    schoolsXmlFileName: "school-register.xml",
+    schoolsJsonldUrl: "https://lkod-ftp.msmt.gov.cz/00022985/88a7c12b-6084-4e47-8b50-46097c6e683f/RSSZ-cela-CR.jsonld",
+    schoolsJsonldFileName: "school-register.jsonld",
     regionsCsvUrl:
       "https://www.czso.cz/documents/10180/23208674/struktura_uzemi_cr.csv",
     regionsSchemaUrl:
