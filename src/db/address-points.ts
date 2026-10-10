@@ -191,11 +191,19 @@ function sanitizeValue(value: any): any {
   return value;
 }
 
+// names of cities, streets etc. can change while their code stays the same
+const updateNameOnConflict = {
+  conflictColumns: ["code"],
+  updateColumns: ["name"],
+};
+
 export const insertCities = async (buffer: string[][]): Promise<number> => {
   return await insertMultipleRows(
     extractKeyValuesPairs(buffer, Column.cityCode, [Column.cityName]),
     "city",
-    ["code", "name"]
+    ["code", "name"],
+    true,
+    updateNameOnConflict
   );
 };
 
@@ -206,7 +214,9 @@ export const insertDistricts = async (buffer: string[][]): Promise<number> => {
       Column.districtName,
     ]),
     "city_district",
-    ["code", "city_code", "name"]
+    ["code", "city_code", "name"],
+    true,
+    updateNameOnConflict
   );
 };
 
@@ -219,7 +229,9 @@ export const insertMunicipalityParts = async (
       Column.cityCode,
     ]),
     "municipality_part",
-    ["code", "name", "city_code"]
+    ["code", "name", "city_code"],
+    true,
+    updateNameOnConflict
   );
 };
 
@@ -231,7 +243,9 @@ export const insertPragueDistricts = async (
       Column.pragueDistrictName,
     ]),
     "prague_district",
-    ["code", "name"]
+    ["code", "name"],
+    true,
+    updateNameOnConflict
   );
 };
 
@@ -242,7 +256,9 @@ export const insertStreets = async (buffer: string[][]): Promise<number> => {
       Column.streetName,
     ]),
     "street",
-    ["code", "city_code", "name"]
+    ["code", "city_code", "name"],
+    true,
+    updateNameOnConflict
   );
 };
 

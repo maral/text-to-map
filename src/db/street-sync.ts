@@ -32,7 +32,10 @@ export const insertStreetsFromDbf = async (
   return await insertMultipleRows(
     data.map((street) => [street.KOD, street.OBEC_KOD, street.NAZEV]),
     "street",
-    ["code", "city_code", "name"]
+    ["code", "city_code", "name"],
+    true,
+    // a renamed street keeps its code, so the name has to be updated
+    { conflictColumns: ["code"], updateColumns: ["name"] }
   );
 };
 

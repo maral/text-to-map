@@ -187,11 +187,17 @@ export const rawQuery = async (
  * Efficiently insert multiple rows. If preventDuplicatesByFirstColumn is true, the first
  * column should be unique (PK or UNIQUE).
  */
+/**
+ * Insert multiple rows. Existing rows (same primary key) are kept as they are,
+ * unless `upsert` is set - then their `upsert.updateColumns` are overwritten
+ * (e.g. a street renamed in RÚIAN keeps its code, only the name changes).
+ */
 export const insertMultipleRows = async (
   rows: string[][],
   table: string,
   columnNames: string[],
-  preventDuplicates: boolean = true
+  preventDuplicates: boolean = true,
+  upsert?: { conflictColumns: string[]; updateColumns: string[] }
 ): Promise<number> => {
   if (rows.length === 0) {
     return 0;
@@ -204,8 +210,23 @@ export const insertMultipleRows = async (
 
   const knex = getKnexDb();
 
-  const onConfict =
-    preventDuplicates && !isMysql(knex) ? `ON CONFLICT DO NOTHING` : "";
+  let onConfict = "";
+  if (upsert && isMysql(knex)) {
+    onConfict = `ON DUPLICATE KEY UPDATE ${upsert.updateColumns
+      .map((c) => `${c} = VALUES(${c})`)
+      .join(", ")}`;
+  } else if (upsert) {
+    // the WHERE clause skips rewriting rows that haven't changed
+    onConfict = `ON CONFLICT (${upsert.conflictColumns.join(
+      ","
+    )}) DO UPDATE SET ${upsert.updateColumns
+      .map((c) => `${c} = excluded.${c}`)
+      .join(", ")} WHERE ${upsert.updateColumns
+      .map((c) => `${table}.${c} IS DISTINCT FROM excluded.${c}`)
+      .join(" OR ")}`;
+  } else if (preventDuplicates && !isMysql(knex)) {
+    onConfict = `ON CONFLICT DO NOTHING`;
+  }
 
   await rawQuery(
     `INSERT ${isMysql(knex) ? "IGNORE" : ""} INTO ${table} (${columnNames.join(

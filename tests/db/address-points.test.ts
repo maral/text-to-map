@@ -1,6 +1,7 @@
 import { afterAll, beforeAll, describe, expect, test } from "@jest/globals";
 import { AddressPointType, createSingleLineAddress } from "czech-address";
 import {
+  Column,
   commitAddressPoints,
   equalsFullStreetNumber,
   findAddressPoints,
@@ -11,6 +12,7 @@ import {
   insertStreets,
   isInRange,
 } from "../../src/db/address-points";
+import { getKnexDb } from "../../src/db/db";
 import { founderToMunicipality } from "../../src/db/types";
 import { AddressPoint, SeriesType } from "../../src/street-markdown/types";
 import jtsk2wgs84 from "../../src/utils/jtsk2wgs84";
@@ -65,6 +67,28 @@ describe("search db - address points", () => {
 
   test("insert whole rows", async () => {
     expect(await commitAddressPoints(testRows)).toBe(testRows.length);
+  });
+
+  test("renamed street keeps its code and gets the new name", async () => {
+    const streetCode = testRows[0][Column.streetCode];
+    const getStreetName = async () =>
+      (
+        await getKnexDb()("street")
+          .where("code", streetCode)
+          .first("name")
+      ).name;
+    const renamedRows = testRows.map((row) =>
+      row[Column.streetCode] === streetCode
+        ? row.map((value, i) => (i === Column.streetName ? "Nová Lysá" : value))
+        : row
+    );
+
+    await commitAddressPoints(renamedRows);
+    expect(await getStreetName()).toBe("Nová Lysá");
+
+    // rename back, the following tests use the original name
+    await commitAddressPoints(testRows);
+    expect(await getStreetName()).toBe("Lysá");
   });
 });
 
