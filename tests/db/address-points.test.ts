@@ -82,6 +82,8 @@ describe("find address points", () => {
     expect(fitsType(200, SeriesType.Even)).toBe(true);
     expect(fitsType(1, SeriesType.Even)).toBe(false);
     expect(fitsType(199, SeriesType.Even)).toBe(false);
+    expect(fitsType(null, SeriesType.Odd)).toBe(false);
+    expect(fitsType(null, SeriesType.Even)).toBe(false);
   });
 
   test("isInRange - all", () => {

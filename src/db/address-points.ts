@@ -552,8 +552,10 @@ export const fitsType = (number: number | null, type: SeriesType): boolean => {
   return (
     type === SeriesType.Description ||
     type === SeriesType.All ||
-    (type === SeriesType.Odd && number % 2 === 1) ||
-    (type === SeriesType.Even && number % 2 === 0)
+    // a missing number (e.g. no orientational number) is neither odd nor even,
+    // careful: null % 2 === 0 in JS
+    (type === SeriesType.Odd && number !== null && number % 2 === 1) ||
+    (type === SeriesType.Even && number !== null && number % 2 === 0)
   );
 };
 
